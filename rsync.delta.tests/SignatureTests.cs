@@ -22,7 +22,9 @@ namespace Rsync.Delta.Tests
                 PipeReader reader = PipeReader.Create(f);
                 await new Signature().Generate(reader, writer);
             }
-            Assert.Equal(expected, actual);
+            Console.WriteLine($"Expected: {BitConverter.ToString(expected)}");
+            Console.WriteLine($"Actual: {BitConverter.ToString(actual)}");
+            Assert.Equal(BitConverter.ToString(expected), BitConverter.ToString(actual));
         }
     }
 }
