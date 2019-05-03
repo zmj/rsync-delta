@@ -24,6 +24,7 @@ namespace Rsync.Delta
                     result = await reader.ReadAsync();
                 }
                 WriteBlocks(result.Buffer, writer);
+                await writer.FlushAsync();
                 reader.AdvanceTo(result.Buffer.End);
                 if (result.IsCompleted)
                 {
@@ -36,7 +37,7 @@ namespace Rsync.Delta
         {
             var buffer = writer.GetSpan(sizeHint: 12);
 
-            var format = SignatureFormat.Blake2Hash;
+            var format = SignatureFormat.Blake2b;
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)format);
             buffer = buffer.Slice(start: 4);
 
@@ -66,11 +67,18 @@ namespace Rsync.Delta
         private void WriteBlock(ReadOnlySpan<byte> block, PipeWriter writer)
         {
             Console.WriteLine($"b: {BitConverter.ToString(block.ToArray())}");
+            var hash = new RollingHash();
+            hash.Hash(block);
+
+            var buffer = writer.GetSpan(sizeHint: 4);
+            hash.WriteTo(buffer);
+            Console.WriteLine($"h: {BitConverter.ToString(buffer.Slice(0, 4).ToArray())}");
+            writer.Advance(bytes: 4);
         }
     }
 
     internal enum SignatureFormat : uint
     {
-        Blake2Hash = 0x72730137,
+        Blake2b = 0x72730137,
     }
 }
