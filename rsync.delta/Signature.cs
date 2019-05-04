@@ -75,7 +75,9 @@ namespace Rsync.Delta
             Console.WriteLine($"h: {BitConverter.ToString(buffer.Slice(0, 4).ToArray())}");
             writer.Advance(bytes: 4);
 
-            // write blake2 hash
+            buffer = writer.GetSpan(sizeHint: 32).Slice(0, 32);
+            Blake2.Blake2b.Hash(block, buffer);
+            writer.Advance(buffer.Length);
         }
     }
 
