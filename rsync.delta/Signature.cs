@@ -8,12 +8,13 @@ namespace Rsync.Delta
 {
     public class Signature
     {
-        public async Task Generate(PipeReader reader, PipeWriter writer, int blockSize)
+        public async Task Generate(PipeReader reader, PipeWriter writer, int? blockSize)
         {
             if (reader == null) { throw new ArgumentNullException(nameof(PipeReader)); }
             if (writer == null) { throw new ArgumentNullException(nameof(PipeWriter)); }
+            blockSize ??= 2048;
 
-            WriteFileHeader(writer, blockSize);
+            WriteFileHeader(writer, blockSize.Value);
             await writer.FlushAsync(); // how often to flush?
 
             while (true)
@@ -23,7 +24,7 @@ namespace Rsync.Delta
                 {
                     result = await reader.ReadAsync();
                 }
-                WriteBlocks(result.Buffer, writer, blockSize);
+                WriteBlocks(result.Buffer, writer, blockSize.Value);
                 await writer.FlushAsync();
                 reader.AdvanceTo(result.Buffer.End);
                 if (result.IsCompleted)
