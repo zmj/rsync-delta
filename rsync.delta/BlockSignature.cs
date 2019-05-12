@@ -11,6 +11,12 @@ namespace Rsync.Delta
         public readonly uint RollingHash;
         public readonly byte[] StrongHash; // optimize
 
+        public BlockSignature(uint rollingHash, byte[] strongHash)
+        {
+            RollingHash = rollingHash;
+            StrongHash = strongHash;
+        }
+
         public BlockSignature(ReadOnlySpan<byte> buffer, uint strongHashLength)
         {
             ValidateLength(buffer, strongHashLength);

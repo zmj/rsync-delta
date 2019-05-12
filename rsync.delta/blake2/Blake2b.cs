@@ -4,7 +4,7 @@ namespace Rsync.Delta.Blake2
 {
     internal static class Blake2b
     {
-        public static void Hash(ReadOnlySpan<byte> data, Span<byte> hash)
+        public static byte[] Hash(ReadOnlySpan<byte> data)
         {
             var config = new Blake2.Blake2BConfig 
             {
@@ -12,8 +12,7 @@ namespace Rsync.Delta.Blake2
             };
             var hasher = new Hasher(config);
             hasher.Update(data.ToArray());
-            byte[] h = hasher.Finish();
-            h.CopyTo(hash);
+            return hasher.Finish();
         }
     }
 }

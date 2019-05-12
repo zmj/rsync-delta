@@ -28,5 +28,15 @@ namespace Rsync.Delta
             BinaryPrimitives.WriteUInt16BigEndian(buffer, _b);
             BinaryPrimitives.WriteUInt16BigEndian(buffer.Slice(2), _a);
         }
+
+        public uint Value 
+        {
+            get
+            {
+                Span<byte> buffer = stackalloc byte[4];
+                WriteTo(buffer);
+                return BinaryPrimitives.ReadUInt32BigEndian(buffer);
+            }
+        }
     }
 }

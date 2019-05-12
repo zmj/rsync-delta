@@ -36,19 +36,13 @@ namespace Rsync.Delta
 
         private void WriteFileHeader(PipeWriter writer, int blockSize)
         {
-            var buffer = writer.GetSpan(sizeHint: 12);
-
-            var format = SignatureFormat.Blake2b;
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)format);
-            buffer = buffer.Slice(start: 4);
-
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)blockSize);
-            buffer = buffer.Slice(start: 4);
-            
-            uint bytesPerStrongSum = 32;
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, bytesPerStrongSum);
-
-            writer.Advance(bytes: 12);
+            // todo: fix all the casts
+            var header = new SignatureHeader(
+                blockLength: (uint)blockSize, 
+                strongHashLength: 32);
+            var buffer = writer.GetSpan((int)SignatureHeader.Size);
+            header.WriteTo(buffer);
+            writer.Advance((int)SignatureHeader.Size);
         }
 
         private void WriteBlocks(ReadOnlySequence<byte> buffer, PipeWriter writer, int blockSize)
@@ -72,11 +66,13 @@ namespace Rsync.Delta
             hash.Hash(block);
 
             var buffer = writer.GetSpan(sizeHint: 4);
-            hash.WriteTo(buffer);
+            uint hashV = hash.Value;
+            BinaryPrimitives.WriteUInt32BigEndian(buffer, hashV);
             writer.Advance(bytes: 4);
 
             buffer = writer.GetSpan(sizeHint: 32).Slice(0, 32);
-            Blake2.Blake2b.Hash(block, buffer);
+            ReadOnlySpan<byte> hash2 = Blake2.Blake2b.Hash(block);
+            hash2.CopyTo(buffer);
             writer.Advance(buffer.Length);
         }
     }
