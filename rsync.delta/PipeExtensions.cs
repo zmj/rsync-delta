@@ -17,10 +17,8 @@ namespace Rsync.Delta
                 ReadResult result;
                 if (!reader.TryRead(out result))
                 {
-                    await reader.ReadAsync(ct);
+                    result = await reader.ReadAsync(ct);
                 }
-                Console.WriteLine($"p: {result.Buffer.Length} {result.IsCompleted} ({count})");
-
                 if (result.IsCompleted ||
                     result.IsCanceled ||
                     result.Buffer.Length >= count)

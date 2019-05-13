@@ -27,7 +27,6 @@ namespace Rsync.Delta
 
             await foreach (var sig in ReadBlockSignatures(header, signatureReader, ct))
             {
-                Console.WriteLine($"Block: {sig.RollingHash.ToString("X")} {BitConverter.ToString(sig.StrongHash)}");
                 _blockSignatures.Add(sig);
             }
             await WriteCommands(header, fileReader, deltaWriter, ct);
@@ -126,18 +125,37 @@ namespace Rsync.Delta
             PipeWriter writer,
             CancellationToken ct)
         {
+            LongRange? currentMatch = null;
             while (true)
             {
                 ReadResult readResult = await reader.Buffer(header.BlockLength, ct);
-                Console.WriteLine($"r: {readResult.Buffer.Length} {readResult.IsCompleted}");
                 if (readResult.IsCompleted && readResult.Buffer.Length == 0)
                 {
+                    await writer.FlushAsync(ct); // meh
                     return;
                 }
-                LongRange? matched = MatchBlock(header, readResult.Buffer);
+                ReadOnlySequence<byte> buffer = readResult.Buffer;
+                if (buffer.Length > header.BlockLength)
+                {
+                    buffer = buffer.Slice(0, header.BlockLength);
+                }
+                LongRange? matched = MatchBlock(header, buffer);
                 if (!matched.HasValue) throw new NotImplementedException();
-                Console.WriteLine($"match: {matched.Value.Start},{matched.Value.Length}");
-                reader.AdvanceTo(readResult.Buffer.GetPosition(header.BlockLength));
+                reader.AdvanceTo(buffer.End);
+                // todo use sequencereader for all reads
+                if (matched.Value.TryAppendTo(ref currentMatch))
+                {
+                    continue;
+                }
+                else
+                {
+                    if (currentMatch.HasValue)
+                    {
+                        Console.WriteLine($"write: {currentMatch.Value.Start},{currentMatch.Value.Length}");
+                        WriteCopyCommand(writer, currentMatch.Value);
+                    }
+                    currentMatch = matched.Value;
+                }
             }
         }
 
@@ -148,10 +166,6 @@ namespace Rsync.Delta
             if (!buffers.IsSingleSegment) throw new NotImplementedException();
             // todo: rolling hash optimization
             var buffer = buffers.FirstSpan;
-            if (buffer.Length > header.BlockLength)
-            {
-                buffer = buffer.Slice(0, (int)header.BlockLength);
-            }
             byte[] hash = Blake2.Blake2b.Hash(buffer);
             for (int i=0; i<_blockSignatures.Count; i++)
             {
@@ -164,6 +178,14 @@ namespace Rsync.Delta
                 }
             }
             return null;
+        }
+
+        private void WriteCopyCommand(PipeWriter writer, LongRange range)
+        {
+            var command = new CopyCommand(range);
+            var buffer = writer.GetSpan(command.Size);
+            command.WriteTo(buffer);
+            writer.Advance(command.Size);
         }
     }
 
