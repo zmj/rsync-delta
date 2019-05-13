@@ -1,7 +1,9 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,7 +13,9 @@ namespace Rsync.Delta
     {
         private const uint _deltaMagic = 0x72730236;
 
-        public async Task Generate(
+        private readonly List<BlockSignature> _blockSignatures = new List<BlockSignature>();
+
+        public async ValueTask Generate(
             PipeReader signatureReader,
             PipeReader fileReader,
             PipeWriter deltaWriter,
@@ -21,12 +25,12 @@ namespace Rsync.Delta
             WriteDeltaHeader(deltaWriter);
             await deltaWriter.FlushAsync(ct); // flush freq?
 
-            // 1-byte format:
-            // copy 0,3: 'hel'
-            // copy 2,1: 'l'
-            // copy 4,1: 'o'
-            // copy 4,1: 'o'
-            // copy 4,1: 'o'
+            await foreach (var sig in ReadBlockSignatures(header, signatureReader, ct))
+            {
+                Console.WriteLine($"Block: {sig.RollingHash.ToString("X")} {BitConverter.ToString(sig.StrongHash)}");
+                _blockSignatures.Add(sig);
+            }
+            await WriteCommands(header, fileReader, deltaWriter, ct);
         }
 
         private async ValueTask<SignatureHeader> ReadSignatureHeader(
@@ -92,7 +96,11 @@ namespace Rsync.Delta
                 }
                 if (readResult.IsCompleted)
                 {
-                    throw new Exception($"Invalid block: expected at least {SignatureHeader.Size} bytes, received {readResult.Buffer.Length} bytes");
+                    if (readResult.Buffer.Length != 0)
+                    {
+                        throw new Exception($"Invalid block: expected at least {SignatureHeader.Size} bytes, received {readResult.Buffer.Length} bytes");
+                    }
+                    return null;
                 }
                 reader.AdvanceTo(
                     consumed: readResult.Buffer.Start,
@@ -110,6 +118,52 @@ namespace Rsync.Delta
             Span<byte> buffer = writer.GetSpan(4);
             BinaryPrimitives.WriteUInt32BigEndian(buffer, _deltaMagic);
             writer.Advance(4);
+        }
+
+        private async ValueTask WriteCommands(
+            SignatureHeader header,
+            PipeReader reader,
+            PipeWriter writer,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                ReadResult readResult = await reader.Buffer(header.BlockLength, ct);
+                Console.WriteLine($"r: {readResult.Buffer.Length} {readResult.IsCompleted}");
+                if (readResult.IsCompleted && readResult.Buffer.Length == 0)
+                {
+                    return;
+                }
+                LongRange? matched = MatchBlock(header, readResult.Buffer);
+                if (!matched.HasValue) throw new NotImplementedException();
+                Console.WriteLine($"match: {matched.Value.Start},{matched.Value.Length}");
+                reader.AdvanceTo(readResult.Buffer.GetPosition(header.BlockLength));
+            }
+        }
+
+        private LongRange? MatchBlock(
+            SignatureHeader header,
+            ReadOnlySequence<byte> buffers)
+        {
+            if (!buffers.IsSingleSegment) throw new NotImplementedException();
+            // todo: rolling hash optimization
+            var buffer = buffers.FirstSpan;
+            if (buffer.Length > header.BlockLength)
+            {
+                buffer = buffer.Slice(0, (int)header.BlockLength);
+            }
+            byte[] hash = Blake2.Blake2b.Hash(buffer);
+            for (int i=0; i<_blockSignatures.Count; i++)
+            {
+                var sig = _blockSignatures[i];
+                if (hash.SequenceEqual(sig.StrongHash))
+                {
+                    return new LongRange(
+                        start: (uint)i * (ulong)header.BlockLength,
+                        length: header.BlockLength);
+                }
+            }
+            return null;
         }
     }
 

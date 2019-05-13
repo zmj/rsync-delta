@@ -22,7 +22,7 @@ namespace Rsync.Delta
             ValidateLength(buffer, strongHashLength);
             RollingHash = BinaryPrimitives.ReadUInt32BigEndian(buffer);
             StrongHash = new byte[strongHashLength];
-            buffer.Slice(4).CopyTo(StrongHash);
+            buffer.Slice(4, (int)strongHashLength).CopyTo(StrongHash);
         }
 
         public void WriteTo(Span<byte> buffer)
