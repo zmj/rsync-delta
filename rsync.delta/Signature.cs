@@ -32,6 +32,7 @@ namespace Rsync.Delta
                     break;
                 }
             }
+            writer.Complete();
         }
 
         private void WriteFileHeader(PipeWriter writer, int blockSize)

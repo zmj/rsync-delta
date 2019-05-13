@@ -16,6 +16,7 @@ namespace Rsync.Delta.Tests
             byte[] expected  = await File.ReadAllBytesAsync(Path.Combine(dir, "v2.delta"));
 
             byte[] actual = new byte[expected.Length];
+            Console.WriteLine(actual.Length);
             PipeWriter writer = PipeWriter.Create(new MemoryStream(actual));
             using (var sig = File.OpenRead(Path.Combine(dir, "v1.sig")))
             using (var v2 = File.OpenRead(Path.Combine(dir, "v2.txt")))

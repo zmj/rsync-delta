@@ -23,12 +23,12 @@ namespace Rsync.Delta
         {
             SignatureHeader header = await ReadSignatureHeader(signatureReader, ct);
             WriteDeltaHeader(deltaWriter);
-            await deltaWriter.FlushAsync(ct); // flush freq?
 
             await foreach (var sig in ReadBlockSignatures(header, signatureReader, ct))
             {
                 _blockSignatures.Add(sig);
             }
+
             await WriteCommands(header, fileReader, deltaWriter, ct);
         }
 
@@ -131,6 +131,11 @@ namespace Rsync.Delta
                 ReadResult readResult = await reader.Buffer(header.BlockLength, ct);
                 if (readResult.IsCompleted && readResult.Buffer.Length == 0)
                 {
+                    if (currentMatch.HasValue)
+                    {
+                        WriteCopyCommand(writer, currentMatch.Value);
+                    }
+                    Console.WriteLine("flush writes");
                     await writer.FlushAsync(ct); // meh
                     return;
                 }
@@ -186,6 +191,7 @@ namespace Rsync.Delta
             var buffer = writer.GetSpan(command.Size);
             command.WriteTo(buffer);
             writer.Advance(command.Size);
+            Console.WriteLine($"advance: {command.Size}");
         }
     }
 
