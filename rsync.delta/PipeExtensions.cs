@@ -19,9 +19,14 @@ namespace Rsync.Delta
                 {
                     result = await reader.ReadAsync(ct);
                 }
-                if (result.IsCompleted ||
-                    result.IsCanceled ||
-                    result.Buffer.Length >= count)
+                if (result.Buffer.Length >= count)
+                {
+                    return new ReadResult(
+                        result.Buffer.Slice(0, count),
+                        isCanceled: result.IsCanceled,
+                        isCompleted: result.IsCompleted);
+                }
+                else if (result.IsCompleted || result.IsCanceled)
                 {
                     return result;
                 }

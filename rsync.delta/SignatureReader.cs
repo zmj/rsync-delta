@@ -23,7 +23,7 @@ namespace Rsync.Delta
             {
                 var header = await ReadHeader(ct);
                 Console.WriteLine(header);
-                // read blocks and add to builder
+                await ReadBlockSignatures(header.Options.StrongHashLength, ct);
                 _reader.Complete();
                 return _builder.Build();
             }
@@ -37,7 +37,29 @@ namespace Rsync.Delta
         private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct)
         {
             var readResult = await _reader.Buffer(SignatureHeader.Size, ct);
-            return new SignatureHeader(readResult.Buffer);
+            var header = new SignatureHeader(new SequenceReader<byte>(readResult.Buffer));
+            _reader.AdvanceTo(readResult.Buffer.GetPosition(SignatureHeader.Size));
+            return header;
+        }
+
+        private async ValueTask ReadBlockSignatures(
+            uint strongHashLength,
+            CancellationToken ct)
+        {
+            uint size = BlockSignature.Size(strongHashLength);
+            while (true)
+            {
+                var readResult = await _reader.Buffer(size, ct);
+                if (readResult.Buffer.Length == 0)
+                {
+                    return;
+                }
+                var sig = new BlockSignature(
+                    new SequenceReader<byte>(readResult.Buffer),
+                    strongHashLength);
+                _builder.Add(sig);
+                _reader.AdvanceTo(readResult.Buffer.GetPosition(size));
+            }
         }
     }
 }

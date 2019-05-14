@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 
 namespace Rsync.Delta
@@ -9,36 +10,33 @@ namespace Rsync.Delta
             strongHashLength + 4;
 
         public readonly uint RollingHash;
-        public readonly byte[] StrongHash; // optimize
+        public readonly Memory<byte> StrongHash; // rent from matcher
 
-        public BlockSignature(uint rollingHash, byte[] strongHash)
+        public BlockSignature(uint rollingHash, Memory<byte> strongHash)
         {
             RollingHash = rollingHash;
             StrongHash = strongHash;
         }
 
-        public BlockSignature(ReadOnlySpan<byte> buffer, uint strongHashLength)
+        public BlockSignature(SequenceReader<byte> reader, uint strongHashLength)
         {
-            ValidateLength(buffer, strongHashLength);
-            RollingHash = BinaryPrimitives.ReadUInt32BigEndian(buffer);
-            StrongHash = new byte[strongHashLength];
-            buffer.Slice(4, (int)strongHashLength).CopyTo(StrongHash);
+            var strongHash = new byte[strongHashLength];
+            if (reader.TryReadBigEndian(out int rollingHash) &&
+                reader.TryCopyTo(strongHash))
+            {
+                RollingHash = (uint)rollingHash;
+                StrongHash = strongHash;
+            }
+            else
+            {
+                throw new FormatException(nameof(BlockSignature));
+            }
         }
 
         public void WriteTo(Span<byte> buffer)
         {
-            ValidateLength(buffer, (uint)StrongHash.Length); // check length at input
             BinaryPrimitives.WriteUInt32BigEndian(buffer, RollingHash);
-            StrongHash.CopyTo(buffer.Slice(4));
-        }
-
-        private static void ValidateLength(ReadOnlySpan<byte> buffer, uint strongHashLength)
-        {
-            var size = Size(strongHashLength);
-            if (buffer.Length < size)
-            {
-                throw new ArgumentException($"Expected a buffer of at least {size} bytes");
-            }
+            StrongHash.Span.CopyTo(buffer.Slice(4));
         }
     }
 }

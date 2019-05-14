@@ -81,7 +81,7 @@ namespace Rsync.Delta
             PipeReader reader,
             CancellationToken ct)
         {
-            uint size = BlockSignature.Size(header.StrongHashLength);
+            uint size = BlockSignature.Size(header.Options.StrongHashLength);
             ReadResult readResult;
             while (true)
             {
@@ -107,7 +107,9 @@ namespace Rsync.Delta
             }
             if (!readResult.Buffer.IsSingleSegment) { throw new NotImplementedException(); }
             if (readResult.Buffer.First.Length < size) { throw new NotImplementedException(); }
-            var blockSig = new BlockSignature(readResult.Buffer.FirstSpan, header.StrongHashLength);
+            var blockSig = new BlockSignature(
+                new SequenceReader<byte>(readResult.Buffer), 
+                header.Options.StrongHashLength);
             reader.AdvanceTo(readResult.Buffer.GetPosition(size));
             return blockSig;
         }
@@ -128,7 +130,7 @@ namespace Rsync.Delta
             LongRange? currentMatch = null;
             while (true)
             {
-                ReadResult readResult = await reader.Buffer(header.BlockLength, ct);
+                ReadResult readResult = await reader.Buffer(header.Options.BlockLength, ct);
                 if (readResult.IsCompleted && readResult.Buffer.Length == 0)
                 {
                     if (currentMatch.HasValue)
@@ -140,9 +142,9 @@ namespace Rsync.Delta
                     return;
                 }
                 ReadOnlySequence<byte> buffer = readResult.Buffer;
-                if (buffer.Length > header.BlockLength)
+                if (buffer.Length > header.Options.BlockLength)
                 {
-                    buffer = buffer.Slice(0, header.BlockLength);
+                    buffer = buffer.Slice(0, header.Options.BlockLength);
                 }
                 LongRange? matched = MatchBlock(header, buffer);
                 if (!matched.HasValue) throw new NotImplementedException();
@@ -175,11 +177,11 @@ namespace Rsync.Delta
             for (int i=0; i<_blockSignatures.Count; i++)
             {
                 var sig = _blockSignatures[i];
-                if (hash.SequenceEqual(sig.StrongHash))
+                if (hash.SequenceEqual(sig.StrongHash.ToArray()))
                 {
                     return new LongRange(
-                        start: (uint)i * (ulong)header.BlockLength,
-                        length: header.BlockLength);
+                        start: (uint)i * (ulong)header.Options.BlockLength,
+                        length: header.Options.BlockLength);
                 }
             }
             return null;

@@ -6,7 +6,8 @@ namespace Rsync.Delta
     {
         internal readonly struct Builder
         {
-            public BlockMatcher Build() => throw new NotImplementedException();
+            public void Add(BlockSignature sig) { }
+            public BlockMatcher Build() => new BlockMatcher();
         }
     }
 }

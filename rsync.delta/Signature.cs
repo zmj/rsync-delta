@@ -39,8 +39,9 @@ namespace Rsync.Delta
         {
             // todo: fix all the casts
             var header = new SignatureHeader(
-                blockLength: (uint)blockSize, 
-                strongHashLength: 32);
+                new SignatureOptions(
+                    blockLength: (uint)blockSize, 
+                    strongHashLength: 32));
             var buffer = writer.GetSpan((int)SignatureHeader.Size);
             header.WriteTo(buffer);
             writer.Advance((int)SignatureHeader.Size);
