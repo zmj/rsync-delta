@@ -57,7 +57,7 @@ namespace Rsync.Delta
             }
             if (!result.Buffer.IsSingleSegment) { throw new NotImplementedException(); }
             if (result.Buffer.First.Length < SignatureHeader.Size) { throw new NotImplementedException(); }
-            var header = new SignatureHeader(result.Buffer.First.Span);
+            var header = default(SignatureHeader); // new SignatureHeader(result.Buffer.First.Span);
             reader.AdvanceTo(result.Buffer.GetPosition(SignatureHeader.Size));
             return header;
         }

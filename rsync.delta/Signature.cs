@@ -77,9 +77,4 @@ namespace Rsync.Delta
             writer.Advance(buffer.Length);
         }
     }
-
-    internal enum SignatureFormat : uint
-    {
-        Blake2b = 0x72730137,
-    }
 }
