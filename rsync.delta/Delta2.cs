@@ -196,9 +196,4 @@ namespace Rsync.Delta
             Console.WriteLine($"advance: {command.Size}");
         }
     }
-
-    internal enum DeltaFormat : uint
-    {
-        Default = 0x72730236,
-    }
 }

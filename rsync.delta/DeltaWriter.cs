@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,9 +19,54 @@ namespace Rsync.Delta
             _writer = writer;
         }
 
-        public ValueTask Write(CancellationToken ct)
+        public async ValueTask Write(CancellationToken ct)
         {
-            throw new NotImplementedException();
+            try
+            {
+                WriteHeader();
+                await WriteCommands(ct);
+                await _writer.FlushAsync(ct);
+                _reader.Complete();
+                _writer.Complete();
+            }
+            catch (Exception ex)
+            {
+                _reader.Complete(ex);
+                _writer.Complete(ex);
+                throw;
+            }
+        }
+
+        private void WriteHeader()
+        {
+            var buffer = _writer.GetSpan(DeltaHeader.Size);
+            new DeltaHeader().WriteTo(buffer);
+            _writer.Advance(DeltaHeader.Size);
+        }
+
+        private async ValueTask WriteCommands(CancellationToken ct)
+        {
+            while (true)
+            {
+                var buffer = await TryReadBlock(ct);
+                if (!buffer.HasValue)
+                {
+                    return;
+                }
+                // hm
+            }
+        }
+
+        private async ValueTask<ReadOnlySequence<byte>?> TryReadBlock(
+            CancellationToken ct)
+        {
+            var readResult = await _reader.Buffer(_blocks.BlockLength, ct);
+            if (readResult.Buffer.Length == 0)
+            {
+                return null;
+            }
+            _reader.AdvanceTo(readResult.Buffer.End);
+            return readResult.Buffer;
         }
     }
 }

@@ -4,5 +4,7 @@ namespace Rsync.Delta
     {
         // match weak sum, match strong sum
         // construct with builder?
+
+        public long BlockLength => 2048;
     }
 }

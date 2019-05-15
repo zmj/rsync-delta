@@ -22,7 +22,7 @@ namespace Rsync.Delta
         {
             var strongHash = new byte[strongHashLength];
             if (reader.TryReadBigEndian(out int rollingHash) &&
-                reader.TryCopyTo(strongHash))
+                reader.TryCopyTo(strongHash)) // todo: validate == length
             {
                 RollingHash = (uint)rollingHash;
                 StrongHash = strongHash;
