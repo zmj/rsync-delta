@@ -16,7 +16,6 @@ namespace Rsync.Delta
 
         public SignatureOptions(SequenceReader<byte> reader)
         {
-            Console.WriteLine($"so {BitConverter.ToString(reader.Sequence.ToArray())}");
             if (reader.TryReadBigEndian(out int blockLength) &&
                 reader.TryReadBigEndian(out int strongHashLength))
             {

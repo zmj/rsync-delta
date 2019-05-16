@@ -80,9 +80,7 @@ namespace Rsync.Delta
         private async ValueTask<ReadOnlySequence<byte>?> ReadBlock(
             CancellationToken ct)
         {
-            Console.WriteLine($"r: {_blocks.BlockLength}");
             var readResult = await _reader.Buffer(_blocks.BlockLength, ct);
-            Console.WriteLine($"r2: {readResult.Buffer.Length} {readResult.Buffer.IsSingleSegment}");
             if (readResult.Buffer.IsEmpty)
             {
                 return null;

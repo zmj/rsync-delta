@@ -14,6 +14,7 @@ namespace Rsync.Delta.Tests
 
         [Theory]
         [InlineData("hello_hellooo_b1")]
+        [InlineData("hello_hellooo_b2")]
         public async Task Delta(string dir)
         {   
             dir = Path.GetFullPath($"../../../data/{dir}");
