@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Rsync.Delta
 {
-    internal readonly struct SignatureReader
+    internal class SignatureReader
     {
         private readonly BlockMatcher.Builder _builder;
         private readonly PipeReader _reader;
@@ -22,7 +22,7 @@ namespace Rsync.Delta
             try
             {
                 var header = await ReadHeader(ct);
-                Console.WriteLine(header);
+                _builder.Options = header.Options;
                 await ReadBlockSignatures(header.Options.StrongHashLength, ct);
                 _reader.Complete();
                 return _builder.Build();

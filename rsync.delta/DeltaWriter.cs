@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Rsync.Delta
 {
-    internal readonly struct DeltaWriter
+    internal class DeltaWriter
     {
         private readonly BlockMatcher _blocks;
         private readonly PipeReader _reader;
@@ -46,27 +46,56 @@ namespace Rsync.Delta
 
         private async ValueTask WriteCommands(CancellationToken ct)
         {
+            LongRange? pendingCopy = null;
             while (true)
             {
-                var buffer = await TryReadBlock(ct);
+                var buffer = await ReadBlock(ct);
                 if (!buffer.HasValue)
                 {
-                    return;
+                    break;
                 }
-                // hm
+                LongRange? matched = _blocks.MatchBlock(
+                    new SequenceReader<byte>(buffer.Value));
+                if (!matched.HasValue)
+                {
+                    throw new NotImplementedException();
+                }
+                if (matched.Value.TryAppendTo(ref pendingCopy)) // ext method?
+                {
+                    // done
+                }
+                else
+                {
+                    WriteCopyCommand(pendingCopy!.Value);
+                    pendingCopy = matched;
+                }
+                _reader.AdvanceTo(buffer.Value.End);
+            }
+            if (pendingCopy.HasValue)
+            {
+                WriteCopyCommand(pendingCopy.Value);
             }
         }
 
-        private async ValueTask<ReadOnlySequence<byte>?> TryReadBlock(
+        private async ValueTask<ReadOnlySequence<byte>?> ReadBlock(
             CancellationToken ct)
         {
+            Console.WriteLine($"r: {_blocks.BlockLength}");
             var readResult = await _reader.Buffer(_blocks.BlockLength, ct);
-            if (readResult.Buffer.Length == 0)
+            Console.WriteLine($"r2: {readResult.Buffer.Length} {readResult.Buffer.IsSingleSegment}");
+            if (readResult.Buffer.IsEmpty)
             {
                 return null;
             }
-            _reader.AdvanceTo(readResult.Buffer.End);
             return readResult.Buffer;
+        }
+
+        private void WriteCopyCommand(LongRange range)
+        {
+            var command = new CopyCommand(range);
+            var buffer = _writer.GetSpan(command.Size);
+            command.WriteTo(buffer);
+            _writer.Advance(command.Size);
         }
     }
 }
