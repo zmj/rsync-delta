@@ -38,6 +38,7 @@ namespace Rsync.Delta
             {
                 _reader.Complete(ex);
                 _writer.Complete(ex);
+                throw;
             }
         }
 

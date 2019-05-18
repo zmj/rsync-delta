@@ -50,5 +50,24 @@ namespace Rsync.Delta
             }
             return result.IsCompleted || result.IsCanceled;
         }
+
+        public static async ValueTask CopyTo(
+            this PipeReader reader,
+            PipeWriter writer,
+            long count,
+            CancellationToken ct)
+        {
+            while (count > 0)
+            {
+                var readResult = await reader.ReadAsync(ct); // handle result
+                var readBuffer = readResult.Buffer.First;
+                var writeBuffer = writer.GetMemory(readBuffer.Length);
+                readBuffer.CopyTo(writeBuffer);
+                writer.Advance(readBuffer.Length);
+                reader.AdvanceTo(readResult.Buffer.GetPosition(readBuffer.Length));
+                await writer.FlushAsync(ct); // handle result
+                count -= readBuffer.Length;
+            }
+        }
     }
 }

@@ -62,7 +62,7 @@ namespace Rsync.Delta
                     await _writer.FlushAsync(ct);
                     return;
                 }
-                // match has to change to support rolling hash
+                // matcher has to change to support rolling hash
                 LongRange? matched = _blocks.MatchBlock(buffer.CurrentBlock);
                 if (matched.HasValue)
                 {

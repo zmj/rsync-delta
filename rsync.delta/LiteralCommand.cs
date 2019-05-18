@@ -10,6 +10,8 @@ namespace Rsync.Delta
 
         public LiteralCommand(ulong length) => _length = new CommandArg(length);
 
+        public ulong LiteralLength => _length.Value;
+
         public int Size => 1 + _length.Size;
 
         public void WriteTo(Span<byte> buffer)

@@ -80,7 +80,29 @@ namespace Rsync.Delta
             Stream deltaStream,
             CancellationToken ct = default);
 
-        ValueTask Patch();
+        ValueTask Patch(
+            PipeReader deltaReader,
+            Stream oldFileStream,
+            PipeWriter newFileWriter,
+            CancellationToken ct = default);
+
+        ValueTask Patch(
+            Stream deltaStream,
+            Stream oldFileStream,
+            PipeWriter newFileWriter,
+            CancellationToken ct = default);
+
+        ValueTask Patch(
+            PipeReader deltaReader,
+            Stream oldFileStream,
+            Stream newFileStream,
+            CancellationToken ct = default);
+
+        ValueTask Patch(
+            Stream deltaStream,
+            Stream oldFileStream,
+            Stream newFileStream,
+            CancellationToken ct = default);
     }
 
     public class RsyncAlgorithm : IRsyncAlgorithm
@@ -266,9 +288,60 @@ namespace Rsync.Delta
                 PipeWriter.Create(deltaStream, _deltaWriteOptions),
                 ct);
 
-        public ValueTask Patch()
+        public async ValueTask Patch(
+            PipeReader deltaReader, 
+            Stream oldFileStream, 
+            PipeWriter newFileWriter,
+            CancellationToken ct = default)
         {
-            throw new System.NotImplementedException();
+            if (deltaReader == null)
+            {
+                throw new ArgumentNullException(nameof(deltaReader));
+            }
+            if (oldFileStream == null)
+            {
+                throw new ArgumentNullException(nameof(oldFileStream));
+            }
+            if (newFileWriter == null)
+            {
+                throw new ArgumentNullException(nameof(newFileWriter));
+            }
+            var copier = new Copier(oldFileStream, newFileWriter);
+            var patcher = new Patcher(deltaReader, newFileWriter, copier);
+            await patcher.Patch(ct);
         }
+
+        public ValueTask Patch(
+            Stream deltaStream, 
+            Stream oldFileStream, 
+            PipeWriter newFileWriter, 
+            CancellationToken ct = default) =>
+            Patch(
+                PipeReader.Create(deltaStream, _deltaReadOptions),
+                oldFileStream,
+                newFileWriter,
+                ct);
+
+        public ValueTask Patch(
+            PipeReader deltaReader, 
+            Stream oldFileStream, 
+            Stream newFileStream, 
+            CancellationToken ct = default) =>
+            Patch(
+                deltaReader,
+                oldFileStream,
+                PipeWriter.Create(newFileStream, _fileWriteOptions),
+                ct);
+
+        public ValueTask Patch(
+            Stream deltaStream, 
+            Stream oldFileStream, 
+            Stream newFileStream, 
+            CancellationToken ct = default) =>
+            Patch(
+                PipeReader.Create(deltaStream, _deltaReadOptions),
+                oldFileStream,
+                PipeWriter.Create(newFileStream, _fileWriteOptions),
+                ct);
     }
 }

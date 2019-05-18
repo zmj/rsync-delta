@@ -10,6 +10,8 @@ namespace Rsync.Delta
         private readonly CommandArg _start;
         private readonly CommandArg _length;
 
+        public LongRange Range => new LongRange(_start.Value, _length.Value);
+
         public CopyCommand(LongRange range)
         {
             _start = new CommandArg(range.Start);
