@@ -108,13 +108,26 @@ namespace Rsync.Delta
             _deltaWriteOptions = deltaStreamWriteOptions ?? new StreamPipeWriterOptions();
         }
 
-        public ValueTask GenerateSignature(
+        public async ValueTask GenerateSignature(
             PipeReader fileReader, 
             PipeWriter signatureWriter,
             SignatureOptions? options, 
             CancellationToken ct)
         {
-            throw new System.NotImplementedException();
+            if (fileReader == null)
+            {
+                throw new ArgumentNullException(nameof(fileReader));
+            }
+            if (signatureWriter == null)
+            {
+                throw new ArgumentNullException(nameof(signatureWriter));
+            }
+
+            var writer = new SignatureWriter(
+                fileReader, 
+                signatureWriter, 
+                options ?? SignatureOptions.Default);
+            await writer.Write(ct);
         }
 
         public ValueTask GenerateSignature(

@@ -8,9 +8,7 @@ namespace Rsync.Delta.Tests
 {
     public class DeltaTests
     {
-        private readonly IRsyncAlgorithm _rsync;
-
-        public DeltaTests() => _rsync = new RsyncAlgorithm();
+        private readonly IRsyncAlgorithm _rsync = new RsyncAlgorithm();
 
         [Theory]
         [InlineData("hello_hellooo")]
@@ -28,6 +26,8 @@ namespace Rsync.Delta.Tests
             {
                 await _rsync.GenerateDelta(sig, v2, new MemoryStream(actual));
             }
+            // Console.WriteLine($"expected: {BitConverter.ToString(expected)}");
+            // Console.WriteLine($"actual: {BitConverter.ToString(actual)}");
             Assert.Equal(BitConverter.ToString(expected), BitConverter.ToString(actual));
         }
     } 

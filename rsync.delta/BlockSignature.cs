@@ -6,8 +6,8 @@ namespace Rsync.Delta
 {
     public readonly struct BlockSignature
     {
-        public static uint Size(uint strongHashLength) =>
-            strongHashLength + 4;
+        public static ushort Size(ushort strongHashLength) =>
+            (ushort)(strongHashLength + 4);
 
         public readonly uint RollingHash;
         public readonly Memory<byte> StrongHash; // rent from matcher

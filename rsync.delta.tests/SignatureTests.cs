@@ -8,6 +8,8 @@ namespace Rsync.Delta.Tests
 {
     public class SignatureTests
     {
+        private readonly IRsyncAlgorithm _rsync = new RsyncAlgorithm();
+
         [Theory]
         [InlineData("hello_hellooo")]
         [InlineData("hello_hellooo_b1")]
@@ -20,12 +22,13 @@ namespace Rsync.Delta.Tests
             bool specifyBlockSize = int.TryParse(dir[^1..], out int blockSize);
 
             byte[] actual = new byte[expected.Length];
-            PipeWriter writer = PipeWriter.Create(new MemoryStream(actual));
             using (var f = File.OpenRead(Path.Combine(dir, "v1.txt")))
             {
-                PipeReader reader = PipeReader.Create(f);
-                await new Signature().Generate(reader, writer, specifyBlockSize ? blockSize : (int?)null);
+                var options = specifyBlockSize ? new SignatureOptions((uint)blockSize, 32) : (SignatureOptions?)null;
+                await _rsync.GenerateSignature(f, new MemoryStream(actual), options);
             }
+            // Console.WriteLine($"expected: {BitConverter.ToString(expected)}");
+            // Console.WriteLine($"actual: {BitConverter.ToString(actual)}");
             Assert.Equal(BitConverter.ToString(expected), BitConverter.ToString(actual));
         }
     }
