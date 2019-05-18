@@ -12,6 +12,7 @@ namespace Rsync.Delta.Tests
         [InlineData("hello_hellooo")]
         [InlineData("hello_hellooo_b1")]
         [InlineData("hello_hellooo_b2")]
+        [InlineData("hello_b2")]
         public async Task Signature(string dir)
         {
             dir = Path.GetFullPath($"../../../data/{dir}");

@@ -15,7 +15,7 @@ namespace Rsync.Delta
             blockSize ??= 2048;
 
             WriteFileHeader(writer, blockSize.Value);
-            await writer.FlushAsync(); // how often to flush?
+            await writer.FlushAsync(); // how often to flush? handle flushresult
 
             while (true)
             {
@@ -25,7 +25,7 @@ namespace Rsync.Delta
                     result = await reader.ReadAsync();
                 }
                 WriteBlocks(result.Buffer, writer, blockSize.Value);
-                await writer.FlushAsync();
+                await writer.FlushAsync(); // handle flushresult
                 reader.AdvanceTo(result.Buffer.End);
                 if (result.IsCompleted)
                 {

@@ -20,10 +20,10 @@ namespace Rsync.Delta
             _blockSignatures = blockSignatures;
         }
 
-        public LongRange? MatchBlock(SequenceReader<byte> reader)
+        public LongRange? MatchBlock(ReadOnlySequence<byte> buffer3)
         {
             // todo: rolling hash optimization
-            byte[] buffer = reader.Sequence.ToArray();
+            byte[] buffer = buffer3.ToArray();
             byte[] hash = Blake2.Blake2b.Hash(buffer);
             for (int i=0; i<_blockSignatures.Length; i++)
             {
