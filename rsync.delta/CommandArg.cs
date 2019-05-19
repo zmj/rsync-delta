@@ -11,6 +11,8 @@ namespace Rsync.Delta
         public readonly int Size;
         public readonly CommandModifier Modifier;
 
+        public const int MaxSize = 8;
+
         public CommandArg(ulong value)
         {
             Value = value;
@@ -23,7 +25,7 @@ namespace Rsync.Delta
             };
         }
 
-        public CommandArg(SequenceReader<byte> reader, CommandModifier modifier)
+        public CommandArg(ref SequenceReader<byte> reader, CommandModifier modifier)
         {
             Modifier = modifier;
             bool ok;
@@ -77,13 +79,13 @@ namespace Rsync.Delta
                     break;
             }
         }
+    }
 
-        public enum CommandModifier : byte
-        {
-            OneByte = 0,
-            TwoBytes = 1,
-            FourBytes = 2,
-            EightBytes = 4,
-        }
+    internal enum CommandModifier : byte
+    {
+        OneByte = 0,
+        TwoBytes = 1,
+        FourBytes = 2,
+        EightBytes = 4,
     }
 }

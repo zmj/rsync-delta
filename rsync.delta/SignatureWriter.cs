@@ -65,7 +65,7 @@ namespace Rsync.Delta
                 var readResult = await _reader.Buffer(_options.BlockLength, ct);
                 if (readResult.Buffer.IsEmpty)
                 {
-                    break;
+                    yield break;
                 }
                 yield return readResult.Buffer;
                 _reader.AdvanceTo(readResult.Buffer.End);

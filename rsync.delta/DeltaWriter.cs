@@ -57,6 +57,7 @@ namespace Rsync.Delta
                 if (buffer.CurrentBlock.IsEmpty)
                 {
                     // eof: flush anything pending
+                    // todo: why does this work? we aren't writing END command
                     WritePendingCopy();
                     await FlushPendingLiteral(buffer.PendingLiteral, ct);
                     await _writer.FlushAsync(ct);

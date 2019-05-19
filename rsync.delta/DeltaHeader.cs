@@ -12,7 +12,11 @@ namespace Rsync.Delta
 
         public DeltaHeader(SequenceReader<byte> reader)
         {
-            throw new NotImplementedException();
+            if (!reader.TryReadBigEndian(out int value) ||
+                (DeltaFormat)value != DeltaFormat.Default)
+            {
+                throw new FormatException(nameof(DeltaHeader));
+            }
         }
 
         public void WriteTo(Span<byte> buffer) =>

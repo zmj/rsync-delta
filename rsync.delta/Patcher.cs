@@ -54,13 +54,38 @@ namespace Rsync.Delta
 
             public Command(CopyCommand copy) => (Copy, Literal) = (copy, null);
             public Command(LiteralCommand literal) => (Literal, Copy) = (literal, null);
+
+            public const int MaxSize = CopyCommand.MaxSize > LiteralCommand.MaxSize ?
+                CopyCommand.MaxSize : LiteralCommand.MaxSize;
         }
 
-        private IAsyncEnumerable<Command> ReadCommands(CancellationToken ct)
+        private async IAsyncEnumerable<Command> ReadCommands(CancellationToken ct)
         {
-            throw new NotImplementedException();   
+            while (true)
+            {
+                var readResult = await _reader.Buffer(Command.MaxSize, ct);
+                if (readResult.Buffer.IsEmpty ||
+                    readResult.Buffer.FirstSpan[0] == 0) // END command
+                {
+                    yield break;
+                }
+                if (CopyCommand.TryParse(readResult.Buffer, out var copy))
+                {
+                    _reader.AdvanceTo(readResult.Buffer.GetPosition(copy.Size));
+                    yield return new Command(copy);
+                }
+                else if (LiteralCommand.TryParse(readResult.Buffer, out var literal))
+                {
+                    _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
+                    yield return new Command(literal);
+                }
+                else
+                {
+                    Console.WriteLine($"{BitConverter.ToString(readResult.Buffer.ToArray())}");
+                    throw new FormatException(nameof(Command));
+                }
+            }
         }
-
         private async ValueTask Execute(Command command, CancellationToken ct)
         {
             if (command.Copy.HasValue)
@@ -69,6 +94,7 @@ namespace Rsync.Delta
             }
             else if (command.Literal.HasValue)
             {
+                Console.WriteLine($"lit: {command.Literal.Value.LiteralLength}");
                 await _reader.CopyTo(
                     _writer,
                     (long)command.Literal.Value.LiteralLength,

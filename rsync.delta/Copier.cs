@@ -19,6 +19,7 @@ namespace Rsync.Delta
 
         public async ValueTask WriteCopy(LongRange range, CancellationToken ct)
         {
+            Console.WriteLine($"copy: {range.Start} {range.Length}");
             if ((ulong)_stream.Position != range.Start)
             {
                 // is there any benefit to choosing seekorigin based on position?
@@ -28,6 +29,10 @@ namespace Rsync.Delta
             while (count > 0)
             {
                 var buffer = _writer.GetMemory();
+                if (buffer.Length > count)
+                {
+                    buffer = buffer.Slice(0, (int)count);
+                }
                 int read = await _stream.ReadAsync(buffer, ct);
                 if (read == 0)
                 {
