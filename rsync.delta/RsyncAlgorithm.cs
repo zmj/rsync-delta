@@ -8,97 +8,97 @@ namespace Rsync.Delta
 {
     public interface IRsyncAlgorithm
     {
-        ValueTask GenerateSignature(
+        Task GenerateSignature(
             PipeReader fileReader,
             PipeWriter signatureWriter,
             SignatureOptions? options = null,
             CancellationToken ct = default);
         
-        ValueTask GenerateSignature(
+        Task GenerateSignature(
             Stream fileStream,
             PipeWriter signatureWriter,
             SignatureOptions? options = null,
             CancellationToken ct = default);
 
-        ValueTask GenerateSignature(
+        Task GenerateSignature(
             PipeReader fileReader,
             Stream signatureStream,
             SignatureOptions? options = null,
             CancellationToken ct = default);
 
-        ValueTask GenerateSignature(
+        Task GenerateSignature(
             Stream fileStream,
             Stream signatureStream,
             SignatureOptions? options = null,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             PipeReader signatureReader,
             PipeReader fileReader,
             PipeWriter deltaWriter,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             Stream signatureStream,
             PipeReader fileReader,
             PipeWriter deltaWriter,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             PipeReader signatureReader,
             Stream fileStream,
             PipeWriter deltaWriter,
             CancellationToken ct = default);
         
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             PipeReader signatureReader,
             PipeReader fileReader,
             Stream deltaStream,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             Stream signatureStream,
             Stream fileStream,
             PipeWriter deltaWriter,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             Stream signatureStream,
             PipeReader fileReader,
             Stream deltaStream,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             PipeReader signatureReader,
             Stream fileStream,
             Stream deltaStream,
             CancellationToken ct = default);
 
-        ValueTask GenerateDelta(
+        Task GenerateDelta(
             Stream signatureStream,
             Stream fileStream,
             Stream deltaStream,
             CancellationToken ct = default);
 
-        ValueTask Patch(
+        Task Patch(
             PipeReader deltaReader,
             Stream oldFileStream,
             PipeWriter newFileWriter,
             CancellationToken ct = default);
 
-        ValueTask Patch(
+        Task Patch(
             Stream deltaStream,
             Stream oldFileStream,
             PipeWriter newFileWriter,
             CancellationToken ct = default);
 
-        ValueTask Patch(
+        Task Patch(
             PipeReader deltaReader,
             Stream oldFileStream,
             Stream newFileStream,
             CancellationToken ct = default);
 
-        ValueTask Patch(
+        Task Patch(
             Stream deltaStream,
             Stream oldFileStream,
             Stream newFileStream,
@@ -130,7 +130,7 @@ namespace Rsync.Delta
             _deltaWriteOptions = deltaStreamWriteOptions ?? new StreamPipeWriterOptions();
         }
 
-        public async ValueTask GenerateSignature(
+        public async Task GenerateSignature(
             PipeReader fileReader, 
             PipeWriter signatureWriter,
             SignatureOptions? options, 
@@ -152,7 +152,7 @@ namespace Rsync.Delta
             await writer.Write(ct);
         }
 
-        public ValueTask GenerateSignature(
+        public Task GenerateSignature(
             Stream fileStream, 
             PipeWriter signatureWriter, 
             SignatureOptions? options,
@@ -163,7 +163,7 @@ namespace Rsync.Delta
                 options,
                 ct);
 
-        public ValueTask GenerateSignature(
+        public Task GenerateSignature(
             PipeReader fileReader, 
             Stream signatureStream, 
             SignatureOptions? options, 
@@ -174,7 +174,7 @@ namespace Rsync.Delta
                 options,
                 ct);
 
-        public ValueTask GenerateSignature(
+        public Task GenerateSignature(
             Stream fileStream, 
             Stream signatureStream, 
             SignatureOptions? options, 
@@ -185,7 +185,7 @@ namespace Rsync.Delta
                 options,
                 ct);
 
-        public async ValueTask GenerateDelta(
+        public async Task GenerateDelta(
             PipeReader signatureReader, 
             PipeReader fileReader, 
             PipeWriter deltaWriter, 
@@ -211,7 +211,7 @@ namespace Rsync.Delta
             await writer.Write(ct);
         }
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             Stream signatureStream, 
             PipeReader fileReader, 
             PipeWriter deltaWriter, 
@@ -222,7 +222,7 @@ namespace Rsync.Delta
                 deltaWriter,
                 ct);
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             PipeReader signatureReader, 
             Stream fileStream, 
             PipeWriter deltaWriter, 
@@ -233,7 +233,7 @@ namespace Rsync.Delta
                 deltaWriter,
                 ct);
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             PipeReader signatureReader, 
             PipeReader fileReader,
             Stream deltaStream, 
@@ -244,7 +244,7 @@ namespace Rsync.Delta
                 PipeWriter.Create(deltaStream, _deltaWriteOptions),
                 ct);
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             Stream signatureStream, 
             Stream fileStream, 
             PipeWriter deltaWriter, 
@@ -255,7 +255,7 @@ namespace Rsync.Delta
                 deltaWriter,
                 ct);
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             Stream signatureStream, 
             PipeReader fileReader, 
             Stream deltaStream, 
@@ -266,7 +266,7 @@ namespace Rsync.Delta
                 PipeWriter.Create(deltaStream, _deltaWriteOptions),
                 ct);
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             PipeReader signatureReader, 
             Stream fileStream, 
             Stream deltaStream, 
@@ -277,7 +277,7 @@ namespace Rsync.Delta
                 PipeWriter.Create(deltaStream, _deltaWriteOptions),
                 ct);
 
-        public ValueTask GenerateDelta(
+        public Task GenerateDelta(
             Stream signatureStream,
             Stream fileStream,
             Stream deltaStream,
@@ -288,7 +288,7 @@ namespace Rsync.Delta
                 PipeWriter.Create(deltaStream, _deltaWriteOptions),
                 ct);
 
-        public async ValueTask Patch(
+        public async Task Patch(
             PipeReader deltaReader, 
             Stream oldFileStream, 
             PipeWriter newFileWriter,
@@ -311,7 +311,7 @@ namespace Rsync.Delta
             await patcher.Patch(ct);
         }
 
-        public ValueTask Patch(
+        public Task Patch(
             Stream deltaStream, 
             Stream oldFileStream, 
             PipeWriter newFileWriter, 
@@ -322,7 +322,7 @@ namespace Rsync.Delta
                 newFileWriter,
                 ct);
 
-        public ValueTask Patch(
+        public Task Patch(
             PipeReader deltaReader, 
             Stream oldFileStream, 
             Stream newFileStream, 
@@ -333,7 +333,7 @@ namespace Rsync.Delta
                 PipeWriter.Create(newFileStream, _fileWriteOptions),
                 ct);
 
-        public ValueTask Patch(
+        public Task Patch(
             Stream deltaStream, 
             Stream oldFileStream, 
             Stream newFileStream, 
