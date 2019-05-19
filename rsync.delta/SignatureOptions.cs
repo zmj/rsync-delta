@@ -30,6 +30,14 @@ namespace Rsync.Delta
 
         public SignatureOptions(uint blockLength, uint strongHashLength)
         {
+            if (blockLength <= 0) // todo: max blocklen
+            {
+                throw new ArgumentOutOfRangeException(nameof(blockLength));
+            }
+            if (strongHashLength <= 0 || strongHashLength > 64)
+            {
+                throw new ArgumentOutOfRangeException(nameof(strongHashLength));
+            }
             BlockLength = blockLength;
             StrongHashLength = strongHashLength;
         }

@@ -10,7 +10,10 @@ namespace Rsync.Delta.Tests
         private readonly IRsyncAlgorithm _rsync = new RsyncAlgorithm();
 
         [Theory]
+        [InlineData("hello_hellooo")]
         [InlineData("hello_hellooo_b1")]
+        [InlineData("hello_hellooo_b2")]
+        [InlineData("hello_b2")]
         public async Task Patch(string dir)
         {   
             dir = Path.GetFullPath($"../../../data/{dir}");
@@ -22,8 +25,8 @@ namespace Rsync.Delta.Tests
             {
                 await _rsync.Patch(delta, v1, new MemoryStream(actual));
             }
-            Console.WriteLine($"expected: {BitConverter.ToString(expected)}");
-            Console.WriteLine($"actual: {BitConverter.ToString(actual)}");
+            // Console.WriteLine($"expected: {BitConverter.ToString(expected)}");
+            // Console.WriteLine($"actual: {BitConverter.ToString(actual)}");
             Assert.Equal(BitConverter.ToString(expected), BitConverter.ToString(actual));
         }
     }

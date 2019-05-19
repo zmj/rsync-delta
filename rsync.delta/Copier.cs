@@ -19,7 +19,6 @@ namespace Rsync.Delta
 
         public async ValueTask WriteCopy(LongRange range, CancellationToken ct)
         {
-            Console.WriteLine($"copy: {range.Start} {range.Length}");
             if ((ulong)_stream.Position != range.Start)
             {
                 // is there any benefit to choosing seekorigin based on position?

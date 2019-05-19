@@ -57,9 +57,9 @@ namespace Rsync.Delta
                 if (buffer.CurrentBlock.IsEmpty)
                 {
                     // eof: flush anything pending
-                    // todo: why does this work? we aren't writing END command
                     WritePendingCopy();
                     await FlushPendingLiteral(buffer.PendingLiteral, ct);
+                    WriteEndCommand();
                     await _writer.FlushAsync(ct);
                     return;
                 }
@@ -168,16 +168,12 @@ namespace Rsync.Delta
             var currentBlock = readResult.Buffer.Slice((int)_pendingLiteralLength); // fix
             return new BufferedBlock(pendingLiteral, currentBlock);
         }
-
-        private async ValueTask<ReadOnlySequence<byte>?> ReadBlock(
-            CancellationToken ct)
+        
+        private void WriteEndCommand()
         {
-            var readResult = await _reader.Buffer(_blocks.BlockLength, ct);
-            if (readResult.Buffer.IsEmpty)
-            {
-                return null;
-            }
-            return readResult.Buffer;
+            var buffer = _writer.GetSpan(1);
+            buffer[0] = 0;
+            _writer.Advance(1);
         }
     }
 }

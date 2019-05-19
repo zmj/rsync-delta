@@ -64,10 +64,9 @@ namespace Rsync.Delta
             while (true)
             {
                 var readResult = await _reader.Buffer(Command.MaxSize, ct);
-                if (readResult.Buffer.IsEmpty ||
-                    readResult.Buffer.FirstSpan[0] == 0) // END command
+                if (readResult.Buffer.IsEmpty)
                 {
-                    yield break;
+                    throw new FormatException("Delta ended without end command");
                 }
                 if (CopyCommand.TryParse(readResult.Buffer, out var copy))
                 {
@@ -79,9 +78,12 @@ namespace Rsync.Delta
                     _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
                     yield return new Command(literal);
                 }
+                else if (readResult.Buffer.FirstSpan[0] == 0) // END command
+                {
+                    yield break;
+                }
                 else
                 {
-                    Console.WriteLine($"{BitConverter.ToString(readResult.Buffer.ToArray())}");
                     throw new FormatException(nameof(Command));
                 }
             }
@@ -94,7 +96,6 @@ namespace Rsync.Delta
             }
             else if (command.Literal.HasValue)
             {
-                Console.WriteLine($"lit: {command.Literal.Value.LiteralLength}");
                 await _reader.CopyTo(
                     _writer,
                     (long)command.Literal.Value.LiteralLength,

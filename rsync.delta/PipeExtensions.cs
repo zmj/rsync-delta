@@ -61,6 +61,10 @@ namespace Rsync.Delta
             {
                 var readResult = await reader.ReadAsync(ct); // handle result
                 var readBuffer = readResult.Buffer.First;
+                if (readBuffer.Length > count)
+                {
+                    readBuffer = readBuffer.Slice(0, (int)count);
+                }
                 var writeBuffer = writer.GetMemory(readBuffer.Length);
                 readBuffer.CopyTo(writeBuffer);
                 writer.Advance(readBuffer.Length);
