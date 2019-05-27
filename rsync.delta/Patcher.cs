@@ -25,10 +25,7 @@ namespace Rsync.Delta
             try
             {
                 await ReadHeader(ct);
-                await foreach (var command in ReadCommands(ct))
-                {
-                    await Execute(command, ct);
-                }
+                await ExecuteCommands(ct);
                 _reader.Complete();
                 _writer.Complete();
             }
@@ -59,7 +56,7 @@ namespace Rsync.Delta
                 CopyCommand.MaxSize : LiteralCommand.MaxSize;
         }
 
-        private async IAsyncEnumerable<Command> ReadCommands(CancellationToken ct)
+        private async ValueTask ExecuteCommands(CancellationToken ct)
         {
             while (true)
             {
@@ -71,35 +68,24 @@ namespace Rsync.Delta
                 if (CopyCommand.TryParse(readResult.Buffer, out var copy))
                 {
                     _reader.AdvanceTo(readResult.Buffer.GetPosition(copy.Size));
-                    yield return new Command(copy);
+                    await _copier.WriteCopy(copy.Range, ct);
                 }
                 else if (LiteralCommand.TryParse(readResult.Buffer, out var literal))
                 {
                     _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
-                    yield return new Command(literal);
+                    await _reader.CopyTo(
+                        _writer,
+                        (long)literal.LiteralLength,
+                        ct);
                 }
                 else if (readResult.Buffer.FirstSpan[0] == 0) // END command
                 {
-                    yield break;
+                    return;
                 }
                 else
                 {
                     throw new FormatException(nameof(Command));
                 }
-            }
-        }
-        private async ValueTask Execute(Command command, CancellationToken ct)
-        {
-            if (command.Copy.HasValue)
-            {
-                await _copier.WriteCopy(command.Copy.Value.Range, ct);
-            }
-            else if (command.Literal.HasValue)
-            {
-                await _reader.CopyTo(
-                    _writer,
-                    (long)command.Literal.Value.LiteralLength,
-                    ct);
             }
         }
     }

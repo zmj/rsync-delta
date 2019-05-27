@@ -51,23 +51,14 @@ namespace Rsync.Delta
 
         private async ValueTask WriteBlockSignatures(CancellationToken ct)
         {
-            await foreach (var buffer in ReadBlocks(ct))
-            {
-                WriteBlockSignature(buffer);
-            }
-        }
-
-        private async IAsyncEnumerable<ReadOnlySequence<byte>> ReadBlocks(
-            CancellationToken ct)
-        {
             while (true)
             {
                 var readResult = await _reader.Buffer(_options.BlockLength, ct);
                 if (readResult.Buffer.IsEmpty)
                 {
-                    yield break;
+                    return;
                 }
-                yield return readResult.Buffer;
+                WriteBlockSignature(readResult.Buffer);
                 _reader.AdvanceTo(readResult.Buffer.End);
             }
         }

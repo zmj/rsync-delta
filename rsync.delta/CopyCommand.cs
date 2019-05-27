@@ -58,7 +58,7 @@ namespace Rsync.Delta
                 return false;
             }
             command -= _baseCommand;
-            var startModifier = (command >> 2) & 0x03;
+            var startModifier = command >> 2;
             var lengthModifier = command & 0x03;
             copy = new CopyCommand(
                 new SequenceReader<byte>(buffer.Slice(1)),
