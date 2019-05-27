@@ -18,21 +18,14 @@ namespace Rsync.Delta
             StrongHash = strongHash;
         }
 
-        public BlockSignature(SequenceReader<byte> reader, uint strongHashLength)
+        public BlockSignature(ref ReadOnlySequence<byte> buffer, int strongHashLength)
         {
-            var strongHash = new byte[strongHashLength];
-            if (reader.TryReadBigEndian(out int rollingHash) &&
-                reader.TryCopyTo(strongHash)) // todo: validate == length
-            {
-                RollingHash = (uint)rollingHash;
-                StrongHash = strongHash;
-            }
-            else
-            {
-                throw new FormatException(nameof(BlockSignature));
-            }
+            RollingHash = buffer.ReadUIntBigEndian();
+            
+            Span<byte> tmp = stackalloc byte[strongHashLength];
+            StrongHash = buffer.ReadN(tmp).ToArray();
         }
-
+        
         public void WriteTo(Span<byte> buffer)
         {
             BinaryPrimitives.WriteUInt32BigEndian(buffer, RollingHash);

@@ -25,38 +25,31 @@ namespace Rsync.Delta
             };
         }
 
-        public CommandArg(ref SequenceReader<byte> reader, CommandModifier modifier)
+        public CommandArg(
+            ref ReadOnlySequence<byte> buffer, 
+            CommandModifier modifier)
         {
             Modifier = modifier;
-            bool ok;
             switch (modifier)
             {
                 case CommandModifier.OneByte:
-                    ok = reader.TryRead(out byte valByte);
-                    Value = valByte;
+                    Value = buffer.ReadByte();
                     Size = 1;
                     break;
                 case CommandModifier.TwoBytes:
-                    ok = reader.TryReadBigEndian(out short valShort);
-                    Value = (ushort)valShort;
+                    Value = buffer.ReadUShortBigEndian();
                     Size = 2;
                     break;
                 case CommandModifier.FourBytes:
-                    ok = reader.TryReadBigEndian(out int valInt);
-                    Value = (uint)valInt;
+                    Value = buffer.ReadUIntBigEndian();
                     Size = 4;
                     break;
                 case CommandModifier.EightBytes:
-                    ok = reader.TryReadBigEndian(out long valLong);
-                    Value = (ulong)valLong;
+                    Value = buffer.ReadULongBigEndian();
                     Size = 8;
                     break;
                 default:
                     throw new ArgumentException(nameof(CommandModifier));
-            }
-            if (!ok)
-            {
-                throw new FormatException(nameof(CommandArg));
             }
         }
 

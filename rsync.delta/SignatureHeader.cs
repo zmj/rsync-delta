@@ -17,19 +17,12 @@ namespace Rsync.Delta
             Options = options;
         }
 
-        public SignatureHeader(SequenceReader<byte> reader)
+        public SignatureHeader(ref ReadOnlySequence<byte> buffer)
         {
-            if (reader.TryReadBigEndian(out int format))
-            {
-                Format = (SignatureFormat)format;
-                Options = new SignatureOptions(reader);
-            }
-            else 
-            {
-                throw new FormatException(nameof(SignatureHeader));
-            }
+            Format = (SignatureFormat)buffer.ReadUIntBigEndian();
+            Options = new SignatureOptions(ref buffer);
         }
-
+        
         public void WriteTo(Span<byte> buffer)
         {
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);

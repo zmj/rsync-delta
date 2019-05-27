@@ -13,9 +13,9 @@ namespace Rsync.Delta
         public LiteralCommand(ulong length) => _length = new CommandArg(length);
 
         private LiteralCommand(
-            SequenceReader<byte> reader, 
+            ReadOnlySequence<byte> buffer,
             CommandModifier lengthModifier) =>
-            _length = new CommandArg(ref reader, lengthModifier);
+            _length = new CommandArg(ref buffer, lengthModifier);
 
         public ulong LiteralLength => _length.Value;
 
@@ -35,7 +35,7 @@ namespace Rsync.Delta
             ReadOnlySequence<byte> buffer,
             out LiteralCommand literal)
         {
-            byte command = buffer.FirstSpan[0];
+            byte command = buffer.ReadByte();
             if (command < _baseCommand ||
                 command > (_baseCommand + (byte)CommandModifier.EightBytes))
             {
@@ -43,7 +43,7 @@ namespace Rsync.Delta
                 return false;
             }
             literal = new LiteralCommand(
-                new SequenceReader<byte>(buffer.Slice(1)),
+                buffer,
                 (CommandModifier)(command - _baseCommand));
             return true;
         }

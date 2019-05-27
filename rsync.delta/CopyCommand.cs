@@ -21,12 +21,12 @@ namespace Rsync.Delta
         }
 
         private CopyCommand(
-            SequenceReader<byte> reader,
+            ReadOnlySequence<byte> buffer,
             CommandModifier startModifier,
             CommandModifier lengthModifier)
         {
-            _start = new CommandArg(ref reader, startModifier);
-            _length = new CommandArg(ref reader, lengthModifier);
+            _start = new CommandArg(ref buffer, startModifier);
+            _length = new CommandArg(ref buffer, lengthModifier);
         }
 
         public int Size => 1 + _start.Size + _length.Size;
@@ -48,7 +48,7 @@ namespace Rsync.Delta
             ReadOnlySequence<byte> buffer,
             out CopyCommand copy)
         {
-            byte command = buffer.FirstSpan[0];
+            byte command = buffer.ReadByte();
             if (command < _baseCommand ||
                 command > (_baseCommand +
                     4 * (byte)CommandModifier.EightBytes +
@@ -61,7 +61,7 @@ namespace Rsync.Delta
             var startModifier = command >> 2;
             var lengthModifier = command & 0x03;
             copy = new CopyCommand(
-                new SequenceReader<byte>(buffer.Slice(1)),
+                buffer,
                 (CommandModifier)startModifier,
                 (CommandModifier)lengthModifier);
             return true;

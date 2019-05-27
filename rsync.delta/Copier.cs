@@ -10,11 +10,16 @@ namespace Rsync.Delta
     {
         private readonly Stream _stream;
         private readonly PipeWriter _writer;
+        private readonly StreamPipeReaderOptions _fileReadOptions;
 
-        public Copier(Stream stream, PipeWriter writer)
+        public Copier(
+            Stream stream, 
+            PipeWriter writer, 
+            StreamPipeReaderOptions fileReadOptions)
         {
             _stream = stream;
             _writer = writer;
+            _fileReadOptions = fileReadOptions;
         }
 
         public async ValueTask WriteCopy(LongRange range, CancellationToken ct)
@@ -25,22 +30,8 @@ namespace Rsync.Delta
                 _stream.Seek((long)range.Start, SeekOrigin.Begin); // fix this cast
             }
             long count = (long)range.Length;
-            while (count > 0)
-            {
-                var buffer = _writer.GetMemory();
-                if (buffer.Length > count)
-                {
-                    buffer = buffer.Slice(0, (int)count);
-                }
-                int read = await _stream.ReadAsync(buffer, ct);
-                if (read == 0)
-                {
-                    throw new Exception("unexpected end of stream");
-                }
-                _writer.Advance(read);
-                await _writer.FlushAsync(ct); // handle flushresult
-                count -= read;
-            }
+            var reader = PipeReader.Create(_stream, _fileReadOptions);
+            await reader.CopyTo(_writer, count, ct);
         }
     }
 }

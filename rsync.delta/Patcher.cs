@@ -40,8 +40,9 @@ namespace Rsync.Delta
         private async ValueTask ReadHeader(CancellationToken ct)
         {
             var readResult = await _reader.Buffer(DeltaHeader.Size, ct);
-            var header = new DeltaHeader(new SequenceReader<byte>(readResult.Buffer));
-            _reader.AdvanceTo(readResult.Buffer.GetPosition(DeltaHeader.Size));
+            var buffer = readResult.Buffer;
+            var header = new DeltaHeader(ref buffer);
+            _reader.AdvanceTo(buffer.Start);
         }
 
         private readonly struct Command
@@ -78,7 +79,8 @@ namespace Rsync.Delta
                         (long)literal.LiteralLength,
                         ct);
                 }
-                else if (readResult.Buffer.FirstSpan[0] == 0) // END command
+                else if (readResult.Buffer.Length == 1 &&
+                    readResult.Buffer.First.Span[0] == 0) // END command
                 {
                     return;
                 }

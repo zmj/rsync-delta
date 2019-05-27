@@ -306,7 +306,7 @@ namespace Rsync.Delta
             {
                 throw new ArgumentNullException(nameof(newFileWriter));
             }
-            var copier = new Copier(oldFileStream, newFileWriter);
+            var copier = new Copier(oldFileStream, newFileWriter, _fileReadOptions);
             var patcher = new Patcher(deltaReader, newFileWriter, copier);
             await patcher.Patch(ct);
         }

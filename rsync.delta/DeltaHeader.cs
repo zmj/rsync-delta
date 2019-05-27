@@ -10,10 +10,10 @@ namespace Rsync.Delta
 
         public const DeltaFormat Format = DeltaFormat.Default;
 
-        public DeltaHeader(SequenceReader<byte> reader)
+        public DeltaHeader(ref ReadOnlySequence<byte> buffer)
         {
-            if (!reader.TryReadBigEndian(out int value) ||
-                (DeltaFormat)value != DeltaFormat.Default)
+            var format = (DeltaFormat)buffer.ReadUIntBigEndian();
+            if (format != DeltaFormat.Default)
             {
                 throw new FormatException(nameof(DeltaHeader));
             }

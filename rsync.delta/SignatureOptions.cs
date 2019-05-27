@@ -14,20 +14,12 @@ namespace Rsync.Delta
         public readonly uint BlockLength;
         public readonly uint StrongHashLength;
 
-        public SignatureOptions(SequenceReader<byte> reader)
+        public SignatureOptions(ref ReadOnlySequence<byte> buffer)
         {
-            if (reader.TryReadBigEndian(out int blockLength) &&
-                reader.TryReadBigEndian(out int strongHashLength))
-            {
-                BlockLength = (uint)blockLength;
-                StrongHashLength = (uint)strongHashLength;
-            }
-            else
-            {
-                throw new FormatException(nameof(SignatureOptions));
-            }
+            BlockLength = buffer.ReadUIntBigEndian();
+            StrongHashLength = buffer.ReadUIntBigEndian();
         }
-
+        
         public SignatureOptions(uint blockLength, uint strongHashLength)
         {
             if (blockLength <= 0) // todo: max blocklen
