@@ -1,41 +1,55 @@
+using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Rsync.Delta
 {
     internal partial class BlockMatcher
     {
-        // match weak sum, match strong sum
-        // construct with builder?
         public readonly uint BlockLength;
-        private readonly uint _strongHashLength;
-        private readonly BlockSignature[] _blockSignatures; // memory?
+        private readonly Dictionary<BlockSignature, ulong> _blocks;
+
+        private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
+        
+        private ReadOnlySequence<byte> _currentBlock;
+        private ReadOnlyMemory<byte> _currentBlockStrongHash;
 
         public BlockMatcher(
             SignatureOptions options,
             BlockSignature[] blockSignatures)
         {
             BlockLength = options.BlockLength;
-            _strongHashLength = options.StrongHashLength;
-            _blockSignatures = blockSignatures;
+            _blocks = new Dictionary<BlockSignature, ulong>(
+                capacity: blockSignatures.Length);
+            for (uint i= (uint)blockSignatures.Length-1; i<uint.MaxValue; i--)
+            {
+                _blocks[blockSignatures[i]] = i * options.BlockLength;
+            }
+            _lazyStrongHash = () => 
+                _currentBlockStrongHash.Equals(default) ?
+                    (_currentBlockStrongHash = CalculateStrongHash(_currentBlock)) :
+                    _currentBlockStrongHash;
+        }
+
+        private static ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
+        {
+            byte[] buffer = block.ToArray();
+            byte[] hash = Blake2.Blake2b.Hash(buffer);
+            return hash.AsMemory();
         }
 
         public LongRange? MatchBlock(ReadOnlySequence<byte> buffer3)
         {
-            // todo: rolling hash optimization
-            byte[] buffer = buffer3.ToArray();
-            byte[] hash = Blake2.Blake2b.Hash(buffer);
-            for (int i=0; i<_blockSignatures.Length; i++)
-            {
-                var sig = _blockSignatures[i];
-                if (hash.SequenceEqual(sig.StrongHash.ToArray())) // sequencecompareto
-                {
-                    return new LongRange(
-                        start: (ulong)i * BlockLength, // overflow check
-                        length: (uint)buffer.Length);
-                }
-            }
-            return null;
+            // roll the rolling hash
+            uint rollingHash = 0;
+            
+            _currentBlock = buffer3;
+            _currentBlockStrongHash = default;
+            var sig = new BlockSignature(rollingHash, _lazyStrongHash);
+            return _blocks.TryGetValue(sig, out ulong start) ? 
+                new LongRange(start, (ulong)buffer3.Length) : 
+                (LongRange?)null;
         }
     }
 }
