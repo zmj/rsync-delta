@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 
@@ -7,15 +8,40 @@ namespace Rsync.Delta
     internal class RollingHash
     {
         private const ushort _magic = 31;
+        private readonly uint _blockLength;
 
         private ushort _a;
         private ushort _b;
 
-        public void Hash(ReadOnlySpan<byte> buffer)
+        public RollingHash(uint blockLength) => _blockLength = blockLength;
+
+        public uint Rotate(byte rollOut, byte rollIn)
         {
-            unchecked
+            _a += (ushort)(rollIn - rollOut);
+            _b += (ushort)(_a - _blockLength * (rollOut + _magic));
+            return Value;
+        }
+
+        public uint Hash(ReadOnlySequence<byte> sequence)
+        {
+            _a = 0;
+            _b = 0;
+            if (sequence.IsSingleSegment)
             {
-                for (int i=0; i<buffer.Length; i++)
+                HashSpan(sequence.First.Span);
+            }
+            else
+            {
+                foreach (var memory in sequence)
+                {
+                    HashSpan(memory.Span);
+                }
+            }
+            return Value;
+
+            void HashSpan(ReadOnlySpan<byte> buffer)
+            {
+                for (int i = 0; i < buffer.Length; i++)
                 {
                     _a += (ushort)(buffer[i] + _magic);
                     _b += _a;
@@ -23,18 +49,13 @@ namespace Rsync.Delta
             }
         }
 
-        public void WriteTo(Span<byte> buffer)
-        {
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, _b);
-            BinaryPrimitives.WriteUInt16BigEndian(buffer.Slice(2), _a);
-        }
-
-        public uint Value 
+        private uint Value 
         {
             get
             {
                 Span<byte> buffer = stackalloc byte[4];
-                WriteTo(buffer);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer, _b);
+                BinaryPrimitives.WriteUInt16BigEndian(buffer.Slice(2), _a);
                 return BinaryPrimitives.ReadUInt32BigEndian(buffer);
             }
         }

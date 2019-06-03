@@ -13,6 +13,7 @@ namespace Rsync.Delta
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly SignatureOptions _options;
+        private readonly RollingHash _rollingHash;
 
         public SignatureWriter(
             PipeReader reader,
@@ -22,6 +23,7 @@ namespace Rsync.Delta
             _reader = reader;
             _writer = writer;
             _options = options;
+            _rollingHash = new RollingHash(options.BlockLength);
         }
 
         public async ValueTask Write(CancellationToken ct)
@@ -66,15 +68,13 @@ namespace Rsync.Delta
         private void WriteBlockSignature(ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
-            // todo: reuse a hash instance, but still hash each block independently
             // also don't copy here
             var buffer = block.ToArray();
-
-            var rollingHash = new RollingHash();
-            rollingHash.Hash(buffer);
             var strongHash = Blake2.Blake2b.Hash(buffer);
             
-            var sig = new BlockSignature(rollingHash.Value, strongHash.AsMemory());
+            var sig = new BlockSignature(
+                _rollingHash.Hash(block),
+                strongHash.AsMemory());
             int size = BlockSignature.Size((ushort)strongHash.Length);
             sig.WriteTo(_writer.GetSpan(size));
             _writer.Advance(size);

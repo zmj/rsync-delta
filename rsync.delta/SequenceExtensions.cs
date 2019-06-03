@@ -67,5 +67,21 @@ namespace Rsync.Delta
                 throw new ArgumentException($"Expected a buffer of at least {requiredLength} bytes");
             }
         }
+
+        internal static byte PeekLast(this ReadOnlySequence<byte> sequence)
+        {
+            ReadOnlySpan<byte> lastBuffer;
+            if (sequence.IsSingleSegment)
+            {
+                lastBuffer = sequence.First.Span;
+            }
+            else
+            {
+                lastBuffer = sequence.Slice(
+                    sequence.GetPosition(offset: -1, sequence.End))
+                    .First.Span;
+            }
+            return lastBuffer[lastBuffer.Length - 1];
+        }
     }
 }

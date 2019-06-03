@@ -10,6 +10,7 @@ namespace Rsync.Delta
         public readonly uint BlockLength;
         private readonly Dictionary<BlockSignature, ulong> _blocks;
 
+        private readonly RollingHash _rollingHash;
         private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
         
         private ReadOnlySequence<byte> _currentBlock;
@@ -26,6 +27,7 @@ namespace Rsync.Delta
             {
                 _blocks[blockSignatures[i]] = i * options.BlockLength;
             }
+            _rollingHash = new RollingHash(options.BlockLength);
             _lazyStrongHash = () => 
                 _currentBlockStrongHash.Equals(default) ?
                     (_currentBlockStrongHash = CalculateStrongHash(_currentBlock)) :
@@ -39,17 +41,23 @@ namespace Rsync.Delta
             return hash.AsMemory();
         }
 
-        public LongRange? MatchBlock(ReadOnlySequence<byte> buffer3)
+        public LongRange? MatchBlock(BufferedBlock block)
         {
-            // roll the rolling hash
-            uint rollingHash = 0;
-            
-            _currentBlock = buffer3;
+            uint rollingHash = CalculateRollingHash(block);
+
+            _currentBlock = block.CurrentBlock;
             _currentBlockStrongHash = default;
             var sig = new BlockSignature(rollingHash, _lazyStrongHash);
             return _blocks.TryGetValue(sig, out ulong start) ? 
-                new LongRange(start, (ulong)buffer3.Length) : 
+                new LongRange(start, (ulong)block.CurrentBlock.Length) : 
                 (LongRange?)null;
         }
+
+        private uint CalculateRollingHash(BufferedBlock block) =>
+            block.PendingLiteral.IsEmpty ?
+                _rollingHash.Hash(block.CurrentBlock) :
+                _rollingHash.Rotate(
+                    rollOut: block.PendingLiteral.PeekLast(),
+                    rollIn: block.CurrentBlock.PeekLast());
     }
 }
