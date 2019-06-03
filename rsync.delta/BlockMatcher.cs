@@ -15,6 +15,8 @@ namespace Rsync.Delta
         private ReadOnlySequence<byte> _currentBlock;
         private ReadOnlyMemory<byte> _currentBlockStrongHash;
 
+        private RollingHash _rollingHash;
+
         public BlockMatcher(
             SignatureOptions options,
             BlockSignature[] blockSignatures)
@@ -26,6 +28,7 @@ namespace Rsync.Delta
             {
                 _blocks[blockSignatures[i]] = i * options.BlockLength;
             }
+            _rollingHash = new RollingHash();
             _lazyStrongHash = () => 
                 _currentBlockStrongHash.Equals(default) ?
                     (_currentBlockStrongHash = CalculateStrongHash(_currentBlock)) :
@@ -39,17 +42,42 @@ namespace Rsync.Delta
             return hash.AsMemory();
         }
 
-        public LongRange? MatchBlock(ReadOnlySequence<byte> buffer3)
+        private Func<ReadOnlyMemory<byte>> LazyCalculateStrongHash(
+            ReadOnlySequence<byte> block)
         {
-            // roll the rolling hash
-            uint rollingHash = 0;
-            
-            _currentBlock = buffer3;
+            _currentBlock = block;
             _currentBlockStrongHash = default;
-            var sig = new BlockSignature(rollingHash, _lazyStrongHash);
+            return _lazyStrongHash;
+        }
+
+        public LongRange? MatchBlock(BufferedBlock block)
+        {
+            uint rollingHash = CalculateRollingHash(block);
+            var strongHash = LazyCalculateStrongHash(block.CurrentBlock);
+            var sig = new BlockSignature(rollingHash, strongHash);
             return _blocks.TryGetValue(sig, out ulong start) ? 
-                new LongRange(start, (ulong)buffer3.Length) : 
+                new LongRange(start, (ulong)block.CurrentBlock.Length) : 
                 (LongRange?)null;
+        }
+
+        private uint CalculateRollingHash(BufferedBlock block) 
+        {
+            if (block.PendingLiteral.IsEmpty)
+            {
+                _rollingHash = new RollingHash();
+                _rollingHash.RotateIn(block.CurrentBlock);
+            }
+            else if (block.CurrentBlock.Length == BlockLength)
+            {
+                _rollingHash.Rotate(
+                    remove: block.PendingLiteral.PeekLast(),
+                    add: block.CurrentBlock.PeekLast());
+            }
+            else
+            {
+                _rollingHash.RotateOut(block.PendingLiteral.PeekLast());
+            }
+            return _rollingHash.Value;
         }
     }
 }

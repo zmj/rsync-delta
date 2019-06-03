@@ -63,8 +63,8 @@ namespace Rsync.Delta
                     await _writer.FlushAsync(ct);
                     return;
                 }
-                // matcher has to change to support rolling hash
-                LongRange? matched = _blocks.MatchBlock(buffer.CurrentBlock);
+                
+                LongRange? matched = _blocks.MatchBlock(buffer);
                 if (matched.HasValue)
                 {
                     await FlushPendingLiteral(buffer.PendingLiteral, ct);
@@ -144,20 +144,6 @@ namespace Rsync.Delta
             }
             _pendingLiteralLength = 0;
             _reader.AdvanceTo(consumed: pendingLiteral.End);
-        }
-
-        private readonly struct BufferedBlock
-        {
-            public readonly ReadOnlySequence<byte> PendingLiteral;
-            public readonly ReadOnlySequence<byte> CurrentBlock;
-
-            public BufferedBlock(
-                ReadOnlySequence<byte> pendingLiteral, 
-                ReadOnlySequence<byte> currentBlock)
-            {
-                PendingLiteral = pendingLiteral;
-                CurrentBlock = currentBlock;
-            }
         }
 
         private async ValueTask<BufferedBlock> BufferBlock(CancellationToken ct)

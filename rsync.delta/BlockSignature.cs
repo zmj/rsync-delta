@@ -26,7 +26,6 @@ namespace Rsync.Delta
         public BlockSignature(ref ReadOnlySequence<byte> buffer, int strongHashLength)
         {
             _rollingHash = buffer.ReadUIntBigEndian();
-            _rollingHash = default; // remove when rollingHash is done
 
             Span<byte> tmp = stackalloc byte[strongHashLength];
             _strongHash = buffer.ReadN(tmp).ToArray();

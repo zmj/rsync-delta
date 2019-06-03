@@ -1,41 +1,60 @@
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 
 namespace Rsync.Delta
 {
-    internal class RollingHash
+    internal struct RollingHash
     {
-        private const ushort _magic = 31;
+        private const byte _magic = 31;
+
+        public uint Value => (uint)((_b << 16) | _a);
 
         private ushort _a;
         private ushort _b;
+        private uint _count;
 
-        public void Hash(ReadOnlySpan<byte> buffer)
+        public void Rotate(byte remove, byte add)
         {
-            unchecked
+            _a += (ushort)(add - remove);
+            _b += (ushort)(_a - _count * (remove + _magic));
+        }
+
+        public void RotateIn(byte add)
+        {
+            _a += (ushort)(add + _magic);
+            _b += _a;
+            _count++;
+        }
+
+        public void RotateOut(byte remove)
+        {
+            _a -= (ushort)(remove + _magic);
+            _b -= (ushort)(_count * (remove + _magic));
+            _count--;
+        }
+
+        public void RotateIn(ReadOnlySpan<byte> buffer)
+        {
+            for (int i = 0; i < buffer.Length; i++)
             {
-                for (int i=0; i<buffer.Length; i++)
-                {
-                    _a += (ushort)(buffer[i] + _magic);
-                    _b += _a;
-                }
+                RotateIn(buffer[i]);
             }
         }
 
-        public void WriteTo(Span<byte> buffer)
+        public void RotateIn(ReadOnlySequence<byte> sequence)
         {
-            BinaryPrimitives.WriteUInt16BigEndian(buffer, _b);
-            BinaryPrimitives.WriteUInt16BigEndian(buffer.Slice(2), _a);
-        }
-
-        public uint Value 
-        {
-            get
+            if (sequence.IsSingleSegment)
             {
-                Span<byte> buffer = stackalloc byte[4];
-                WriteTo(buffer);
-                return BinaryPrimitives.ReadUInt32BigEndian(buffer);
+                RotateIn(sequence.First.Span);
+            }
+            else
+            {
+                foreach (var memory in sequence)
+                {
+                    RotateIn(memory.Span);
+                }
             }
         }
     }
