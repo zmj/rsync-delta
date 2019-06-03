@@ -5,58 +5,56 @@ using System.IO.Pipelines;
 
 namespace Rsync.Delta
 {
-    internal class RollingHash
+    internal struct RollingHash
     {
-        private const ushort _magic = 31;
-        private readonly uint _blockLength;
+        private const byte _magic = 31;
+
+        public uint Value => (uint)((_b << 16) | _a);
 
         private ushort _a;
         private ushort _b;
+        private uint _count;
 
-        public RollingHash(uint blockLength) => _blockLength = blockLength;
-
-        public uint Rotate(byte rollOut, byte rollIn)
+        public void Rotate(byte remove, byte add)
         {
-            _a += (ushort)(rollIn - rollOut);
-            _b += (ushort)(_a - _blockLength * (rollOut + _magic));
-            return Value;
+            _a += (ushort)(add - remove);
+            _b += (ushort)(_a - _count * (remove + _magic));
         }
 
-        public uint Hash(ReadOnlySequence<byte> sequence)
+        public void RotateIn(byte add)
         {
-            _a = 0;
-            _b = 0;
+            _a += (ushort)(add + _magic);
+            _b += _a;
+            _count++;
+        }
+
+        public void RotateOut(byte remove)
+        {
+            _a -= (ushort)(remove + _magic);
+            _b -= (ushort)(_count * (remove + _magic));
+            _count--;
+        }
+
+        public void RotateIn(ReadOnlySpan<byte> buffer)
+        {
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                RotateIn(buffer[i]);
+            }
+        }
+
+        public void RotateIn(ReadOnlySequence<byte> sequence)
+        {
             if (sequence.IsSingleSegment)
             {
-                HashSpan(sequence.First.Span);
+                RotateIn(sequence.First.Span);
             }
             else
             {
                 foreach (var memory in sequence)
                 {
-                    HashSpan(memory.Span);
+                    RotateIn(memory.Span);
                 }
-            }
-            return Value;
-
-            void HashSpan(ReadOnlySpan<byte> buffer)
-            {
-                for (int i = 0; i < buffer.Length; i++)
-                {
-                    _a += (ushort)(buffer[i] + _magic);
-                    _b += _a;
-                }
-            }
-        }
-
-        private uint Value 
-        {
-            get
-            {
-                Span<byte> buffer = stackalloc byte[4];
-                BinaryPrimitives.WriteUInt16BigEndian(buffer, _b);
-                BinaryPrimitives.WriteUInt16BigEndian(buffer.Slice(2), _a);
-                return BinaryPrimitives.ReadUInt32BigEndian(buffer);
             }
         }
     }
