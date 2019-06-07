@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 #nullable disable
 namespace Rsync.Delta.Blake2
@@ -12,17 +13,11 @@ namespace Rsync.Delta.Blake2
 
         private readonly Core core = new Core();
 		private readonly ulong[] rawConfig;
-		private readonly byte[] key;
 		private readonly int outputSizeInBytes;
-		private static readonly Blake2BConfig DefaultConfig = new Blake2BConfig();
-
+		
 		public void Init()
 		{
 			core.Initialize(rawConfig);
-			if (key != null)
-			{
-				core.HashCore(key, 0, key.Length);
-			}
 		}
 
 		public byte[] Finish()
@@ -37,17 +32,12 @@ namespace Rsync.Delta.Blake2
 			else return fullResult;
 		}
 
-		public Hasher(Blake2BConfig config)
+		public Hasher(int outputSize)
 		{
-			if (config == null)
-				config = DefaultConfig;
-			rawConfig = IvBuilder.ConfigB(config, null);
-			if (config.Key != null && config.Key.Length != 0)
-			{
-				key = new byte[128];
-				Array.Copy(config.Key, key, config.Key.Length);
-			}
-			outputSizeInBytes = config.OutputSizeInBytes;
+			Debug.Assert(outputSize <= 64);
+			rawConfig = new ulong[8];
+			IvBuilder.ConfigB(outputSize, rawConfig);
+			outputSizeInBytes = outputSize;
 			Init();
 		}
 

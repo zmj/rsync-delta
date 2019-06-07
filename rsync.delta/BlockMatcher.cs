@@ -7,10 +7,11 @@ namespace Rsync.Delta
 {
     internal partial class BlockMatcher
     {
-        public readonly uint BlockLength;
+        public uint BlockLength => _options.BlockLength;
         private readonly Dictionary<BlockSignature, ulong> _blocks;
 
         private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
+        private readonly SignatureOptions _options;
         
         private ReadOnlySequence<byte> _currentBlock;
         private ReadOnlyMemory<byte> _currentBlockStrongHash;
@@ -21,7 +22,7 @@ namespace Rsync.Delta
             SignatureOptions options,
             BlockSignature[] blockSignatures)
         {
-            BlockLength = options.BlockLength;
+            _options = options;
             _blocks = new Dictionary<BlockSignature, ulong>(
                 capacity: blockSignatures.Length);
             for (uint i= (uint)blockSignatures.Length-1; i<uint.MaxValue; i--)
@@ -35,10 +36,10 @@ namespace Rsync.Delta
                     _currentBlockStrongHash;
         }
 
-        private static ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
+        private ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
         {
-            byte[] buffer = block.ToArray();
-            byte[] hash = Blake2.Blake2b.Hash(buffer);
+            var hash = new byte[_options.StrongHashLength];
+            Blake2.Blake2b.Hash(block, hash);
             return hash.AsMemory();
         }
 

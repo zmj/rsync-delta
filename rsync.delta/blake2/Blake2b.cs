@@ -1,18 +1,25 @@
 using System;
+using System.Buffers;
 
 namespace Rsync.Delta.Blake2
 {
     internal static class Blake2b
     {
-        public static byte[] Hash(ReadOnlySpan<byte> data)
+        public static void Hash(ReadOnlySequence<byte> data, Span<byte> buffer)
         {
-            var config = new Blake2.Blake2BConfig 
+            var hasher = new Hasher(buffer.Length);
+            if (data.IsSingleSegment)
             {
-                OutputSizeInBytes = 32,
-            };
-            var hasher = new Hasher(config);
-            hasher.Update(data.ToArray());
-            return hasher.Finish();
+                hasher.Update(data.First.Span.ToArray());
+            }
+            else
+            {
+                foreach (var memory in data)
+                {
+                    hasher.Update(memory.Span.ToArray());
+                }
+            }
+            hasher.Finish().AsSpan().CopyTo(buffer);
         }
     }
 }
