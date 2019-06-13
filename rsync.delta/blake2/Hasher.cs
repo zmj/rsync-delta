@@ -18,8 +18,7 @@ namespace Rsync.Delta.Blake2
 		{
 			Debug.Assert(result.Length == outputSizeInBytes);
 			var fullResult = core.HashFinal().AsSpan();
-            Console.WriteLine(BitConverter.ToString(fullResult.ToArray()));
-			if (outputSizeInBytes < fullResult.Length)
+            if (outputSizeInBytes < fullResult.Length)
 			{
 				fullResult = fullResult.Slice(0, result.Length);
 			}
