@@ -7,7 +7,7 @@ namespace Rsync.Delta.Blake2
     {
         public static void Hash(ReadOnlySequence<byte> data, Span<byte> buffer)
         {
-            var hasher = new Hasher(buffer.Length);
+            var hasher = new Hasher((byte)buffer.Length);
             if (data.IsSingleSegment)
             {
                 hasher.Update(data.First.Span.ToArray());
@@ -19,7 +19,7 @@ namespace Rsync.Delta.Blake2
                     hasher.Update(memory.Span.ToArray());
                 }
             }
-            hasher.Finish().AsSpan().CopyTo(buffer);
+            hasher.Finish(buffer);
         }
     }
 }

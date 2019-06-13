@@ -11,6 +11,7 @@ namespace Rsync.Delta.Tests
 
         [Theory]
         [InlineData("hello", "hellooo", 2)]
+        [InlineData("hello", "hellooo", 2, 16)]
         [InlineData("hello", "hhhello", 2)]
         [InlineData("hello", "hell", 2)]
         [InlineData("hello", "hel", 2)]

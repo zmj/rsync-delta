@@ -8,43 +8,30 @@ namespace Rsync.Delta.Blake2
     {
 		public void Update(byte[] data)
 		{
-			Update(data, 0, data.Length);
+			core.HashCore(data, 0, data.Length);
 		}
 
         private readonly Core core = new Core();
-		private readonly ulong[] rawConfig;
 		private readonly int outputSizeInBytes;
 		
-		public void Init()
+		public void Finish(Span<byte> result)
 		{
-			core.Initialize(rawConfig);
-		}
-
-		public byte[] Finish()
-		{
-			var fullResult = core.HashFinal();
-			if (outputSizeInBytes != fullResult.Length)
+			Debug.Assert(result.Length == outputSizeInBytes);
+			var fullResult = core.HashFinal().AsSpan();
+            Console.WriteLine(BitConverter.ToString(fullResult.ToArray()));
+			if (outputSizeInBytes < fullResult.Length)
 			{
-				var result = new byte[outputSizeInBytes];
-				Array.Copy(fullResult, result, result.Length);
-				return result;
+				fullResult = fullResult.Slice(0, result.Length);
 			}
-			else return fullResult;
+			fullResult.CopyTo(result);
 		}
 
-		public Hasher(int outputSize)
+		public Hasher(byte outputSize)
 		{
 			Debug.Assert(outputSize <= 64);
-			rawConfig = new ulong[8];
-			IvBuilder.ConfigB(outputSize, rawConfig);
+			core.Initialize(outputSize);
 			outputSizeInBytes = outputSize;
-			Init();
 		}
-
-		public void Update(byte[] data, int start, int count)
-		{
-			core.HashCore(data, start, count);
-        }
     }
 }
 #nullable restore

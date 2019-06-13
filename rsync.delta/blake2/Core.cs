@@ -68,14 +68,10 @@ namespace Rsync.Delta.Blake2
 			buf[offset] = (byte)value;
 		}
 
-		public void Initialize(ulong[] config)
+		public void Initialize(byte outputSize)
 		{
-			if (config == null)
-				throw new ArgumentNullException("config");
-			if (config.Length != 8)
-				throw new ArgumentException("config length must be 8 words");
 			_isInitialized = true;
-
+			
 			_h[0] = IV0;
 			_h[1] = IV1;
 			_h[2] = IV2;
@@ -94,6 +90,9 @@ namespace Rsync.Delta.Blake2
 
 			Array.Clear(_buf, 0, _buf.Length);
 
+			Span<ulong> config = stackalloc ulong[8];
+			const ulong treeIV = 0x01_01_00_00;
+			config[0] = treeIV | outputSize;
 			for (int i = 0; i < 8; i++)
 				_h[i] ^= config[i];
 		}
