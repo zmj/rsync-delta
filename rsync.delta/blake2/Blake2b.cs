@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Diagnostics;
 
 namespace Rsync.Delta.Blake2
 {
@@ -7,19 +8,23 @@ namespace Rsync.Delta.Blake2
     {
         public static void Hash(ReadOnlySequence<byte> data, Span<byte> buffer)
         {
-            var hasher = new Hasher((byte)buffer.Length);
+            Debug.Assert(buffer.Length <= 64);
+            var core = new Core();
+			core.Initialize((byte)buffer.Length);
+
             if (data.IsSingleSegment)
             {
-                hasher.Update(data.First.Span.ToArray());
+                core.HashCore(data.First.Span.ToArray());
             }
             else
             {
                 foreach (var memory in data)
                 {
-                    hasher.Update(memory.Span.ToArray());
+                    core.HashCore(memory.Span.ToArray());
                 }
             }
-            hasher.Finish(buffer);
+
+			core.HashFinal(buffer, isEndOfLayer: false);
         }
     }
 }

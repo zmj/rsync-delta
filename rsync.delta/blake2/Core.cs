@@ -98,16 +98,14 @@ namespace Rsync.Delta.Blake2
 				_h[i] ^= config[i];
 		}
 
-		public void HashCore(byte[] array, int start, int count)
+		public void HashCore(byte[] array)
 		{
+			int start = 0;
+			int count = array.Length;
 			if (!_isInitialized)
 				throw new InvalidOperationException("Not initialized");
 			if (array == null)
 				throw new ArgumentNullException("array");
-			if (start < 0)
-				throw new ArgumentOutOfRangeException("start");
-			if (count < 0)
-				throw new ArgumentOutOfRangeException("count");
 			if ((long)start + (long)count > array.Length)
 				throw new ArgumentOutOfRangeException("start+count");
 			int offset = start;
