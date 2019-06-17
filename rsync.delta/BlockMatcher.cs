@@ -39,7 +39,7 @@ namespace Rsync.Delta
         private ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
         {
             var hash = new byte[_options.StrongHashLength];
-            Blake2.Blake2b.Hash(block, hash);
+            Blake2b.Hash(block, hash);
             return hash.AsMemory();
         }
 

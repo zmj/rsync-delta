@@ -70,7 +70,7 @@ namespace Rsync.Delta
             rollingHash.RotateIn(block);
             // also don't copy here
             var strongHash = new byte[_options.StrongHashLength];
-            Blake2.Blake2b.Hash(block, strongHash);
+            Blake2b.Hash(block, strongHash);
             
             var sig = new BlockSignature(
                 rollingHash.Value,

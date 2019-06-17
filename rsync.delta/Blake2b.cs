@@ -1,16 +1,38 @@
 using System;
+using System.Buffers;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
-#nullable disable
-namespace Rsync.Delta.Blake2
-{
-    internal ref struct Core
+namespace Rsync.Delta
+{   
+    internal ref struct Blake2b
     {
+        public static void Hash(ReadOnlySequence<byte> data, Span<byte> hash)
+        {
+            Debug.Assert(hash.Length <= 64);
+            Span<byte> memory = stackalloc byte[448];
+            var core = new Blake2b(memory, (byte)hash.Length);
+
+            if (data.IsSingleSegment)
+            {
+                core.HashCore(data.First.Span.ToArray());
+            }
+            else
+            {
+                foreach (var buffer in data)
+                {
+                    core.HashCore(buffer.Span.ToArray());
+                }
+            }
+
+			core.HashFinal(hash, isEndOfLayer: false);
+        }
+        
 		private int _bufferFilled;
-		private byte[] _buf;
-        private ulong[] _v;
-		private ulong[] _m;
-		private ulong[] _h;
+		private readonly Span<byte> _buf;
+        private readonly Span<ulong> _v;
+		private readonly Span<ulong> _m;
+		private readonly Span<ulong> _h;
 		private ulong _counter0;
 		private ulong _counter1;
 		private ulong _finalizationFlag0;
@@ -43,13 +65,15 @@ namespace Rsync.Delta.Blake2
 			14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3
 		};
 
-		public Core(byte outputLength)
+		public Blake2b(Span<byte> memory, byte outputLength)
 		{
 			Debug.Assert(outputLength <= 32);
-			_buf = new byte[128];
-			_v = new ulong[16];
-			_m = new ulong[16];
-			_h = new ulong[8];
+			Debug.Assert(memory.Length >= 448);
+			_buf = memory.Slice(0, 128);
+			
+			_v = MemoryMarshal.Cast<byte, ulong>(memory.Slice(128, 128));
+			_m = MemoryMarshal.Cast<byte, ulong>(memory.Slice(256, 128));
+			_h = MemoryMarshal.Cast<byte, ulong>(memory.Slice(384, 64));
 
 			_h[0] = IV0;
 			_h[1] = IV1;
@@ -67,7 +91,7 @@ namespace Rsync.Delta.Blake2
 
 			_bufferFilled = 0;
 
-			Array.Clear(_buf, 0, _buf.Length);
+			_buf.Clear();
 
 			Span<ulong> config = stackalloc ulong[8];
 			const ulong treeIV = 0x01_01_00_00;
@@ -105,17 +129,13 @@ namespace Rsync.Delta.Blake2
 		{
 			int start = 0;
 			int count = array.Length;
-			if (array == null)
-				throw new ArgumentNullException("array");
-			if ((long)start + (long)count > array.Length)
-				throw new ArgumentOutOfRangeException("start+count");
 			int offset = start;
 			int bufferRemaining = BlockSizeInBytes - _bufferFilled;
 
 			if ((_bufferFilled > 0) && (count > bufferRemaining))
 			{
 				array.Slice(offset, bufferRemaining).CopyTo(
-					_buf.AsSpan().Slice(_bufferFilled));
+					_buf.Slice(_bufferFilled));
 				_counter0 += BlockSizeInBytes;
 				if (_counter0 == 0)
 					_counter1++;
@@ -138,7 +158,7 @@ namespace Rsync.Delta.Blake2
 			if (count > 0)
 			{
 				array.Slice(offset, count).CopyTo(
-					_buf.AsSpan().Slice(_bufferFilled));
+					_buf.Slice(_bufferFilled));
 				_bufferFilled += count;
 			}
 		}
@@ -236,4 +256,3 @@ namespace Rsync.Delta.Blake2
 		}
     }
 }
-#nullable restore
