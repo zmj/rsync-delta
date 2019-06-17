@@ -8,12 +8,12 @@ namespace Rsync.Delta
     {
         public const ushort Size = 4;
 
-        public const DeltaFormat Format = DeltaFormat.Default;
+        public const DeltaFormat Format = DeltaFormat.Librsync;
 
         public DeltaHeader(ref ReadOnlySequence<byte> buffer)
         {
             var format = (DeltaFormat)buffer.ReadUIntBigEndian();
-            if (format != DeltaFormat.Default)
+            if (format != DeltaFormat.Librsync)
             {
                 throw new FormatException(nameof(DeltaHeader));
             }
@@ -25,6 +25,6 @@ namespace Rsync.Delta
 
     internal enum DeltaFormat : uint
     {
-        Default = 0x72730236,
+        Librsync = 0x72730236,
     }
 }

@@ -1,16 +1,38 @@
 using System;
+using System.Buffers;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
-#nullable disable
-namespace Rsync.Delta.Blake2
-{
-    internal class Core
+namespace Rsync.Delta
+{   
+    internal ref struct Blake2b
     {
-        private bool _isInitialized = false;
-		private int _bufferFilled;
-		private byte[] _buf = new byte[128];
+        public static void Hash(ReadOnlySequence<byte> data, Span<byte> hash)
+        {
+            Debug.Assert(hash.Length <= 64);
+            Span<byte> memory = stackalloc byte[448];
+            var core = new Blake2b(memory, (byte)hash.Length);
 
-		private ulong[] _m = new ulong[16];
-		private ulong[] _h = new ulong[8];
+            if (data.IsSingleSegment)
+            {
+                core.HashCore(data.First.Span.ToArray());
+            }
+            else
+            {
+                foreach (var buffer in data)
+                {
+                    core.HashCore(buffer.Span.ToArray());
+                }
+            }
+
+			core.HashFinal(hash, isEndOfLayer: false);
+        }
+        
+		private int _bufferFilled;
+		private readonly Span<byte> _buf;
+        private readonly Span<ulong> _v;
+		private readonly Span<ulong> _m;
+		private readonly Span<ulong> _h;
 		private ulong _counter0;
 		private ulong _counter1;
 		private ulong _finalizationFlag0;
@@ -43,38 +65,15 @@ namespace Rsync.Delta.Blake2
 			14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3
 		};
 
-		internal static ulong BytesToUInt64(byte[] buf, int offset)
+		public Blake2b(Span<byte> memory, byte outputLength)
 		{
-			return
-				((ulong)buf[offset + 7] << 7 * 8 |
-				((ulong)buf[offset + 6] << 6 * 8) |
-				((ulong)buf[offset + 5] << 5 * 8) |
-				((ulong)buf[offset + 4] << 4 * 8) |
-				((ulong)buf[offset + 3] << 3 * 8) |
-				((ulong)buf[offset + 2] << 2 * 8) |
-				((ulong)buf[offset + 1] << 1 * 8) |
-				((ulong)buf[offset]));
-		}
-
-		private static void UInt64ToBytes(ulong value, byte[] buf, int offset)
-		{
-			buf[offset + 7] = (byte)(value >> 7 * 8);
-			buf[offset + 6] = (byte)(value >> 6 * 8);
-			buf[offset + 5] = (byte)(value >> 5 * 8);
-			buf[offset + 4] = (byte)(value >> 4 * 8);
-			buf[offset + 3] = (byte)(value >> 3 * 8);
-			buf[offset + 2] = (byte)(value >> 2 * 8);
-			buf[offset + 1] = (byte)(value >> 1 * 8);
-			buf[offset] = (byte)value;
-		}
-
-		public void Initialize(ulong[] config)
-		{
-			if (config == null)
-				throw new ArgumentNullException("config");
-			if (config.Length != 8)
-				throw new ArgumentException("config length must be 8 words");
-			_isInitialized = true;
+			Debug.Assert(outputLength <= 32);
+			Debug.Assert(memory.Length >= 448);
+			_buf = memory.Slice(0, 128);
+			
+			_v = MemoryMarshal.Cast<byte, ulong>(memory.Slice(128, 128));
+			_m = MemoryMarshal.Cast<byte, ulong>(memory.Slice(256, 128));
+			_h = MemoryMarshal.Cast<byte, ulong>(memory.Slice(384, 64));
 
 			_h[0] = IV0;
 			_h[1] = IV1;
@@ -92,30 +91,51 @@ namespace Rsync.Delta.Blake2
 
 			_bufferFilled = 0;
 
-			Array.Clear(_buf, 0, _buf.Length);
+			_buf.Clear();
 
+			Span<ulong> config = stackalloc ulong[8];
+			const ulong treeIV = 0x01_01_00_00;
+			config[0] = treeIV | outputLength;
 			for (int i = 0; i < 8; i++)
 				_h[i] ^= config[i];
 		}
 
-		public void HashCore(byte[] array, int start, int count)
+		internal static ulong BytesToUInt64(ReadOnlySpan<byte> buf, int offset)
 		{
-			if (!_isInitialized)
-				throw new InvalidOperationException("Not initialized");
-			if (array == null)
-				throw new ArgumentNullException("array");
-			if (start < 0)
-				throw new ArgumentOutOfRangeException("start");
-			if (count < 0)
-				throw new ArgumentOutOfRangeException("count");
-			if ((long)start + (long)count > array.Length)
-				throw new ArgumentOutOfRangeException("start+count");
+			return
+				((ulong)buf[offset + 7] << 7 * 8 |
+				((ulong)buf[offset + 6] << 6 * 8) |
+				((ulong)buf[offset + 5] << 5 * 8) |
+				((ulong)buf[offset + 4] << 4 * 8) |
+				((ulong)buf[offset + 3] << 3 * 8) |
+				((ulong)buf[offset + 2] << 2 * 8) |
+				((ulong)buf[offset + 1] << 1 * 8) |
+				((ulong)buf[offset]));
+		}
+
+		private static void UInt64ToBytes(ulong value, Span<byte> buf, int offset)
+		{
+			buf[offset + 7] = (byte)(value >> 7 * 8);
+			buf[offset + 6] = (byte)(value >> 6 * 8);
+			buf[offset + 5] = (byte)(value >> 5 * 8);
+			buf[offset + 4] = (byte)(value >> 4 * 8);
+			buf[offset + 3] = (byte)(value >> 3 * 8);
+			buf[offset + 2] = (byte)(value >> 2 * 8);
+			buf[offset + 1] = (byte)(value >> 1 * 8);
+			buf[offset] = (byte)value;
+		}
+
+		public void HashCore(ReadOnlySpan<byte> array)
+		{
+			int start = 0;
+			int count = array.Length;
 			int offset = start;
 			int bufferRemaining = BlockSizeInBytes - _bufferFilled;
 
 			if ((_bufferFilled > 0) && (count > bufferRemaining))
 			{
-				Array.Copy(array, offset, _buf, _bufferFilled, bufferRemaining);
+				array.Slice(offset, bufferRemaining).CopyTo(
+					_buf.Slice(_bufferFilled));
 				_counter0 += BlockSizeInBytes;
 				if (_counter0 == 0)
 					_counter1++;
@@ -137,22 +157,14 @@ namespace Rsync.Delta.Blake2
 
 			if (count > 0)
 			{
-				Array.Copy(array, offset, _buf, _bufferFilled, count);
+				array.Slice(offset, count).CopyTo(
+					_buf.Slice(_bufferFilled));
 				_bufferFilled += count;
 			}
 		}
 
-		public byte[] HashFinal()
+		public void HashFinal(Span<byte> result, bool isEndOfLayer)
 		{
-			return HashFinal(false);
-		}
-
-		public byte[] HashFinal(bool isEndOfLayer)
-		{
-			if (!_isInitialized)
-				throw new InvalidOperationException("Not initialized");
-			_isInitialized = false;
-
 			//Last compression
 			_counter0 += (uint)_bufferFilled;
 			_finalizationFlag0 = ulong.MaxValue;
@@ -163,12 +175,19 @@ namespace Rsync.Delta.Blake2
 			Compress(_buf, 0);
 
 			//Output
-			byte[] hash = new byte[64];
+			Span<byte> hash = stackalloc byte[64];
 			for (int i = 0; i < 8; ++i)
+			{
 				UInt64ToBytes(_h[i], hash, i << 3);
-			return hash;
+			}
+
+			//Truncate
+            if (result.Length < hash.Length)
+			{
+				hash = hash.Slice(0, result.Length);
+			}
+			hash.CopyTo(result);
 		}
-        private ulong[] _v = new ulong[16];
 
 		private static ulong RotateRight(ulong value, int nBits)
 		{
@@ -193,7 +212,7 @@ namespace Rsync.Delta.Blake2
 			v[b] = RotateRight(v[b] ^ v[c], 63);
 		}
 
-		private void Compress(byte[] block, int start)
+		private void Compress(ReadOnlySpan<byte> block, int start)
 		{
 			var v = _v;
 			var h = _h;
@@ -237,4 +256,3 @@ namespace Rsync.Delta.Blake2
 		}
     }
 }
-#nullable restore
