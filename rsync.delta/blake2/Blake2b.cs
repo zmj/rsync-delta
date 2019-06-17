@@ -9,8 +9,7 @@ namespace Rsync.Delta.Blake2
         public static void Hash(ReadOnlySequence<byte> data, Span<byte> buffer)
         {
             Debug.Assert(buffer.Length <= 64);
-            var core = new Core();
-			core.Initialize((byte)buffer.Length);
+            var core = new Core((byte)buffer.Length);
 
             if (data.IsSingleSegment)
             {
