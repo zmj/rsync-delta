@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 #nullable disable
 namespace Rsync.Delta.Blake2
@@ -56,7 +57,7 @@ namespace Rsync.Delta.Blake2
 				((ulong)buf[offset]));
 		}
 
-		private static void UInt64ToBytes(ulong value, byte[] buf, int offset)
+		private static void UInt64ToBytes(ulong value, Span<byte> buf, int offset)
 		{
 			buf[offset + 7] = (byte)(value >> 7 * 8);
 			buf[offset + 6] = (byte)(value >> 6 * 8);
@@ -141,12 +142,7 @@ namespace Rsync.Delta.Blake2
 			}
 		}
 
-		public byte[] HashFinal()
-		{
-			return HashFinal(false);
-		}
-
-		public byte[] HashFinal(bool isEndOfLayer)
+		public void HashFinal(Span<byte> result, bool isEndOfLayer)
 		{
 			if (!_isInitialized)
 				throw new InvalidOperationException("Not initialized");
@@ -162,11 +158,20 @@ namespace Rsync.Delta.Blake2
 			Compress(_buf, 0);
 
 			//Output
-			byte[] hash = new byte[64];
+			Span<byte> hash = stackalloc byte[64];
 			for (int i = 0; i < 8; ++i)
+			{
 				UInt64ToBytes(_h[i], hash, i << 3);
-			return hash;
+			}
+
+			//Truncate
+            if (result.Length < hash.Length)
+			{
+				hash = hash.Slice(0, result.Length);
+			}
+			hash.CopyTo(result);
 		}
+
         private ulong[] _v = new ulong[16];
 
 		private static ulong RotateRight(ulong value, int nBits)

@@ -17,12 +17,7 @@ namespace Rsync.Delta.Blake2
 		public void Finish(Span<byte> result)
 		{
 			Debug.Assert(result.Length == outputSizeInBytes);
-			var fullResult = core.HashFinal().AsSpan();
-            if (outputSizeInBytes < fullResult.Length)
-			{
-				fullResult = fullResult.Slice(0, result.Length);
-			}
-			fullResult.CopyTo(result);
+			core.HashFinal(result, isEndOfLayer: false);
 		}
 
 		public Hasher(byte outputSize)
