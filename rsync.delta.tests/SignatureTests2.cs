@@ -15,12 +15,14 @@ namespace Rsync.Delta.Tests
         [InlineData("hello", null, null)]
         [InlineData("hello", 1, null)]
         [InlineData("hello", 2, null)]
+        // [InlineData("hello_hellooo_s16")] TODO: why doesn't this work?
         public async Task Signature(
             string text, int? blockLength, int? strongHashLength)
         {
             var bytes = Encoding.UTF8.GetBytes(text);
             var rdiffOut = new MemoryStream();
-            await Rdiff(new MemoryStream(bytes), rdiffOut, blockLength, strongHashLength);
+            var rdiff = Rdiff.Signature(blockLength, strongHashLength);
+            await rdiff.Execute(new MemoryStream(bytes), rdiffOut);
             var expected = BitConverter.ToString(rdiffOut.ToArray());
 
             var options = new SignatureOptions(
@@ -31,28 +33,6 @@ namespace Rsync.Delta.Tests
             var actual = BitConverter.ToString(libraryOut.ToArray());
 
             Assert.Equal(expected, actual);
-        }
-
-        private async Task Rdiff(
-            Stream input, 
-            Stream output, 
-            int? blockLength, 
-            int? strongHashLength)
-        {
-            using var proc = new Process();
-            proc.StartInfo.FileName = "rdiff";
-            proc.StartInfo.ArgumentList.Add("signature");
-            if (blockLength.HasValue) 
-                proc.StartInfo.ArgumentList.Add($"-b {blockLength.Value}");
-            if (strongHashLength.HasValue)
-                proc.StartInfo.ArgumentList.Add($"-s {strongHashLength.Value}");
-            proc.StartInfo.RedirectStandardInput = true;
-            proc.StartInfo.RedirectStandardOutput = true;
-
-            proc.Start();
-            await input.CopyToAsync(proc.StandardInput.BaseStream);
-            proc.StandardInput.Close();
-            await proc.StandardOutput.BaseStream.CopyToAsync(output);
         }
     }
 }
