@@ -20,10 +20,9 @@ namespace Rsync.Delta.Tests
             string text, int? blockLength, int? strongHashLength)
         {
             var bytes = Encoding.UTF8.GetBytes(text);
-            var rdiffOut = new MemoryStream();
-            var rdiff = Rdiff.Signature(blockLength, strongHashLength);
-            await rdiff.Execute(new MemoryStream(bytes), rdiffOut);
-            var expected = BitConverter.ToString(rdiffOut.ToArray());
+            using TempFile rdiffOut = await Rdiff.Signature(
+                new MemoryStream(bytes), blockLength, strongHashLength);
+            var expected = BitConverter.ToString(await rdiffOut.Bytes());
 
             var options = new SignatureOptions(
                 (uint?)blockLength ?? SignatureOptions.Default.BlockLength,

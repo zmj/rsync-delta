@@ -64,7 +64,7 @@ namespace Rsync.Delta
         {
             if (sequence.Length < requiredLength)
             {
-                throw new ArgumentException($"Expected a buffer of at least {requiredLength} bytes");
+                throw new ArgumentException($"Expected a buffer of at least {requiredLength} bytes (received {sequence.Length})");
             }
         }
 
