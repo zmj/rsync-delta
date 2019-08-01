@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using System.IO.Pipelines;
+using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -11,25 +11,27 @@ namespace Rsync.Delta.Tests
         private readonly IRsyncAlgorithm _rsync = new RsyncAlgorithm();
 
         [Theory]
-        [InlineData("hello_hellooo")]
-        [InlineData("hello_hellooo_b1")]
-        [InlineData("hello_hellooo_b2")]
-        [InlineData("hello_b2")]
-        [InlineData("hello_hellooo_s16")]
-        public async Task Delta(string dir)
-        {   
-            dir = Path.GetFullPath($"../../../data/{dir}");
-            byte[] expected  = await File.ReadAllBytesAsync(Path.Combine(dir, "v2.delta"));
+        [InlineData("hello", "hellooo", null, null)]
+        [InlineData("hello", "hellooo", 1, null)]
+        [InlineData("hello", "hellooo", 2, null)]
+        [InlineData("hello", "hellooo", null, 16)]
+        [InlineData("hello", "hello", 2, null)]
+        public async Task Delta(
+            string v1, string v2, int? blockLength, int? strongHashLength)
+        { 
+            using TempFile sig = await Rdiff.Signature(
+                new MemoryStream(Encoding.UTF8.GetBytes(v1)), 
+                blockLength, strongHashLength);
+            
+            var v2Bytes = Encoding.UTF8.GetBytes(v2);
+            using TempFile rdiffOut = await Rdiff.Delta(sig, new MemoryStream(v2Bytes));
+            var expected = BitConverter.ToString(await rdiffOut.Bytes());
 
-            byte[] actual = new byte[expected.Length];
-            using (var sig = File.OpenRead(Path.Combine(dir, "v1.sig")))
-            using (var v2 = File.OpenRead(Path.Combine(dir, "v2.txt")))
-            {
-                await _rsync.GenerateDelta(sig, v2, new MemoryStream(actual));
-            }
-            // Console.WriteLine($"expected: {BitConverter.ToString(expected)}");
-            // Console.WriteLine($"actual: {BitConverter.ToString(actual)}");
-            Assert.Equal(BitConverter.ToString(expected), BitConverter.ToString(actual));
+            var libraryOut = new MemoryStream();
+            await _rsync.GenerateDelta(sig.Stream(), new MemoryStream(v2Bytes), libraryOut);
+            var actual = BitConverter.ToString(libraryOut.ToArray());
+
+            Assert.Equal(expected, actual);
         }
-    } 
+    }
 }
