@@ -21,7 +21,7 @@ namespace Rsync.Delta
             _b += (ushort)(_a - _count * (remove + _magic));
         }
 
-        public void RotateIn(byte add)
+        private void RotateIn(byte add)
         {
             _a += (ushort)(add + _magic);
             _b += _a;
@@ -35,7 +35,7 @@ namespace Rsync.Delta
             _count--;
         }
 
-        public void RotateIn(ReadOnlySpan<byte> buffer)
+        private void RotateIn(ReadOnlySpan<byte> buffer)
         {
             for (int i = 0; i < buffer.Length; i++)
             {

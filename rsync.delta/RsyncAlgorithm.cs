@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
@@ -113,8 +114,10 @@ namespace Rsync.Delta
         private readonly StreamPipeWriterOptions _sigWriteOptions;
         private readonly StreamPipeReaderOptions _deltaReadOptions;
         private readonly StreamPipeWriterOptions _deltaWriteOptions;
+        private readonly MemoryPool<byte> _memoryPool;
 
         public RsyncAlgorithm(
+            MemoryPool<byte>? memoryPool = null,
             StreamPipeReaderOptions? fileStreamReadOptions = null,
             StreamPipeWriterOptions? fileStreamWriteOptions = null,
             StreamPipeReaderOptions? signatureStreamReadOptions = null,
@@ -122,6 +125,7 @@ namespace Rsync.Delta
             StreamPipeReaderOptions? deltaStreamReadOptions = null,
             StreamPipeWriterOptions? deltaStreamWriteOptions = null)
         {
+            _memoryPool = memoryPool ?? MemoryPool<byte>.Shared;
             _fileReadOptions = fileStreamReadOptions ?? new StreamPipeReaderOptions();
             _fileWriteOptions = fileStreamWriteOptions ?? new StreamPipeWriterOptions();
             _sigReadOptions = signatureStreamReadOptions ?? new StreamPipeReaderOptions();
@@ -148,7 +152,8 @@ namespace Rsync.Delta
             var writer = new SignatureWriter(
                 fileReader, 
                 signatureWriter, 
-                options ?? SignatureOptions.Default);
+                options ?? SignatureOptions.Default,
+                _memoryPool);
             await writer.Write(ct);
         }
 

@@ -8,20 +8,32 @@ using System.Threading.Tasks;
 
 namespace Rsync.Delta
 {
-    internal readonly struct SignatureWriter
+    internal readonly struct SignatureWriter : IDisposable
     {
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly SignatureOptions _options;
+        private readonly IMemoryOwner<byte> _hashScratch;
+        private readonly IMemoryOwner<byte> _strongHash;
 
         public SignatureWriter(
             PipeReader reader,
             PipeWriter writer,
-            SignatureOptions options)
+            SignatureOptions options,
+            MemoryPool<byte> memoryPool)
         {
             _reader = reader;
             _writer = writer;
             _options = options;
+            
+            _hashScratch = memoryPool.Rent(Blake2b.ScratchSize);
+            _strongHash = memoryPool.Rent((int)_options.StrongHashLength);
+        }
+
+        public void Dispose()
+        {
+            _strongHash.Dispose();
+            _hashScratch.Dispose();
         }
 
         public async ValueTask Write(CancellationToken ct)
@@ -68,13 +80,15 @@ namespace Rsync.Delta
             Debug.Assert(block.Length <= _options.BlockLength);
             var rollingHash = new RollingHash();
             rollingHash.RotateIn(block);
-            // also don't copy here
-            var strongHash = new byte[_options.StrongHashLength];
-            Blake2b.Hash(block, strongHash);
+
+            var strongHash = _strongHash.Memory
+                .Slice(0, (int)_options.StrongHashLength);
+            new Blake2b(_hashScratch.Memory.Span, (byte)strongHash.Length)
+                .Hash(block, strongHash.Span);
             
             var sig = new BlockSignature(
                 rollingHash.Value,
-                strongHash.AsMemory());
+                strongHash);
             int size = BlockSignature.Size((ushort)strongHash.Length);
             sig.WriteTo(_writer.GetSpan(size));
             _writer.Advance(size);

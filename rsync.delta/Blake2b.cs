@@ -7,27 +7,27 @@ namespace Rsync.Delta
 {   
     internal ref struct Blake2b
     {
-        public static void Hash(ReadOnlySequence<byte> data, Span<byte> hash)
-        {
-            Debug.Assert(hash.Length <= 64);
-            Span<byte> memory = stackalloc byte[448];
-            var core = new Blake2b(memory, (byte)hash.Length);
+		public const int ScratchSize = 448;
 
-            if (data.IsSingleSegment)
-            {
-                core.HashCore(data.First.Span.ToArray());
-            }
-            else
-            {
-                foreach (var buffer in data)
-                {
-                    core.HashCore(buffer.Span.ToArray());
-                }
-            }
+		public void Hash(
+			ReadOnlySequence<byte> data,
+			Span<byte> hash)
+		{
+			Debug.Assert(hash.Length <= 64);
+			if (data.IsSingleSegment)
+			{
+				HashCore(data.First.Span);
+			}
+			else
+			{
+				foreach (var buffer in data)
+				{
+					HashCore(buffer.Span);
+				}
+			}
+			HashFinal(hash, isEndOfLayer: false);
+		}
 
-			core.HashFinal(hash, isEndOfLayer: false);
-        }
-        
 		private int _bufferFilled;
 		private readonly Span<byte> _buf;
         private readonly Span<ulong> _v;
@@ -50,7 +50,8 @@ namespace Rsync.Delta
 		const ulong IV6 = 0x1F83D9ABFB41BD6BUL;
 		const ulong IV7 = 0x5BE0CD19137E2179UL;
 
-		private static readonly int[] Sigma = new int[NumberOfRounds * 16] {
+		private static readonly int[] Sigma = new int[NumberOfRounds * 16] 
+		{
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 			14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3,
 			11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4,
@@ -65,15 +66,16 @@ namespace Rsync.Delta
 			14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3
 		};
 
-		public Blake2b(Span<byte> memory, byte outputLength)
+		public Blake2b(Span<byte> scratch, byte outputLength)
 		{
-			Debug.Assert(outputLength <= 32);
-			Debug.Assert(memory.Length >= 448);
-			_buf = memory.Slice(0, 128);
+			Debug.Assert(outputLength <= 32); // not 64?
+			Debug.Assert(scratch.Length >= ScratchSize);
+			scratch.Clear();
+			_buf = scratch.Slice(0, 128);
 			
-			_v = MemoryMarshal.Cast<byte, ulong>(memory.Slice(128, 128));
-			_m = MemoryMarshal.Cast<byte, ulong>(memory.Slice(256, 128));
-			_h = MemoryMarshal.Cast<byte, ulong>(memory.Slice(384, 64));
+			_v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
+			_m = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 128));
+			_h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(384, 64));
 
 			_h[0] = IV0;
 			_h[1] = IV1;
@@ -88,10 +90,7 @@ namespace Rsync.Delta
 			_counter1 = 0;
 			_finalizationFlag0 = 0;
 			_finalizationFlag1 = 0;
-
 			_bufferFilled = 0;
-
-			_buf.Clear();
 
 			Span<ulong> config = stackalloc ulong[8];
 			const ulong treeIV = 0x01_01_00_00;
@@ -125,7 +124,7 @@ namespace Rsync.Delta
 			buf[offset] = (byte)value;
 		}
 
-		public void HashCore(ReadOnlySpan<byte> array)
+		private void HashCore(ReadOnlySpan<byte> array)
 		{
 			int start = 0;
 			int count = array.Length;
@@ -163,7 +162,7 @@ namespace Rsync.Delta
 			}
 		}
 
-		public void HashFinal(Span<byte> result, bool isEndOfLayer)
+		private void HashFinal(Span<byte> result, bool isEndOfLayer)
 		{
 			//Last compression
 			_counter0 += (uint)_bufferFilled;
@@ -252,7 +251,9 @@ namespace Rsync.Delta
 			}
 
 			for (int i = 0; i < 8; ++i)
+			{
 				h[i] ^= v[i] ^ v[i + 8];
+			}
 		}
     }
 }
