@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
 using Xunit;
 
 namespace Rsync.Delta.Tests
@@ -59,7 +60,7 @@ namespace Rsync.Delta.Tests
 
         private SignatureOptions Options(int? blockLength, int? strongHashLength) =>
             new SignatureOptions(
-                (uint?)blockLength ?? SignatureOptions.Default.BlockLength,
-                (uint?)strongHashLength ?? SignatureOptions.Default.StrongHashLength);
+                blockLength ?? SignatureOptions.Default.BlockLength,
+                strongHashLength ?? SignatureOptions.Default.StrongHashLength);
     }
 }

@@ -1,12 +1,13 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Models
 {
-    internal readonly struct SignatureHeader
+    internal readonly struct SignatureHeader : IWritable
     {
-        public const ushort Size = 4 + SignatureOptions.Size;
+        public int Size => 4 + Options.Size;
 
         public readonly SignatureFormat Format;
         public readonly SignatureOptions Options;
@@ -15,12 +16,22 @@ namespace Rsync.Delta
         {
             Format = SignatureFormat.Blake2b;
             Options = options;
+            Validate();
         }
 
         public SignatureHeader(ref ReadOnlySequence<byte> buffer)
         {
             Format = (SignatureFormat)buffer.ReadUIntBigEndian();
             Options = new SignatureOptions(ref buffer);
+            Validate();
+        }
+
+        private void Validate()
+        {
+            if (Format != SignatureFormat.Blake2b)
+            {
+                throw new FormatException($"Unexpected signature magic: {Format}");
+            }
         }
         
         public void WriteTo(Span<byte> buffer)

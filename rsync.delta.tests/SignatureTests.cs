@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
 using Xunit;
 
 namespace Rsync.Delta.Tests
@@ -25,8 +26,8 @@ namespace Rsync.Delta.Tests
             var expected = BitConverter.ToString(await rdiffOut.Bytes());
 
             var options = new SignatureOptions(
-                (uint?)blockLength ?? SignatureOptions.Default.BlockLength,
-                (uint?)strongHashLength ?? SignatureOptions.Default.StrongHashLength);
+                blockLength ?? SignatureOptions.Default.BlockLength,
+                strongHashLength ?? SignatureOptions.Default.StrongHashLength);
             var libraryOut = new MemoryStream();
             await _rsync.GenerateSignature(new MemoryStream(bytes), libraryOut, options);
             var actual = BitConverter.ToString(libraryOut.ToArray());

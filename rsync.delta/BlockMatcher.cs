@@ -2,12 +2,14 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
+using Rsync.Delta.Models;
+using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
 {
     internal partial class BlockMatcher
     {
-        public uint BlockLength => _options.BlockLength;
+        public int BlockLength => _options.BlockLength;
         private readonly Dictionary<BlockSignature, ulong> _blocks;
 
         private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
@@ -30,7 +32,7 @@ namespace Rsync.Delta
                 capacity: blockSignatures.Length);
             for (uint i= (uint)blockSignatures.Length-1; i<uint.MaxValue; i--)
             {
-                _blocks[blockSignatures[i]] = i * options.BlockLength;
+                _blocks[blockSignatures[i]] = (ulong)(i * options.BlockLength);
             }
             _rollingHash = new RollingHash();
             _lazyStrongHash = () => 

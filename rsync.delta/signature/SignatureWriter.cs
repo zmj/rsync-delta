@@ -1,12 +1,13 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
+using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Signature
 {
     internal readonly struct SignatureWriter : IDisposable
     {
@@ -60,13 +61,13 @@ namespace Rsync.Delta
         private void WriteHeader()
         {
             var header = new SignatureHeader(_options);
-            header.WriteTo(_writer.GetSpan(SignatureHeader.Size));
-            _writer.Advance(SignatureHeader.Size);
+            header.WriteTo(_writer.GetSpan(header.Size));
+            _writer.Advance(header.Size);
         }
 
         private async ValueTask WriteBlockSignatures(CancellationToken ct)
         {
-            uint writtenSinceFlush = SignatureHeader.Size;
+            int writtenSinceFlush = new SignatureHeader().Size;
             while (true)
             {
                 var readResult = await _reader.Buffer(_options.BlockLength, ct);

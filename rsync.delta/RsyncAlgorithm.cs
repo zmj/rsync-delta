@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
 
 namespace Rsync.Delta
 {
@@ -135,7 +136,7 @@ namespace Rsync.Delta
                 throw new ArgumentNullException(nameof(signatureWriter));
             }
 
-            var writer = new SignatureWriter(
+            using var writer = new Signature.SignatureWriter(
                 fileReader, 
                 signatureWriter, 
                 options ?? SignatureOptions.Default,

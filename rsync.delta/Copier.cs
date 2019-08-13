@@ -36,4 +36,40 @@ namespace Rsync.Delta
             await reader.CopyTo(_writer, count, ct);
         }
     }
+
+    internal static class CopyExtensions
+    {
+        public static async ValueTask CopyTo(
+            this PipeReader reader,
+            PipeWriter writer,
+            long count,
+            CancellationToken ct)
+        {
+            int writtenSinceFlush = 0;
+            while (count > 0)
+            {
+                var readResult = await reader.ReadAsync(ct); // handle result
+                var readBuffer = readResult.Buffer.First;
+                if (readBuffer.Length > count)
+                {
+                    readBuffer = readBuffer.Slice(0, (int)count);
+                }
+                var writeBuffer = writer.GetMemory(readBuffer.Length);
+                readBuffer.CopyTo(writeBuffer);
+                writer.Advance(readBuffer.Length);
+                reader.AdvanceTo(readResult.Buffer.GetPosition(readBuffer.Length));
+                writtenSinceFlush += readBuffer.Length;
+                if (writtenSinceFlush > 8192)
+                {
+                    await writer.FlushAsync(ct); // handle result
+                    writtenSinceFlush = 0;
+                }
+                count -= readBuffer.Length;
+            }
+            if (writtenSinceFlush > 0)
+            {
+                await writer.FlushAsync(ct);
+            }
+        }
+    }
 }

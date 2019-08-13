@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Pipes
 {
     internal static class SequenceExtensions
     {
@@ -20,6 +20,14 @@ namespace Rsync.Delta
             Span<byte> buffer = stackalloc byte[2];
             var value = sequence.ReadN(buffer);
             return BinaryPrimitives.ReadUInt16BigEndian(value);
+        }
+
+        public static int ReadIntBigEndian(
+            this ref ReadOnlySequence<byte> sequence)
+        {
+            Span<byte> buffer = stackalloc byte[4];
+            var value = sequence.ReadN(buffer);
+            return BinaryPrimitives.ReadInt32BigEndian(value);
         }
 
         public static uint ReadUIntBigEndian(
@@ -43,7 +51,7 @@ namespace Rsync.Delta
             Span<byte> valueLengthBuffer)
         {
             int valueLength = valueLengthBuffer.Length;
-            sequence.RequireLength(valueLength);
+            Debug.Assert(sequence.Length >= valueLength);
             if (sequence.First.Length >= valueLength)
             {
                 var value = sequence.First.Span.Slice(0, valueLength);
@@ -58,18 +66,9 @@ namespace Rsync.Delta
             }
         }
 
-        internal static void RequireLength(
-            this ref ReadOnlySequence<byte> sequence,
-            long requiredLength)
-        {
-            if (sequence.Length < requiredLength)
-            {
-                throw new ArgumentException($"Expected a buffer of at least {requiredLength} bytes (received {sequence.Length})");
-            }
-        }
-
         internal static byte PeekLast(this ReadOnlySequence<byte> sequence)
         {
+            Debug.Assert(sequence.Length > 0);
             ReadOnlySpan<byte> lastBuffer;
             if (sequence.IsSingleSegment)
             {

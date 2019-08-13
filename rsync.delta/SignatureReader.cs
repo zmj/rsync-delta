@@ -3,6 +3,8 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
+using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
 {
@@ -36,7 +38,7 @@ namespace Rsync.Delta
 
         private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct)
         {
-            var readResult = await _reader.Buffer(SignatureHeader.Size, ct);
+            var readResult = await _reader.Buffer(new SignatureHeader().Size, ct);
             var buffer = readResult.Buffer;
             var header = new SignatureHeader(ref buffer);
             _reader.AdvanceTo(buffer.Start);
@@ -44,7 +46,7 @@ namespace Rsync.Delta
         }
 
         private async ValueTask ReadBlockSignatures(
-            uint strongHashLength,
+            int strongHashLength,
             CancellationToken ct)
         {
             uint size = BlockSignature.Size((ushort)strongHashLength);
