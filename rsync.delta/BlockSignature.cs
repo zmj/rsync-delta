@@ -46,9 +46,10 @@ namespace Rsync.Delta
         }
 
         public bool Equals(BlockSignature other) =>
+            _rollingHash == other._rollingHash &&
             StrongHash.SequenceEqual(other.StrongHash);
 
-        public override bool Equals(object other) =>
+        public override bool Equals(object? other) =>
             other is BlockSignature sig ? Equals(sig) : false;
 
         public override int GetHashCode() => (int)_rollingHash;

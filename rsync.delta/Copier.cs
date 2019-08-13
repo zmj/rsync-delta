@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
@@ -10,16 +11,17 @@ namespace Rsync.Delta
     {
         private readonly Stream _stream;
         private readonly PipeWriter _writer;
-        private readonly StreamPipeReaderOptions _fileReadOptions;
+        private readonly StreamPipeReaderOptions _readerOptions;
 
         public Copier(
             Stream stream, 
             PipeWriter writer, 
-            StreamPipeReaderOptions fileReadOptions)
+            StreamPipeReaderOptions readerOptions)
         {
+            Debug.Assert(stream.CanSeek);
             _stream = stream;
             _writer = writer;
-            _fileReadOptions = fileReadOptions;
+            _readerOptions = readerOptions;
         }
 
         public async ValueTask WriteCopy(LongRange range, CancellationToken ct)
@@ -30,7 +32,7 @@ namespace Rsync.Delta
                 _stream.Seek((long)range.Start, SeekOrigin.Begin); // fix this cast
             }
             long count = (long)range.Length;
-            var reader = PipeReader.Create(_stream, _fileReadOptions);
+            var reader = PipeReader.Create(_stream, _readerOptions);
             await reader.CopyTo(_writer, count, ct);
         }
     }

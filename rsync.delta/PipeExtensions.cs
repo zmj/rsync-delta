@@ -57,6 +57,7 @@ namespace Rsync.Delta
             long count,
             CancellationToken ct)
         {
+            int writtenSinceFlush = 0;
             while (count > 0)
             {
                 var readResult = await reader.ReadAsync(ct); // handle result
@@ -69,8 +70,17 @@ namespace Rsync.Delta
                 readBuffer.CopyTo(writeBuffer);
                 writer.Advance(readBuffer.Length);
                 reader.AdvanceTo(readResult.Buffer.GetPosition(readBuffer.Length));
-                await writer.FlushAsync(ct); // handle result
+                writtenSinceFlush += readBuffer.Length;
+                if (writtenSinceFlush > 8192)
+                {
+                    await writer.FlushAsync(ct); // handle result
+                    writtenSinceFlush = 0;
+                }
                 count -= readBuffer.Length;
+            }
+            if (writtenSinceFlush > 0)
+            {
+                await writer.FlushAsync(ct);
             }
         }
     }

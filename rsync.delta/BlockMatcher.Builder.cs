@@ -1,8 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 
 namespace Rsync.Delta
 {
+    // remove this class
     internal partial class BlockMatcher
     {
         internal class Builder
@@ -22,7 +24,7 @@ namespace Rsync.Delta
             public BlockMatcher Build() 
             {
                 // validate
-                return new BlockMatcher(Options!.Value, _blockSignatures!.ToArray());
+                return new BlockMatcher(Options!.Value, _blockSignatures!.ToArray(), MemoryPool<byte>.Shared);
             }
         }
     }

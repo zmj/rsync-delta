@@ -13,9 +13,11 @@ namespace Rsync.Delta
         private readonly BlockMatcher _blocks;
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
+        private const uint _flushThreshhold = 1 << 13;
 
         private LongRange _pendingCopyRange;
         private ulong _pendingLiteralLength;
+        private uint _writtenAfterFlush;
 
         public DeltaWriter(BlockMatcher blocks, PipeReader reader, PipeWriter writer)
         {
@@ -30,6 +32,7 @@ namespace Rsync.Delta
             {
                 WriteHeader();
                 await WriteCommands(ct);
+                WriteEndCommand();
                 await _writer.FlushAsync(ct); // handle flushresult
                 _reader.Complete();
                 _writer.Complete();
@@ -47,6 +50,7 @@ namespace Rsync.Delta
             var buffer = _writer.GetSpan(DeltaHeader.Size);
             new DeltaHeader().WriteTo(buffer);
             _writer.Advance(DeltaHeader.Size);
+            _writtenAfterFlush += DeltaHeader.Size;
         }
 
         private async ValueTask WriteCommands(CancellationToken ct)
@@ -59,8 +63,6 @@ namespace Rsync.Delta
                     // eof: flush anything pending
                     WritePendingCopy();
                     await FlushPendingLiteral(buffer.PendingLiteral, ct);
-                    WriteEndCommand();
-                    await _writer.FlushAsync(ct);
                     return;
                 }
                 
@@ -85,6 +87,12 @@ namespace Rsync.Delta
                     _reader.AdvanceTo(
                         consumed: buffer.PendingLiteral.Start,
                         examined: buffer.CurrentBlock.End);
+                }
+
+                if (_writtenAfterFlush >= _flushThreshhold)
+                {
+                    await _writer.FlushAsync(ct); // handle flushresult
+                    _writtenAfterFlush = 0;
                 }
             }
         }
@@ -115,6 +123,7 @@ namespace Rsync.Delta
             var command = new CopyCommand(_pendingCopyRange);
             command.WriteTo(_writer.GetSpan(command.Size));
             _writer.Advance(command.Size);
+            _writtenAfterFlush += (uint)command.Size; // fix cast
             _pendingCopyRange = default;
         }
 
@@ -133,16 +142,17 @@ namespace Rsync.Delta
             
             while (!pendingLiteral.IsEmpty)
             {
-                var buffer = _writer.GetMemory(4096);
+                var buffer = _writer.GetMemory((int)_flushThreshhold);
                 int copyLen = buffer.Length > pendingLiteral.Length ? 
                     (int)pendingLiteral.Length : buffer.Length;
                 pendingLiteral.Slice(0, copyLen)
                     .CopyTo(buffer.Slice(0, copyLen).Span);
                 pendingLiteral = pendingLiteral.Slice(copyLen);
                 _writer.Advance(copyLen);
-                await _writer.FlushAsync(ct);
+                await _writer.FlushAsync(ct); // handle flushresult
             }
             _pendingLiteralLength = 0;
+            _writtenAfterFlush = 0;
             _reader.AdvanceTo(consumed: pendingLiteral.End);
         }
 

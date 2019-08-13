@@ -26,6 +26,7 @@ namespace Rsync.Delta
             {
                 await ReadHeader(ct);
                 await ExecuteCommands(ct);
+                await _writer.FlushAsync(ct);
                 _reader.Complete();
                 _writer.Complete();
             }
@@ -45,23 +46,13 @@ namespace Rsync.Delta
             _reader.AdvanceTo(buffer.Start);
         }
 
-        private readonly struct Command
-        {
-            public readonly CopyCommand? Copy;
-            public readonly LiteralCommand? Literal;
-
-            public Command(CopyCommand copy) => (Copy, Literal) = (copy, null);
-            public Command(LiteralCommand literal) => (Literal, Copy) = (literal, null);
-
-            public const int MaxSize = CopyCommand.MaxSize > LiteralCommand.MaxSize ?
-                CopyCommand.MaxSize : LiteralCommand.MaxSize;
-        }
-
         private async ValueTask ExecuteCommands(CancellationToken ct)
         {
+            const int maxCommandSize = CopyCommand.MaxSize > LiteralCommand.MaxSize ?
+                CopyCommand.MaxSize : LiteralCommand.MaxSize;
             while (true)
             {
-                var readResult = await _reader.Buffer(Command.MaxSize, ct);
+                var readResult = await _reader.Buffer(maxCommandSize, ct);
                 if (readResult.Buffer.IsEmpty)
                 {
                     throw new FormatException("Delta ended without end command");
@@ -86,7 +77,7 @@ namespace Rsync.Delta
                 }
                 else
                 {
-                    throw new FormatException(nameof(Command));
+                    throw new FormatException("unknown command");
                 }
             }
         }

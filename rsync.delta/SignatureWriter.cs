@@ -13,8 +13,10 @@ namespace Rsync.Delta
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly SignatureOptions _options;
-        private readonly IMemoryOwner<byte> _hashScratch;
+        private readonly Blake2b _blake2b;
         private readonly IMemoryOwner<byte> _strongHash;
+        private readonly ushort _blockSigLength;
+        private const uint _flushThreshhold = 2 << 13;
 
         public SignatureWriter(
             PipeReader reader,
@@ -25,15 +27,16 @@ namespace Rsync.Delta
             _reader = reader;
             _writer = writer;
             _options = options;
-            
-            _hashScratch = memoryPool.Rent(Blake2b.ScratchSize);
+            _blockSigLength = BlockSignature.Size((ushort)options.StrongHashLength);
+
+            _blake2b = new Blake2b(memoryPool);
             _strongHash = memoryPool.Rent((int)_options.StrongHashLength);
         }
 
         public void Dispose()
         {
             _strongHash.Dispose();
-            _hashScratch.Dispose();
+            _blake2b.Dispose();
         }
 
         public async ValueTask Write(CancellationToken ct)
@@ -63,6 +66,7 @@ namespace Rsync.Delta
 
         private async ValueTask WriteBlockSignatures(CancellationToken ct)
         {
+            uint writtenSinceFlush = SignatureHeader.Size;
             while (true)
             {
                 var readResult = await _reader.Buffer(_options.BlockLength, ct);
@@ -72,6 +76,13 @@ namespace Rsync.Delta
                 }
                 WriteBlockSignature(readResult.Buffer);
                 _reader.AdvanceTo(readResult.Buffer.End);
+
+                writtenSinceFlush += _blockSigLength;
+                if (writtenSinceFlush >= _flushThreshhold)
+                {
+                    await _writer.FlushAsync(ct); // handle flushresult
+                    writtenSinceFlush = 0;
+                }
             }
         }
 
@@ -83,15 +94,13 @@ namespace Rsync.Delta
 
             var strongHash = _strongHash.Memory
                 .Slice(0, (int)_options.StrongHashLength);
-            new Blake2b(_hashScratch.Memory.Span, (byte)strongHash.Length)
-                .Hash(block, strongHash.Span);
+            _blake2b.Hash(block, strongHash.Span);
             
             var sig = new BlockSignature(
                 rollingHash.Value,
                 strongHash);
-            int size = BlockSignature.Size((ushort)strongHash.Length);
-            sig.WriteTo(_writer.GetSpan(size));
-            _writer.Advance(size);
+            sig.WriteTo(_writer.GetSpan(_blockSigLength));
+            _writer.Advance(_blockSigLength);
         }
     }
 }

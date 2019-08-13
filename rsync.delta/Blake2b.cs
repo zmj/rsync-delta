@@ -4,29 +4,47 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Rsync.Delta
-{   
-    internal ref struct Blake2b
-    {
-		public const int ScratchSize = 448;
+{
+	internal readonly struct Blake2b : IDisposable
+	{
+		private readonly IMemoryOwner<byte> _scratch;
+
+		public Blake2b(MemoryPool<byte> memoryPool)
+		{
+			_scratch = memoryPool.Rent(Blake2bCore.ScratchSize);
+		}
 
 		public void Hash(
 			ReadOnlySequence<byte> data,
 			Span<byte> hash)
 		{
 			Debug.Assert(hash.Length <= 64);
+			var core = new Blake2bCore(
+				_scratch.Memory.Span,
+				(byte)hash.Length);
 			if (data.IsSingleSegment)
 			{
-				HashCore(data.First.Span);
+				core.HashCore(data.First.Span);
 			}
 			else
 			{
 				foreach (var buffer in data)
 				{
-					HashCore(buffer.Span);
+					core.HashCore(buffer.Span);
 				}
 			}
-			HashFinal(hash, isEndOfLayer: false);
+			core.HashFinal(hash, isEndOfLayer: false);
 		}
+
+		public void Dispose()
+		{
+			_scratch.Dispose();
+		}
+	}
+
+    internal ref struct Blake2bCore
+    {
+		public const int ScratchSize = 448;
 
 		private int _bufferFilled;
 		private readonly Span<byte> _buf;
@@ -66,11 +84,10 @@ namespace Rsync.Delta
 			14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3
 		};
 
-		public Blake2b(Span<byte> scratch, byte outputLength)
+		public Blake2bCore(Span<byte> scratch, byte outputLength)
 		{
 			Debug.Assert(outputLength <= 32); // not 64?
 			Debug.Assert(scratch.Length >= ScratchSize);
-			scratch.Clear();
 			_buf = scratch.Slice(0, 128);
 			
 			_v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
@@ -124,7 +141,7 @@ namespace Rsync.Delta
 			buf[offset] = (byte)value;
 		}
 
-		private void HashCore(ReadOnlySpan<byte> array)
+		public void HashCore(ReadOnlySpan<byte> array)
 		{
 			int start = 0;
 			int count = array.Length;
@@ -162,7 +179,7 @@ namespace Rsync.Delta
 			}
 		}
 
-		private void HashFinal(Span<byte> result, bool isEndOfLayer)
+		public void HashFinal(Span<byte> result, bool isEndOfLayer)
 		{
 			//Last compression
 			_counter0 += (uint)_bufferFilled;

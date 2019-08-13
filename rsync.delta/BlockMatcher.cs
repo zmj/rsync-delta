@@ -12,6 +12,7 @@ namespace Rsync.Delta
 
         private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
         private readonly SignatureOptions _options;
+        private readonly MemoryPool<byte> _memoryPool;
         
         private ReadOnlySequence<byte> _currentBlock;
         private ReadOnlyMemory<byte> _currentBlockStrongHash;
@@ -20,9 +21,11 @@ namespace Rsync.Delta
 
         public BlockMatcher(
             SignatureOptions options,
-            BlockSignature[] blockSignatures)
+            BlockSignature[] blockSignatures,
+            MemoryPool<byte> memoryPool)
         {
             _options = options;
+            _memoryPool = memoryPool;
             _blocks = new Dictionary<BlockSignature, ulong>(
                 capacity: blockSignatures.Length);
             for (uint i= (uint)blockSignatures.Length-1; i<uint.MaxValue; i--)
@@ -39,9 +42,8 @@ namespace Rsync.Delta
         private ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
         {
             var hash = new byte[_options.StrongHashLength];
-            var scratch = new byte[Blake2b.ScratchSize];
-            new Blake2b(scratch.AsSpan(), (byte)hash.Length)
-                .Hash(block, hash);
+            var scratch = new byte[Blake2bCore.ScratchSize];
+            new Blake2b(_memoryPool).Hash(block, hash);
             return hash.AsMemory();
         }
 
