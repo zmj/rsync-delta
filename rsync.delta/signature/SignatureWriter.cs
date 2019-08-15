@@ -16,7 +16,6 @@ namespace Rsync.Delta.Signature
         private readonly SignatureOptions _options;
         private readonly Blake2b _blake2b;
         private readonly IMemoryOwner<byte> _strongHash;
-        private readonly ushort _blockSigLength;
         private const uint _flushThreshhold = 2 << 13;
 
         public SignatureWriter(
@@ -28,7 +27,6 @@ namespace Rsync.Delta.Signature
             _reader = reader;
             _writer = writer;
             _options = options;
-            _blockSigLength = BlockSignature.Size((ushort)options.StrongHashLength);
 
             _blake2b = new Blake2b(memoryPool);
             _strongHash = memoryPool.Rent((int)_options.StrongHashLength);
@@ -75,10 +73,9 @@ namespace Rsync.Delta.Signature
                 {
                     return;
                 }
-                WriteBlockSignature(readResult.Buffer);
+                var sig = ComputeSignature(readResult.Buffer);
                 _reader.AdvanceTo(readResult.Buffer.End);
-
-                writtenSinceFlush += _blockSigLength;
+                _writer.Write(sig);
                 if (writtenSinceFlush >= _flushThreshhold)
                 {
                     await _writer.FlushAsync(ct); // handle flushresult
@@ -87,7 +84,7 @@ namespace Rsync.Delta.Signature
             }
         }
 
-        private void WriteBlockSignature(ReadOnlySequence<byte> block)
+        private BlockSignature ComputeSignature(ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
             var rollingHash = new RollingHash();
@@ -97,11 +94,9 @@ namespace Rsync.Delta.Signature
                 .Slice(0, (int)_options.StrongHashLength);
             _blake2b.Hash(block, strongHash.Span);
             
-            var sig = new BlockSignature(
+            return new BlockSignature(
                 rollingHash.Value,
                 strongHash);
-            sig.WriteTo(_writer.GetSpan(_blockSigLength));
-            _writer.Advance(_blockSigLength);
         }
     }
 }

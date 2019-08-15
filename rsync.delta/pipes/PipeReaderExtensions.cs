@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Rsync.Delta.Pipes
 {
-    internal static class PipeExtensions
+    internal static class PipeReaderExtensions
     {
         public static ValueTask<ReadResult> Buffer(
             this PipeReader reader,

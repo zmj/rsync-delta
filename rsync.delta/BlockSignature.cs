@@ -1,14 +1,17 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
 {
-    public readonly struct BlockSignature : IEquatable<BlockSignature>
+    public readonly struct BlockSignature : 
+        IEquatable<BlockSignature>, IWritable
     {
-        public static ushort Size(ushort strongHashLength) =>
+        public static ushort SSize(ushort strongHashLength) =>
             (ushort)(strongHashLength + 4);
+        public int Size => (int)SSize((ushort)_strongHash!.Value.Length); // todo cleanup
 
         private readonly uint _rollingHash;
         private readonly ReadOnlyMemory<byte>? _strongHash; // rent from matcher

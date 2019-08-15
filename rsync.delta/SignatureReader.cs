@@ -49,7 +49,7 @@ namespace Rsync.Delta
             int strongHashLength,
             CancellationToken ct)
         {
-            uint size = BlockSignature.Size((ushort)strongHashLength);
+            uint size = BlockSignature.SSize((ushort)strongHashLength);
             while (true)
             {
                 var readResult = await _reader.Buffer(size, ct);

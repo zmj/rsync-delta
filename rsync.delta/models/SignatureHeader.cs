@@ -7,7 +7,7 @@ namespace Rsync.Delta.Models
 {
     internal readonly struct SignatureHeader : IWritable
     {
-        public int Size => 4 + Options.Size;
+        public int Size => 12;
 
         public readonly SignatureFormat Format;
         public readonly SignatureOptions Options;
@@ -22,7 +22,9 @@ namespace Rsync.Delta.Models
         public SignatureHeader(ref ReadOnlySequence<byte> buffer)
         {
             Format = (SignatureFormat)buffer.ReadUIntBigEndian();
-            Options = new SignatureOptions(ref buffer);
+            Options = new SignatureOptions(
+                blockLength: buffer.ReadIntBigEndian(),
+                strongHashLength: buffer.ReadIntBigEndian());
             Validate();
         }
 
@@ -37,7 +39,8 @@ namespace Rsync.Delta.Models
         public void WriteTo(Span<byte> buffer)
         {
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);
-            Options.WriteTo(buffer.Slice(4));
+            BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(4), Options.BlockLength);
+            BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(8), Options.StrongHashLength);
         }
     }
 
