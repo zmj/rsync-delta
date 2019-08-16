@@ -5,17 +5,17 @@ using System.Linq;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Delta
 {
-    internal partial class BlockMatcher
+    internal partial class BlockMatcher : IDisposable
     {
-        public int BlockLength => _options.BlockLength;
-        private readonly Dictionary<BlockSignature, ulong> _blocks;
-
-        private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
-        private readonly SignatureOptions _options;
+        public readonly SignatureOptions Options;
         private readonly MemoryPool<byte> _memoryPool;
         
+        private readonly Dictionary<BlockSignature, ulong> _blocks =
+            new Dictionary<BlockSignature, ulong>();
+
+        private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
         private ReadOnlySequence<byte> _currentBlock;
         private ReadOnlyMemory<byte> _currentBlockStrongHash;
 
@@ -23,17 +23,17 @@ namespace Rsync.Delta
 
         public BlockMatcher(
             SignatureOptions options,
-            BlockSignature[] blockSignatures,
+            //BlockSignature[] blockSignatures,
             MemoryPool<byte> memoryPool)
         {
-            _options = options;
+            Options = options;
             _memoryPool = memoryPool;
-            _blocks = new Dictionary<BlockSignature, ulong>(
+            /*_blocks = new Dictionary<BlockSignature, ulong>(
                 capacity: blockSignatures.Length);
             for (uint i= (uint)blockSignatures.Length-1; i<uint.MaxValue; i--)
             {
                 _blocks[blockSignatures[i]] = (ulong)(i * options.BlockLength);
-            }
+            }*/
             _rollingHash = new RollingHash();
             _lazyStrongHash = () => 
                 _currentBlockStrongHash.Equals(default) ?
@@ -41,9 +41,22 @@ namespace Rsync.Delta
                     _currentBlockStrongHash;
         }
 
+        public void Dispose()
+        {
+            // todo: dispose hash scratch and calculated hashes
+        }
+
+        public void Add(BlockSignature sig, ulong start)
+        {
+            if (!_blocks.ContainsKey(sig))
+            {
+                _blocks.Add(sig, start);
+            }
+        }
+
         private ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
         {
-            var hash = new byte[_options.StrongHashLength];
+            var hash = new byte[Options.StrongHashLength];
             var scratch = new byte[Blake2bCore.ScratchSize];
             new Blake2b(_memoryPool).Hash(block, hash);
             return hash.AsMemory();
@@ -74,7 +87,7 @@ namespace Rsync.Delta
                 _rollingHash = new RollingHash();
                 _rollingHash.RotateIn(block.CurrentBlock);
             }
-            else if (block.CurrentBlock.Length == BlockLength)
+            else if (block.CurrentBlock.Length == Options.BlockLength)
             {
                 _rollingHash.Rotate(
                     remove: block.PendingLiteral.PeekLast(),

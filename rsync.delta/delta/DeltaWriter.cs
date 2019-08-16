@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Delta
 {
     internal class DeltaWriter
     {
@@ -159,7 +159,7 @@ namespace Rsync.Delta
 
         private async ValueTask<BufferedBlock> BufferBlock(CancellationToken ct)
         {
-            ulong len = (uint)_blocks.BlockLength + _pendingLiteralLength;
+            ulong len = (uint)_blocks.Options.BlockLength + _pendingLiteralLength;
             var readResult = await _reader.Buffer((long)len, ct); // fix this cast
             var pendingLiteral = readResult.Buffer.Slice(0, (int)_pendingLiteralLength); // fix
             var currentBlock = readResult.Buffer.Slice((int)_pendingLiteralLength); // fix

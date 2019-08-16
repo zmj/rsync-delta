@@ -6,32 +6,34 @@ using System.Threading.Tasks;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Delta
 {
     internal readonly struct SignatureReader
     {
-        private readonly BlockMatcher.Builder _builder;
         private readonly PipeReader _reader;
+        private readonly MemoryPool<byte> _memoryPool;
 
-        public SignatureReader(BlockMatcher.Builder builder, PipeReader reader)
+        public SignatureReader(PipeReader reader, MemoryPool<byte> memoryPool)
         {
-            _builder = builder;
             _reader = reader;
+            _memoryPool = memoryPool;
         }
 
         public async ValueTask<BlockMatcher> Read(CancellationToken ct)
         {
+            BlockMatcher? matcher = null;
             try
             {
                 var header = await ReadHeader(ct);
-                _builder.Options = header.Options;
-                await ReadBlockSignatures(header.Options.StrongHashLength, ct);
+                matcher = new BlockMatcher(header.Options, _memoryPool);
+                await ReadBlockSignatures(matcher, ct);
                 _reader.Complete();
-                return _builder.Build();
+                return matcher;
             }
             catch (Exception ex)
             {
                 _reader.Complete(ex);
+                matcher?.Dispose();
                 throw;
             }
         }
@@ -46,11 +48,13 @@ namespace Rsync.Delta
         }
 
         private async ValueTask ReadBlockSignatures(
-            int strongHashLength,
+            BlockMatcher matcher,
             CancellationToken ct)
         {
+            int blockLength = matcher.Options!.BlockLength;
+            int strongHashLength = matcher.Options!.StrongHashLength;
             uint size = BlockSignature.SSize((ushort)strongHashLength);
-            while (true)
+            for (int i = 0; ; i++)
             {
                 var readResult = await _reader.Buffer(size, ct);
                 var buffer = readResult.Buffer;
@@ -60,7 +64,8 @@ namespace Rsync.Delta
                 }
                 var sig = new BlockSignature(ref buffer, (int)strongHashLength);
                 _reader.AdvanceTo(buffer.Start);
-                _builder.Add(sig);
+                long start = blockLength * i; // todo checked
+                matcher.Add(sig, (ulong)start);
             }
         }
     }

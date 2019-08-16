@@ -195,11 +195,9 @@ namespace Rsync.Delta
             {
                 throw new ArgumentNullException(nameof(deltaWriter));
             }
-
-            var builder = new BlockMatcher.Builder();
-            var reader = new SignatureReader(builder, signatureReader);
-            var matcher = await reader.Read(ct);
-            var writer = new DeltaWriter(matcher, fileReader, deltaWriter);
+            var reader = new Delta.SignatureReader(signatureReader, _memoryPool);
+            using var matcher = await reader.Read(ct);
+            var writer = new Delta.DeltaWriter(matcher, fileReader, deltaWriter);
             await writer.Write(ct);
         }
 
