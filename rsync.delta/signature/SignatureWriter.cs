@@ -16,7 +16,7 @@ namespace Rsync.Delta.Signature
         private readonly SignatureOptions _options;
         private readonly Blake2b _blake2b;
         private readonly IMemoryOwner<byte> _strongHash;
-        private const uint _flushThreshhold = 2 << 13;
+        private const uint _flushThreshhold = 1 << 13;
 
         public SignatureWriter(
             PipeReader reader,
@@ -42,7 +42,7 @@ namespace Rsync.Delta.Signature
         {
             try
             {
-                WriteHeader();
+                _writer.Write(new SignatureHeader(_options));
                 await WriteBlockSignatures(ct);
                 await _writer.FlushAsync(ct); // handle flushresult
                 _reader.Complete();
@@ -54,13 +54,6 @@ namespace Rsync.Delta.Signature
                 _writer.Complete(ex);
                 throw;
             }
-        }
-
-        private void WriteHeader()
-        {
-            var header = new SignatureHeader(_options);
-            header.WriteTo(_writer.GetSpan(header.Size));
-            _writer.Advance(header.Size);
         }
 
         private async ValueTask WriteBlockSignatures(CancellationToken ct)
@@ -75,7 +68,7 @@ namespace Rsync.Delta.Signature
                 }
                 var sig = ComputeSignature(readResult.Buffer);
                 _reader.AdvanceTo(readResult.Buffer.End);
-                _writer.Write(sig);
+                writtenSinceFlush += _writer.Write(sig);
                 if (writtenSinceFlush >= _flushThreshhold)
                 {
                     await _writer.FlushAsync(ct); // handle flushresult
