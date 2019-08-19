@@ -5,9 +5,11 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct SignatureHeader : IWritable
+    internal readonly struct SignatureHeader : 
+        IWritable, IReadable<SignatureHeader>
     {
         public int Size => 12;
+        public int MaxSize => 12;
 
         public readonly SignatureFormat Format;
         public readonly SignatureOptions Options;
@@ -41,6 +43,11 @@ namespace Rsync.Delta.Models
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);
             BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(4), Options.BlockLength);
             BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(8), Options.StrongHashLength);
+        }
+
+        public SignatureHeader? ReadFrom(ref ReadOnlySequence<byte> data)
+        {
+            return new SignatureHeader(ref data);
         }
     }
 

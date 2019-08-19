@@ -38,21 +38,16 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct)
-        {
-            var readResult = await _reader.Buffer(new SignatureHeader().Size, ct);
-            var buffer = readResult.Buffer;
-            var header = new SignatureHeader(ref buffer);
-            _reader.AdvanceTo(buffer.Start);
-            return header;
-        }
+        private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct) =>
+            await _reader.Read<SignatureHeader>(ct) ??
+            throw new FormatException("failed to read signature header");
 
         private async ValueTask ReadBlockSignatures(
             BlockMatcher matcher,
             CancellationToken ct)
         {
-            int blockLength = matcher.Options!.BlockLength;
-            int strongHashLength = matcher.Options!.StrongHashLength;
+            int blockLength = matcher.Options.BlockLength;
+            int strongHashLength = matcher.Options.StrongHashLength;
             uint size = BlockSignature.SSize((ushort)strongHashLength);
             for (int i = 0; ; i++)
             {
@@ -65,6 +60,22 @@ namespace Rsync.Delta.Delta
                 var sig = new BlockSignature(ref buffer, (int)strongHashLength);
                 _reader.AdvanceTo(buffer.Start);
                 long start = blockLength * i; // todo checked
+                matcher.Add(sig, (ulong)start);
+            }
+        }
+
+        private async ValueTask ReadBlockSignatures2(
+            BlockMatcher matcher,
+            CancellationToken ct)
+        {
+            for (int i = 0; ; i++)
+            {
+                var sig = await _reader.Read<BlockSignature>(ct);
+                if (!sig.HasValue)
+                {
+                    return;
+                }
+                long start = matcher.Options.BlockLength * i;
                 matcher.Add(sig, (ulong)start);
             }
         }

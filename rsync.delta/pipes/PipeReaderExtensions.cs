@@ -3,11 +3,29 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
 
 namespace Rsync.Delta.Pipes
 {
     internal static class PipeReaderExtensions
     {
+        public static async ValueTask<T?> Read<T>(
+            this PipeReader reader,
+            CancellationToken ct)
+            where T : struct, IReadable<T>
+        {
+            T t = default;
+            var readResult = await reader.Buffer(t.MaxSize, ct);
+            var buffer = readResult.Buffer;
+            if (buffer.IsEmpty)
+            {
+                return null;
+            }
+            T? result = t.ReadFrom(ref buffer);
+            reader.AdvanceTo(buffer.Start);
+            return result;
+        }
+
         public static ValueTask<ReadResult> Buffer(
             this PipeReader reader,
             long count,
