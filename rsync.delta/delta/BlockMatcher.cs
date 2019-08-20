@@ -7,100 +7,39 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
-    internal partial class BlockMatcher : IDisposable
+    internal readonly struct BlockMatcher : IDisposable
     {
         public readonly SignatureOptions Options;
-        private readonly MemoryPool<byte> _memoryPool;
-        
-        private readonly Dictionary<BlockSignature, ulong> _blocks =
-            new Dictionary<BlockSignature, ulong>();
-
-        private readonly Func<ReadOnlyMemory<byte>> _lazyStrongHash;
-        private ReadOnlySequence<byte> _currentBlock;
-        private ReadOnlyMemory<byte> _currentBlockStrongHash;
-
-        private RollingHash _rollingHash;
+        private readonly LazyBlockSignature _lazyBlockSig;
+        private readonly Dictionary<BlockSignature, ulong> _blocks;
 
         public BlockMatcher(
             SignatureOptions options,
-            //BlockSignature[] blockSignatures,
             MemoryPool<byte> memoryPool)
         {
             Options = options;
-            _memoryPool = memoryPool;
-            /*_blocks = new Dictionary<BlockSignature, ulong>(
-                capacity: blockSignatures.Length);
-            for (uint i= (uint)blockSignatures.Length-1; i<uint.MaxValue; i--)
-            {
-                _blocks[blockSignatures[i]] = (ulong)(i * options.BlockLength);
-            }*/
-            _rollingHash = new RollingHash();
-            _lazyStrongHash = () => 
-                _currentBlockStrongHash.Equals(default) ?
-                    (_currentBlockStrongHash = CalculateStrongHash(_currentBlock)) :
-                    _currentBlockStrongHash;
+            _lazyBlockSig = new LazyBlockSignature(options, memoryPool);
+            _blocks = new Dictionary<BlockSignature, ulong>();
         }
 
-        public void Dispose()
-        {
-            // todo: dispose hash scratch and calculated hashes
-        }
+        public void Dispose() => _lazyBlockSig.Dispose();
 
         public void Add(BlockSignature sig, ulong start)
         {
+            // compilation condition: TryAdd
             if (!_blocks.ContainsKey(sig))
             {
                 _blocks.Add(sig, start);
             }
         }
 
-        private ReadOnlyMemory<byte> CalculateStrongHash(ReadOnlySequence<byte> block)
-        {
-            var hash = new byte[Options.StrongHashLength];
-            var scratch = new byte[Blake2bCore.ScratchSize];
-            new Blake2b(_memoryPool).Hash(block, hash);
-            return hash.AsMemory();
-        }
-
-        private Func<ReadOnlyMemory<byte>> LazyCalculateStrongHash(
-            ReadOnlySequence<byte> block)
-        {
-            _currentBlock = block;
-            _currentBlockStrongHash = default;
-            return _lazyStrongHash;
-        }
-
         public LongRange? MatchBlock(BufferedBlock block)
         {
-            uint rollingHash = CalculateRollingHash(block);
-            var strongHash = LazyCalculateStrongHash(block.CurrentBlock);
-            using var lazySig = new LazyBlockSignature(
-                strongHash,
-                rollingHash);
-            var sig = new BlockSignature(lazySig);
+            _lazyBlockSig.Block = block;
+            var sig = new BlockSignature(_lazyBlockSig);
             return _blocks.TryGetValue(sig, out ulong start) ? 
                 new LongRange(start, (ulong)block.CurrentBlock.Length) : 
                 (LongRange?)null;
-        }
-
-        private uint CalculateRollingHash(BufferedBlock block) 
-        {
-            if (block.PendingLiteral.IsEmpty)
-            {
-                _rollingHash = new RollingHash();
-                _rollingHash.RotateIn(block.CurrentBlock);
-            }
-            else if (block.CurrentBlock.Length == Options.BlockLength)
-            {
-                _rollingHash.Rotate(
-                    remove: block.PendingLiteral.PeekLast(),
-                    add: block.CurrentBlock.PeekLast());
-            }
-            else
-            {
-                _rollingHash.RotateOut(block.PendingLiteral.PeekLast());
-            }
-            return _rollingHash.Value;
         }
     }
 }

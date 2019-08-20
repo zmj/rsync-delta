@@ -26,9 +26,9 @@ namespace Rsync.Delta.Delta
             {
                 var header = await ReadHeader(ct);
                 matcher = new BlockMatcher(header.Options, _memoryPool);
-                await ReadBlockSignatures(matcher, ct);
+                await ReadBlockSignatures(matcher.Value, ct);
                 _reader.Complete();
-                return matcher;
+                return matcher.Value;
             }
             catch (Exception ex)
             {
@@ -59,29 +59,9 @@ namespace Rsync.Delta.Delta
                 }
                 var sig = new BlockSignature(ref buffer, (int)strongHashLength);
                 _reader.AdvanceTo(buffer.Start);
-                long start = blockLength * i; // todo checked
+                long start = blockLength * i;
                 matcher.Add(sig, (ulong)start);
             }
         }
-
-/*
-        private async ValueTask ReadBlockSignatures2(
-            BlockMatcher matcher,
-            CancellationToken ct)
-        {
-            const int maxSignatures = 1 << 22;
-            for (int i = 0; i < maxSignatures; i++)
-            {
-                var sig = await _reader.Read<BlockSignature>(ct);
-                if (!sig.HasValue)
-                {
-                    return;
-                }
-                long start = matcher.Options.BlockLength * i;
-                matcher.Add(sig, (ulong)start);
-            }
-            throw new FormatException($"too many signatures");
-        }
-        */
     }
 }

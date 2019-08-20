@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Delta
 {
     internal readonly struct BufferedBlock
     {
