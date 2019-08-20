@@ -64,11 +64,13 @@ namespace Rsync.Delta.Delta
             }
         }
 
+/*
         private async ValueTask ReadBlockSignatures2(
             BlockMatcher matcher,
             CancellationToken ct)
         {
-            for (int i = 0; ; i++)
+            const int maxSignatures = 1 << 22;
+            for (int i = 0; i < maxSignatures; i++)
             {
                 var sig = await _reader.Read<BlockSignature>(ct);
                 if (!sig.HasValue)
@@ -78,6 +80,8 @@ namespace Rsync.Delta.Delta
                 long start = matcher.Options.BlockLength * i;
                 matcher.Add(sig, (ulong)start);
             }
+            throw new FormatException($"too many signatures");
         }
+        */
     }
 }

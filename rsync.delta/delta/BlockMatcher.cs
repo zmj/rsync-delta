@@ -74,7 +74,10 @@ namespace Rsync.Delta.Delta
         {
             uint rollingHash = CalculateRollingHash(block);
             var strongHash = LazyCalculateStrongHash(block.CurrentBlock);
-            var sig = new BlockSignature(rollingHash, strongHash);
+            using var lazySig = new LazyBlockSignature(
+                strongHash,
+                rollingHash);
+            var sig = new BlockSignature(lazySig);
             return _blocks.TryGetValue(sig, out ulong start) ? 
                 new LongRange(start, (ulong)block.CurrentBlock.Length) : 
                 (LongRange?)null;
