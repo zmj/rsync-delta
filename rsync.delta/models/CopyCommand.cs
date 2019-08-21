@@ -4,9 +4,9 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Models
 {
-    internal readonly struct CopyCommand
+    internal readonly struct CopyCommand : IWritable
     {
         private const byte _baseCommand = 0x45;
 

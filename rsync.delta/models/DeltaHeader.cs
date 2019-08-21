@@ -3,11 +3,12 @@ using System.Buffers;
 using System.Buffers.Binary;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Models
 {
-    internal readonly struct DeltaHeader
+    internal readonly struct DeltaHeader : IWritable, IReadable<DeltaHeader>
     {
-        public const ushort Size = 4;
+        public int Size => 4;
+        public int MaxSize => 4;
 
         public const DeltaFormat Format = DeltaFormat.Librsync;
 
@@ -22,6 +23,9 @@ namespace Rsync.Delta
 
         public void WriteTo(Span<byte> buffer) =>
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);
+
+        public DeltaHeader? ReadFrom(ref ReadOnlySequence<byte> data) =>
+            new DeltaHeader(ref data);
     }
 
     internal enum DeltaFormat : uint

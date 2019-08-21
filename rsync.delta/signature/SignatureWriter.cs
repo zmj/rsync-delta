@@ -16,7 +16,7 @@ namespace Rsync.Delta.Signature
         private readonly SignatureOptions _options;
         private readonly Blake2b _blake2b;
         private readonly IMemoryOwner<byte> _strongHash;
-        private const uint _flushThreshhold = 1 << 13;
+        private const uint _flushThreshhold = 1 << 12;
 
         public SignatureWriter(
             PipeReader reader,

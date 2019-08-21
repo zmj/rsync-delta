@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
@@ -41,10 +42,11 @@ namespace Rsync.Delta
 
         private async ValueTask ReadHeader(CancellationToken ct)
         {
-            var readResult = await _reader.Buffer(DeltaHeader.Size, ct);
-            var buffer = readResult.Buffer;
-            var header = new DeltaHeader(ref buffer);
-            _reader.AdvanceTo(buffer.Start);
+            var header = await _reader.Read<DeltaHeader>(ct);
+            if (!header.HasValue)
+            {
+                throw new FormatException("failed to read delta header");
+            }
         }
 
         private async ValueTask ExecuteCommands(CancellationToken ct)

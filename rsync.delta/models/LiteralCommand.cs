@@ -3,9 +3,9 @@ using System.Buffers;
 using System.Diagnostics;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Models
 {
-    internal readonly struct LiteralCommand
+    internal readonly struct LiteralCommand : IWritable
     {
         private const byte _baseCommand = 0x41;
 

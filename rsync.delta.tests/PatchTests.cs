@@ -16,6 +16,8 @@ namespace Rsync.Delta.Tests
         [InlineData("hello", "hellooo", 2, null)]
         [InlineData("hello", "hello", 2, null)]
         [InlineData("hello", "hellooo", null, 16)]
+        [InlineData("hello", "ohello", 2, null)]
+        [InlineData("hello", "ohhello", 2, null)]
         public async Task Patch(
             string v1, string v2, int? blockLength, int? strongHashLength)
         {

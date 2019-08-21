@@ -4,12 +4,12 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Models
 {
-    internal readonly struct CommandArg
+    internal readonly struct CommandArg : IWritable
     {
         public readonly ulong Value;
-        public readonly int Size;
+        public int Size { get; }
         public readonly CommandModifier Modifier;
 
         public const int MaxSize = 8;

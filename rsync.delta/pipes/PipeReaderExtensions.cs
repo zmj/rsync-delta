@@ -46,7 +46,7 @@ namespace Rsync.Delta.Pipes
 
         public static ValueTask<ReadResult> Buffer(
             this PipeReader reader,
-            long count,
+            int count,
             CancellationToken ct)
         {
             if (reader.TryRead(out var readResult) &&
