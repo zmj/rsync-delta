@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
@@ -29,7 +30,7 @@ namespace Rsync.Delta.Signature
             _options = options;
 
             _blake2b = new Blake2b(memoryPool);
-            _strongHash = memoryPool.Rent((int)_options.StrongHashLength);
+            _strongHash = memoryPool.Rent(_options.StrongHashLength);
         }
 
         public void Dispose()

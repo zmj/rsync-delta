@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 

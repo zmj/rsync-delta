@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Hash
 {
     internal struct RollingHash
     {
