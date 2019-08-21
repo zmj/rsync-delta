@@ -26,6 +26,24 @@ namespace Rsync.Delta.Pipes
             return result;
         }
 
+        public static async ValueTask<T?> Read<T, Options>(
+            this PipeReader reader,
+            Options options,
+            CancellationToken ct)
+            where T : struct, IReadable<T, Options>
+        {
+            T t = default;
+            var readResult = await reader.Buffer(t.MaxSize(options), ct);
+            var buffer = readResult.Buffer;
+            if (buffer.IsEmpty)
+            {
+                return null;
+            }
+            T? result = t.ReadFrom(ref buffer, options);
+            reader.AdvanceTo(buffer.Start);
+            return result;
+        }
+
         public static ValueTask<ReadResult> Buffer(
             this PipeReader reader,
             long count,

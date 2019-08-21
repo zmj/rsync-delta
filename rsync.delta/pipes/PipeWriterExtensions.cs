@@ -17,5 +17,18 @@ namespace Rsync.Delta.Pipes
             writer.Advance(size);
             return size;
         }
+
+        public static int Write<T, Options>(
+            this PipeWriter writer,
+            T writable,
+            Options options)
+            where T : IWritable<Options> 
+        {
+            int size = writable.Size(options);
+            var buffer = writer.GetSpan(size);
+            writable.WriteTo(buffer, options);
+            writer.Advance(size);
+            return size;
+        }
     }
 }

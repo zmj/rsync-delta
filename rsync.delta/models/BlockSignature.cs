@@ -10,11 +10,10 @@ namespace Rsync.Delta.Models
     [StructLayout(LayoutKind.Sequential)]
     internal readonly struct BlockSignature : 
         IEquatable<BlockSignature>,
-        IWritable
+        IWritable<SignatureOptions>
     {
         public static ushort SSize(ushort strongHashLength) =>
             (ushort)(strongHashLength + 4);
-        public int Size => (int)SSize((ushort)_strongHash.Length); // todo cleanup
 
         private readonly uint _eagerRollingHash;
         private readonly ReadOnlyMemory<byte> _eagerStrongHash; // fieldify
@@ -49,10 +48,14 @@ namespace Rsync.Delta.Models
             _eagerStrongHash = default;
         }
 
-        public void WriteTo(Span<byte> buffer)
+        public int Size(SignatureOptions options) => options.StrongHashLength + 4;
+
+        public void WriteTo(Span<byte> buffer, SignatureOptions options)
         {
             BinaryPrimitives.WriteUInt32BigEndian(buffer, _rollingHash);
-            _strongHash.CopyTo(buffer.Slice(4));
+            _strongHash
+                .Slice(0, options.StrongHashLength)
+                .CopyTo(buffer.Slice(4));
         }
 
         public bool Equals(BlockSignature other) =>

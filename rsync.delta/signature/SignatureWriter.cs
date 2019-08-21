@@ -68,7 +68,7 @@ namespace Rsync.Delta.Signature
                 }
                 var sig = ComputeSignature(readResult.Buffer);
                 _reader.AdvanceTo(readResult.Buffer.End);
-                writtenSinceFlush += _writer.Write(sig);
+                writtenSinceFlush += _writer.Write(sig, _options);
                 if (writtenSinceFlush >= _flushThreshhold)
                 {
                     await _writer.FlushAsync(ct); // handle flushresult

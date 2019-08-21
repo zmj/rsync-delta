@@ -63,5 +63,25 @@ namespace Rsync.Delta.Delta
                 matcher.Add(sig, (ulong)start);
             }
         }
+        /* 
+                private async ValueTask ReadBlockSignatures(
+            BlockMatcher matcher,
+            CancellationToken ct)
+        {
+            const int maxSignatures = 1 << 22;
+            int size = matcher.Options.StrongHashLength + 4;
+            for (int i = 0; i < maxSignatures; i++)
+            {
+                var sig = await _reader.Read<BlockSignature>(size, ct);
+                if (!sig.HasValue)
+                {
+                    return;
+                }
+                long start = matcher.Options.BlockLength * i;
+                matcher.Add(sig.Value, (ulong)start);
+            }
+            throw new FormatException($"too many signatures");
+        }
+        */
     }
 }
