@@ -46,33 +46,11 @@ namespace Rsync.Delta.Delta
             BlockMatcher matcher,
             CancellationToken ct)
         {
-            int blockLength = matcher.Options.BlockLength;
-            int strongHashLength = matcher.Options.StrongHashLength;
-            uint size = BlockSignature.SSize((ushort)strongHashLength);
-            for (int i = 0; ; i++)
-            {
-                var readResult = await _reader.Buffer(size, ct);
-                var buffer = readResult.Buffer;
-                if (buffer.Length == 0)
-                {
-                    return;
-                }
-                var sig = new BlockSignature(ref buffer, (int)strongHashLength);
-                _reader.AdvanceTo(buffer.Start);
-                long start = blockLength * i;
-                matcher.Add(sig, (ulong)start);
-            }
-        }
-        /* 
-                private async ValueTask ReadBlockSignatures(
-            BlockMatcher matcher,
-            CancellationToken ct)
-        {
             const int maxSignatures = 1 << 22;
-            int size = matcher.Options.StrongHashLength + 4;
             for (int i = 0; i < maxSignatures; i++)
             {
-                var sig = await _reader.Read<BlockSignature>(size, ct);
+                var sig = await _reader.Read<BlockSignature, SignatureOptions>(
+                    matcher.Options, ct);
                 if (!sig.HasValue)
                 {
                     return;
@@ -82,6 +60,5 @@ namespace Rsync.Delta.Delta
             }
             throw new FormatException($"too many signatures");
         }
-        */
     }
 }

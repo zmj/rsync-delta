@@ -10,7 +10,8 @@ namespace Rsync.Delta.Models
     [StructLayout(LayoutKind.Sequential)]
     internal readonly struct BlockSignature : 
         IEquatable<BlockSignature>,
-        IWritable<SignatureOptions>
+        IWritable<SignatureOptions>,
+        IReadable<BlockSignature, SignatureOptions>
     {
         public static ushort SSize(ushort strongHashLength) =>
             (ushort)(strongHashLength + 4);
@@ -56,6 +57,15 @@ namespace Rsync.Delta.Models
             _strongHash
                 .Slice(0, options.StrongHashLength)
                 .CopyTo(buffer.Slice(4));
+        }
+
+        public int MaxSize(SignatureOptions options) => Size(options);
+
+        public BlockSignature? ReadFrom(
+            ref ReadOnlySequence<byte> data,
+            SignatureOptions options)
+        {
+            return new BlockSignature(ref data, options.StrongHashLength);
         }
 
         public bool Equals(BlockSignature other) =>
