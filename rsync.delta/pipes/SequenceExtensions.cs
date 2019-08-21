@@ -66,7 +66,7 @@ namespace Rsync.Delta.Pipes
             }
         }
 
-        internal static byte PeekLast(this ReadOnlySequence<byte> sequence)
+        internal static byte LastByte(this in ReadOnlySequence<byte> sequence)
         {
             Debug.Assert(sequence.Length > 0);
             ReadOnlySpan<byte> lastBuffer;
@@ -81,6 +81,12 @@ namespace Rsync.Delta.Pipes
                     .First.Span;
             }
             return lastBuffer[lastBuffer.Length - 1];
+        }
+
+        internal static byte FirstByte(this in ReadOnlySequence<byte> data)
+        {
+            Debug.Assert(data.Length > 0);
+            return data.First.Span[0];
         }
     }
 }

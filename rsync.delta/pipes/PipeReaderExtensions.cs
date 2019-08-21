@@ -21,6 +21,7 @@ namespace Rsync.Delta.Pipes
             {
                 return null;
             }
+            // check MinSize
             T? result = t.ReadFrom(ref buffer);
             reader.AdvanceTo(buffer.Start);
             return result;

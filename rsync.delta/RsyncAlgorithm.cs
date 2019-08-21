@@ -121,7 +121,7 @@ namespace Rsync.Delta
             _writerOptions = new StreamPipeWriterOptions(_memoryPool);
         }
 
-        public async Task GenerateSignature(
+        public Task GenerateSignature(
             PipeReader fileReader, 
             PipeWriter signatureWriter,
             SignatureOptions? options, 
@@ -135,13 +135,16 @@ namespace Rsync.Delta
             {
                 throw new ArgumentNullException(nameof(signatureWriter));
             }
-
-            using var writer = new Signature.SignatureWriter(
-                fileReader, 
-                signatureWriter, 
-                options ?? SignatureOptions.Default,
-                _memoryPool);
-            await writer.Write(ct);
+            return GenerateSignatureAsync();
+            async Task GenerateSignatureAsync()
+            {
+                using var writer = new Signature.SignatureWriter(
+                    fileReader, 
+                    signatureWriter, 
+                    options ?? SignatureOptions.Default,
+                    _memoryPool);
+                await writer.Write(ct);
+            }
         }
 
         public Task GenerateSignature(
@@ -177,7 +180,7 @@ namespace Rsync.Delta
                 options,
                 ct);
 
-        public async Task GenerateDelta(
+        public Task GenerateDelta(
             PipeReader signatureReader, 
             PipeReader fileReader, 
             PipeWriter deltaWriter, 
@@ -195,10 +198,14 @@ namespace Rsync.Delta
             {
                 throw new ArgumentNullException(nameof(deltaWriter));
             }
-            var reader = new Delta.SignatureReader(signatureReader, _memoryPool);
-            using var matcher = await reader.Read(ct);
-            var writer = new Delta.DeltaWriter(matcher, fileReader, deltaWriter);
-            await writer.Write(ct);
+            return GenerateDeltaAsync();
+            async Task GenerateDeltaAsync()
+            {
+                var reader = new Delta.SignatureReader(signatureReader, _memoryPool);
+                using var matcher = await reader.Read(ct);
+                var writer = new Delta.DeltaWriter(matcher, fileReader, deltaWriter);
+                await writer.Write(ct);
+            }
         }
 
         public Task GenerateDelta(
@@ -278,7 +285,7 @@ namespace Rsync.Delta
                 PipeWriter.Create(deltaStream, _writerOptions),
                 ct);
 
-        public async Task Patch(
+        public Task Patch(
             PipeReader deltaReader, 
             Stream oldFileStream, 
             PipeWriter newFileWriter,
@@ -296,9 +303,13 @@ namespace Rsync.Delta
             {
                 throw new ArgumentNullException(nameof(newFileWriter));
             }
-            var copier = new Copier(oldFileStream, newFileWriter, _readerOptions);
-            var patcher = new Patcher(deltaReader, newFileWriter, copier);
-            await patcher.Patch(ct);
+            return PatchAsync();
+            async Task PatchAsync()
+            {
+                var copier = new Patch.Copier(oldFileStream, newFileWriter, _readerOptions);
+                var patcher = new Patch.Patcher(deltaReader, newFileWriter, copier);
+                await patcher.Patch(ct);
+            }
         }
 
         public Task Patch(

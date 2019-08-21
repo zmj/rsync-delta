@@ -1,4 +1,4 @@
-namespace Rsync.Delta
+namespace Rsync.Delta.Models
 {
     internal readonly struct LongRange
     {

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Patch
 {
     internal readonly struct Patcher
     {
@@ -51,8 +51,8 @@ namespace Rsync.Delta
 
         private async ValueTask ExecuteCommands(CancellationToken ct)
         {
-            const int maxCommandSize = CopyCommand.MaxSize > LiteralCommand.MaxSize ?
-                CopyCommand.MaxSize : LiteralCommand.MaxSize;
+            int maxCommandSize = default(CopyCommand).MaxSize > default(LiteralCommand).MaxSize ?
+                default(CopyCommand).MaxSize : default(LiteralCommand).MaxSize;
             while (true)
             {
                 var readResult = await _reader.Buffer(maxCommandSize, ct);

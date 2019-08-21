@@ -4,8 +4,9 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Models;
 
-namespace Rsync.Delta
+namespace Rsync.Delta.Patch
 {
     internal readonly struct Copier
     {
@@ -32,7 +33,7 @@ namespace Rsync.Delta
                 _stream.Seek((long)range.Start, SeekOrigin.Begin); // fix this cast
             }
             long count = (long)range.Length;
-            var reader = PipeReader.Create(_stream, _readerOptions);
+            var reader = PipeReader.Create(_stream, _readerOptions); // don't do this
             await reader.CopyTo(_writer, count, ct);
         }
     }
@@ -59,7 +60,7 @@ namespace Rsync.Delta
                 writer.Advance(readBuffer.Length);
                 reader.AdvanceTo(readResult.Buffer.GetPosition(readBuffer.Length));
                 writtenSinceFlush += readBuffer.Length;
-                if (writtenSinceFlush > 8192)
+                if (writtenSinceFlush > 1 << 12)
                 {
                     await writer.FlushAsync(ct); // handle result
                     writtenSinceFlush = 0;

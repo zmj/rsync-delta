@@ -59,12 +59,12 @@ namespace Rsync.Delta.Delta
             else if (_block.CurrentBlock.Length == _options.BlockLength)
             {
                 _rollingHash.Rotate(
-                    remove: _block.PendingLiteral.PeekLast(),
-                    add: _block.CurrentBlock.PeekLast());
+                    remove: _block.PendingLiteral.LastByte(),
+                    add: _block.CurrentBlock.LastByte());
             }
             else
             {
-                _rollingHash.RotateOut(_block.PendingLiteral.PeekLast());
+                _rollingHash.RotateOut(_block.PendingLiteral.LastByte());
             }
         }
 

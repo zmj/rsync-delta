@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct LiteralCommand : IWritable
+    internal readonly struct LiteralCommand : IWritable, IReadable<LiteralCommand>
     {
         private const byte _baseCommand = 0x41;
 
@@ -14,7 +14,7 @@ namespace Rsync.Delta.Models
         public LiteralCommand(ulong length) => _length = new CommandArg(length);
 
         private LiteralCommand(
-            ReadOnlySequence<byte> buffer,
+            ref ReadOnlySequence<byte> buffer,
             CommandModifier lengthModifier) =>
             _length = new CommandArg(ref buffer, lengthModifier);
 
@@ -22,7 +22,7 @@ namespace Rsync.Delta.Models
 
         public int Size => 1 + _length.Size;
 
-        public const int MaxSize = 1 + CommandArg.MaxSize;
+        public int MaxSize => 1 + CommandArg.MaxSize;
 
         public void WriteTo(Span<byte> buffer)
         {
@@ -30,6 +30,20 @@ namespace Rsync.Delta.Models
             byte command = (byte)(_baseCommand + (byte)_length.Modifier);
             buffer[0] = command;
             _length.WriteTo(buffer.Slice(1));
+        }
+
+        public LiteralCommand? ReadFrom(ref ReadOnlySequence<byte> data)
+        {
+            byte command = data.FirstByte();
+            const byte maxCommand = _baseCommand + (byte)CommandModifier.EightBytes;
+            if (command < _baseCommand || command > maxCommand)
+            {
+                return null;
+            }
+            data = data.Slice(1);
+            return new LiteralCommand(
+                ref data,
+                (CommandModifier)(command - _baseCommand));
         }
 
         public static bool TryParse(
@@ -44,7 +58,7 @@ namespace Rsync.Delta.Models
                 return false;
             }
             literal = new LiteralCommand(
-                buffer,
+                ref buffer,
                 (CommandModifier)(command - _baseCommand));
             return true;
         }

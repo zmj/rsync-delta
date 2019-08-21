@@ -6,7 +6,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct CopyCommand : IWritable
+    internal readonly struct CopyCommand : IWritable, IReadable<CopyCommand>
     {
         private const byte _baseCommand = 0x45;
 
@@ -22,7 +22,7 @@ namespace Rsync.Delta.Models
         }
 
         private CopyCommand(
-            ReadOnlySequence<byte> buffer,
+            ref ReadOnlySequence<byte> buffer,
             CommandModifier startModifier,
             CommandModifier lengthModifier)
         {
@@ -32,7 +32,7 @@ namespace Rsync.Delta.Models
 
         public int Size => 1 + _start.Size + _length.Size;
 
-        public const int MaxSize = 1 + 2 * CommandArg.MaxSize;
+        public int MaxSize => 1 + 2 * CommandArg.MaxSize;
 
         public void WriteTo(Span<byte> buffer)
         {
@@ -43,6 +43,26 @@ namespace Rsync.Delta.Models
             buffer[0] = command;
             _start.WriteTo(buffer.Slice(1));
             _length.WriteTo(buffer.Slice(1 + _start.Size));
+        }
+
+        public CopyCommand? ReadFrom(ref ReadOnlySequence<byte> data)
+        {
+            byte command = data.FirstByte();
+            const byte maxCommand = _baseCommand +
+                    4 * (byte)CommandModifier.EightBytes +
+                    (byte)CommandModifier.EightBytes;
+            if (command < _baseCommand || command > maxCommand)
+            {
+                return null;
+            }
+            data = data.Slice(1);
+            command -= _baseCommand;
+            var startModifier = command >> 2;
+            var lengthModifier = command & 0x03;
+            return new CopyCommand(
+                ref data,
+                (CommandModifier)startModifier,
+                (CommandModifier)lengthModifier);
         }
 
         public static bool TryParse(
@@ -62,7 +82,7 @@ namespace Rsync.Delta.Models
             var startModifier = command >> 2;
             var lengthModifier = command & 0x03;
             copy = new CopyCommand(
-                buffer,
+                ref buffer,
                 (CommandModifier)startModifier,
                 (CommandModifier)lengthModifier);
             return true;
