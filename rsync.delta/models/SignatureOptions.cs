@@ -20,7 +20,7 @@ namespace Rsync.Delta.Models
             {
                 throw new ArgumentOutOfRangeException(nameof(BlockLength));
             }
-            if (strongHashLength <= 0 || strongHashLength > 64)
+            if (strongHashLength <= 0 || strongHashLength > 32)
             {
                 throw new ArgumentOutOfRangeException(nameof(StrongHashLength));
             }

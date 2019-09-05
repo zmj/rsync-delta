@@ -16,7 +16,7 @@ namespace Rsync.Delta.Tests
         [InlineData("hello", null, null)]
         [InlineData("hello", 1, null)]
         [InlineData("hello", 2, null)]
-        // [InlineData("hello_hellooo_s16")] TODO: why doesn't this work?
+        [InlineData("hello_hellooo", null, 16)]
         public async Task Signature(
             string text, int? blockLength, int? strongHashLength)
         {

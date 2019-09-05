@@ -18,8 +18,8 @@ namespace Rsync.Delta
             MemoryPool<byte>? memoryPool = null)
         {
             _memoryPool = memoryPool ?? MemoryPool<byte>.Shared;
-            _readerOptions = new StreamPipeReaderOptions(_memoryPool);
-            _writerOptions = new StreamPipeWriterOptions(_memoryPool);
+            _readerOptions = new StreamPipeReaderOptions(_memoryPool, leaveOpen: true);
+            _writerOptions = new StreamPipeWriterOptions(_memoryPool, leaveOpen: true);
         }
 
         public Task GenerateSignature(

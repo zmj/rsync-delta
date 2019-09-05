@@ -18,10 +18,8 @@ namespace Rsync.Delta.Hash
 			ReadOnlySequence<byte> data,
 			Span<byte> hash)
 		{
-			Debug.Assert(hash.Length <= 64);
-			var core = new Blake2bCore(
-				_scratch.Memory.Span,
-				(byte)hash.Length);
+			Debug.Assert(hash.Length <= 32);
+			var core = new Blake2bCore(_scratch.Memory.Span);
 			if (data.IsSingleSegment)
 			{
 				core.HashCore(data.First.Span);
@@ -84,9 +82,8 @@ namespace Rsync.Delta.Hash
 			14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3
 		};
 
-		public Blake2bCore(Span<byte> scratch, byte outputLength)
+		public Blake2bCore(Span<byte> scratch)
 		{
-			Debug.Assert(outputLength <= 32); // not 64?
 			Debug.Assert(scratch.Length >= ScratchSize);
 			_buf = scratch.Slice(0, 128);
 			
@@ -110,8 +107,8 @@ namespace Rsync.Delta.Hash
 			_bufferFilled = 0;
 
 			Span<ulong> config = stackalloc ulong[8];
-			const ulong treeIV = 0x01_01_00_00;
-			config[0] = treeIV | outputLength;
+			const ulong treeIV = 0x01_01_00_20;
+			config[0] = treeIV;
 			for (int i = 0; i < 8; i++)
 				_h[i] ^= config[i];
 		}
