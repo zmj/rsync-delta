@@ -26,11 +26,14 @@ namespace Rsync.Delta.Delta
 
         public void Add(BlockSignature sig, ulong start)
         {
-            // compilation condition: TryAdd
+#if NETSTANDARD2_0
             if (!_blocks.ContainsKey(sig))
             {
                 _blocks.Add(sig, start);
             }
+#else
+            _blocks.TryAdd(sig, start);
+#endif
         }
 
         public LongRange? MatchBlock(BufferedBlock block)
