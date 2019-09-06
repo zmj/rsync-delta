@@ -22,7 +22,7 @@ namespace Rsync.Delta.Delta
             _strongHashBuffer = pool.Rent(options.StrongHashLength);
             _blake2b = new Blake2b(pool);
         }
-        public uint RollingHash => _rollingHash.Value;
+        public int RollingHash => _rollingHash.Value;
 
         public ReadOnlyMemory<byte> StrongHash
         {

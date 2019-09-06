@@ -1,7 +1,5 @@
 using System;
 using System.Buffers;
-using System.Buffers.Binary;
-using System.IO.Pipelines;
 
 namespace Rsync.Delta.Hash
 {
@@ -9,7 +7,7 @@ namespace Rsync.Delta.Hash
     {
         private const byte _magic = 31;
 
-        public uint Value => (uint)((_b << 16) | _a);
+        public int Value => (_b << 16) | _a;
 
         private ushort _a;
         private ushort _b;

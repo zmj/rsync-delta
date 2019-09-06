@@ -16,17 +16,17 @@ namespace Rsync.Delta.Models
         public static ushort SSize(ushort strongHashLength) =>
             (ushort)(strongHashLength + 4);
 
-        private readonly uint _eagerRollingHash;
+        private readonly int _eagerRollingHash;
         private readonly ReadOnlyMemory<byte> _eagerStrongHash; // fieldify
         private readonly Delta.LazyBlockSignature? _lazySignature;
 
-        private uint _rollingHash =>
+        private int _rollingHash =>
             _lazySignature?.RollingHash ?? _eagerRollingHash;
         
         private ReadOnlySpan<byte> _strongHash =>
             (_lazySignature?.StrongHash ?? _eagerStrongHash).Span;
 
-        public BlockSignature(uint rollingHash, ReadOnlyMemory<byte> strongHash)
+        public BlockSignature(int rollingHash, ReadOnlyMemory<byte> strongHash)
         {
             _eagerRollingHash = rollingHash;
             _eagerStrongHash = strongHash;
@@ -35,7 +35,7 @@ namespace Rsync.Delta.Models
 
         public BlockSignature(ref ReadOnlySequence<byte> buffer, int strongHashLength)
         {
-            _eagerRollingHash = buffer.ReadUIntBigEndian();
+            _eagerRollingHash = buffer.ReadIntBigEndian();
 
             Span<byte> tmp = stackalloc byte[strongHashLength];
             _eagerStrongHash = buffer.ReadN(tmp).ToArray(); // store in fields
@@ -53,7 +53,7 @@ namespace Rsync.Delta.Models
 
         public void WriteTo(Span<byte> buffer, SignatureOptions options)
         {
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, _rollingHash);
+            BinaryPrimitives.WriteInt32BigEndian(buffer, _rollingHash);
             _strongHash
                 .Slice(0, options.StrongHashLength)
                 .CopyTo(buffer.Slice(4));
@@ -75,6 +75,6 @@ namespace Rsync.Delta.Models
         public override bool Equals(object? other) => 
             other is BlockSignature sig ? Equals(sig) : false;
 
-        public override int GetHashCode() => (int)_rollingHash;
+        public override int GetHashCode() => _rollingHash;
     }
 }
