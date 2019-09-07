@@ -17,6 +17,8 @@ namespace Rsync.Delta.Tests
         [InlineData("hello", 1, null)]
         [InlineData("hello", 2, null)]
         [InlineData("hello_hellooo", null, 16)]
+        [InlineData("hello", null, 15)]
+        [InlineData("hello", null, 17)]
         public async Task Signature(
             string text, int? blockLength, int? strongHashLength)
         {
