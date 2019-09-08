@@ -11,7 +11,7 @@ namespace Rsync.Delta.Models
         IWritable<SignatureOptions>,
         IReadable<BlockSignature, SignatureOptions>
     {
-        private readonly int _eagerRollingHash;
+        private readonly int _rollingHash;
         private readonly long _eagerStrongHash0;
         private readonly long _eagerStrongHash1;
         private readonly long _eagerStrongHash2;
@@ -20,7 +20,7 @@ namespace Rsync.Delta.Models
 
         public BlockSignature(int rollingHash, ReadOnlyMemory<byte> strongHash)
         {
-            _eagerRollingHash = rollingHash;
+            _rollingHash = rollingHash;
             SplitStrongHash(
                 strongHash.Span, 
                 out _eagerStrongHash0,
@@ -32,7 +32,7 @@ namespace Rsync.Delta.Models
 
         public BlockSignature(ref ReadOnlySequence<byte> buffer, int strongHashLength)
         {
-            _eagerRollingHash = buffer.ReadIntBigEndian();
+            _rollingHash = buffer.ReadIntBigEndian();
             var strongHash = buffer.ReadN(stackalloc byte[strongHashLength]);
             SplitStrongHash(
                 strongHash,
@@ -45,8 +45,8 @@ namespace Rsync.Delta.Models
 
         public BlockSignature(Delta.LazyBlockSignature lazySig)
         {
+            _rollingHash = lazySig.RollingHash;
             _lazySignature = lazySig;
-            _eagerRollingHash = default;
             _eagerStrongHash0 = default;
             _eagerStrongHash1 = default;
             _eagerStrongHash2 = default;
@@ -63,14 +63,12 @@ namespace Rsync.Delta.Models
                 Span<byte> tmp = stackalloc byte[32];
                 strongHash.CopyTo(tmp);
                 SplitStrongHash(tmp, out sh0, out sh1, out sh2, out sh3);
+                return;
             }
-            else
-            {
-                sh3 = BinaryPrimitives.ReadInt64BigEndian(strongHash);
-                sh2 = BinaryPrimitives.ReadInt64BigEndian(strongHash.Slice(8));
-                sh1 = BinaryPrimitives.ReadInt64BigEndian(strongHash.Slice(16));
-                sh0 = BinaryPrimitives.ReadInt64BigEndian(strongHash.Slice(24));
-            }
+            sh0 = BinaryPrimitives.ReadInt64BigEndian(strongHash);
+            sh1 = BinaryPrimitives.ReadInt64BigEndian(strongHash.Slice(8));
+            sh2 = BinaryPrimitives.ReadInt64BigEndian(strongHash.Slice(16));
+            sh3 = BinaryPrimitives.ReadInt64BigEndian(strongHash.Slice(24));
         }
 
         private static void CombineStrongHash(
@@ -83,14 +81,12 @@ namespace Rsync.Delta.Models
                 Span<byte> tmp = stackalloc byte[32];
                 CombineStrongHash(tmp, sh0, sh1, sh2, sh3);
                 tmp.Slice(0, strongHash.Length).CopyTo(strongHash);
+                return;
             }
-            else
-            {
-                BinaryPrimitives.WriteInt64BigEndian(strongHash, sh3);
-                BinaryPrimitives.WriteInt64BigEndian(strongHash.Slice(8), sh2);
-                BinaryPrimitives.WriteInt64BigEndian(strongHash.Slice(16), sh1);
-                BinaryPrimitives.WriteInt64BigEndian(strongHash.Slice(24), sh0);
-            }
+            BinaryPrimitives.WriteInt64BigEndian(strongHash, sh0);
+            BinaryPrimitives.WriteInt64BigEndian(strongHash.Slice(8), sh1);
+            BinaryPrimitives.WriteInt64BigEndian(strongHash.Slice(16), sh2);
+            BinaryPrimitives.WriteInt64BigEndian(strongHash.Slice(24), sh3);
         }
 
         public int Size(SignatureOptions options) => options.StrongHashLength + 4;
@@ -98,7 +94,7 @@ namespace Rsync.Delta.Models
         public void WriteTo(Span<byte> buffer, SignatureOptions options)
         {
             Debug.Assert(_lazySignature == null);
-            BinaryPrimitives.WriteInt32BigEndian(buffer, _eagerRollingHash);
+            BinaryPrimitives.WriteInt32BigEndian(buffer, _rollingHash);
             Span<byte> strongHash = stackalloc byte[options.StrongHashLength];
             CombineStrongHash(
                 strongHash, 
@@ -129,7 +125,7 @@ namespace Rsync.Delta.Models
             {
                 return Equals(in this, other._lazySignature);
             }
-            return _eagerRollingHash == other._eagerRollingHash &&
+            return _rollingHash == other._rollingHash &&
                 _eagerStrongHash0 == other._eagerStrongHash0 &&
                 _eagerStrongHash1 == other._eagerStrongHash1 &&
                 _eagerStrongHash2 == other._eagerStrongHash2 &&
@@ -140,7 +136,7 @@ namespace Rsync.Delta.Models
             in BlockSignature eager, 
             Delta.LazyBlockSignature lazy)
         {
-            if (eager._eagerRollingHash != lazy.RollingHash)
+            if (eager._rollingHash != lazy.RollingHash)
             {
                 return false;
             }
@@ -158,7 +154,6 @@ namespace Rsync.Delta.Models
         public override bool Equals(object? other) => 
             other is BlockSignature sig ? Equals(sig) : false;
 
-        public override int GetHashCode() => 
-            _lazySignature?.RollingHash ?? _eagerRollingHash;
+        public override int GetHashCode() => _rollingHash;
     }
 }
