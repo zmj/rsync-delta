@@ -86,7 +86,16 @@ namespace Rsync.Delta.Pipes
         internal static byte FirstByte(this in ReadOnlySequence<byte> data)
         {
             Debug.Assert(data.Length > 0);
-            return data.First.Span[0];
+            if (data.First.Length > 0)
+            {
+                return data.First.Span[0];
+            }
+            else
+            {
+                Span<byte> b = stackalloc byte[1];
+                data.Slice(0, 1).CopyTo(b);
+                return b[0];
+            }
         }
     }
 }

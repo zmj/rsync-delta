@@ -64,28 +64,5 @@ namespace Rsync.Delta.Models
                 (CommandModifier)startModifier,
                 (CommandModifier)lengthModifier);
         }
-
-        public static bool TryParse(
-            ReadOnlySequence<byte> buffer,
-            out CopyCommand copy)
-        {
-            byte command = buffer.ReadByte();
-            if (command < _baseCommand ||
-                command > (_baseCommand +
-                    4 * (byte)CommandModifier.EightBytes +
-                    (byte)CommandModifier.EightBytes))
-            {
-                copy = default;
-                return false;
-            }
-            command -= _baseCommand;
-            var startModifier = command >> 2;
-            var lengthModifier = command & 0x03;
-            copy = new CopyCommand(
-                ref buffer,
-                (CommandModifier)startModifier,
-                (CommandModifier)lengthModifier);
-            return true;
-        }
     }
 }

@@ -45,22 +45,5 @@ namespace Rsync.Delta.Models
                 ref data,
                 (CommandModifier)(command - _baseCommand));
         }
-
-        public static bool TryParse(
-            ReadOnlySequence<byte> buffer,
-            out LiteralCommand literal)
-        {
-            byte command = buffer.ReadByte();
-            if (command < _baseCommand ||
-                command > (_baseCommand + (byte)CommandModifier.EightBytes))
-            {
-                literal = default;
-                return false;
-            }
-            literal = new LiteralCommand(
-                ref buffer,
-                (CommandModifier)(command - _baseCommand));
-            return true;
-        }
     }
 }

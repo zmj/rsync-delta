@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
@@ -12,7 +13,7 @@ namespace Rsync.Delta.Models
 
         public EndCommand? ReadFrom(ref ReadOnlySequence<byte> data)
         {
-            if (data.First.Span[0] != 0)
+            if (data.FirstByte() != 0)
             {
                 return null;
             }

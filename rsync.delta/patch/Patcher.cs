@@ -51,37 +51,29 @@ namespace Rsync.Delta.Patch
 
         private async ValueTask ExecuteCommands(CancellationToken ct)
         {
-            int maxCommandSize = default(CopyCommand).MaxSize > default(LiteralCommand).MaxSize ?
-                default(CopyCommand).MaxSize : default(LiteralCommand).MaxSize;
             while (true)
             {
-                var readResult = await _reader.Buffer(maxCommandSize, ct);
-                if (readResult.Buffer.IsEmpty)
+                CopyCommand? copy = await _reader.Read<CopyCommand>(ct);
+                if (copy.HasValue)
                 {
-                    throw new FormatException("Delta ended without end command");
+                    await _copier.WriteCopy(copy.Value.Range, ct);
+                    continue;
                 }
-                if (CopyCommand.TryParse(readResult.Buffer, out var copy))
+                LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct);
+                if (literal.HasValue)
                 {
-                    _reader.AdvanceTo(readResult.Buffer.GetPosition(copy.Size));
-                    await _copier.WriteCopy(copy.Range, ct);
-                }
-                else if (LiteralCommand.TryParse(readResult.Buffer, out var literal))
-                {
-                    _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
                     await _reader.CopyTo(
                         _writer,
-                        (long)literal.LiteralLength,
+                        (long)literal.Value.LiteralLength,
                         ct);
+                    continue;
                 }
-                else if (readResult.Buffer.Length == 1 &&
-                    readResult.Buffer.First.Span[0] == 0) // END command
+                EndCommand? end = await _reader.Read<EndCommand>(ct);
+                if (end.HasValue)
                 {
                     return;
                 }
-                else
-                {
-                    throw new FormatException("unknown command");
-                }
+                throw new FormatException("unknown command");
             }
         }
     }
