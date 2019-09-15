@@ -8,25 +8,28 @@ namespace Rsync.Delta.UnitTests
     public class SignatureTests
     {
         [Fact]
-        public Task Sig_Hello_Default() => Sig(TestCase.Hello_Hellooo_Default);
-/*
-        [Theory]
-        [InlineData(1)]
-        [InlineData(2)]
-        public async Task Sig_Hello_BlockLength(int blockLength)
-        {
+        public Task Sig_Hello_Default() => 
+            Sig(TestCase.Hello_Hellooo_Default);
 
-        }
+        [Fact]
+        public Task Sig_Hello_BlockLength_1() => 
+            Sig(TestCase.Hello_Hello_BlockLength_1);
 
-        [Theory]
-        [InlineData(15)]
-        [InlineData(16)]
-        [InlineData(17)]
-        public async Task Sig_Hello_StrongHashLength(int strongHashLength)
-        {
+        [Fact]
+        public Task Sig_Hello_BlockLength_2() => 
+            Sig(TestCase.Hello_Hello_BlockLength_2);
 
-        }
-        */
+        [Fact]
+        public Task Sig_Hello_StrongHashLength_15() => 
+            Sig(TestCase.Hello_Hellooo_StrongHashLength_15);
+
+        [Fact]
+        public Task Sig_Hello_StrongHashLength_16() =>
+            Sig(TestCase.Hello_Hellooo_StrongHashLength_16);
+
+        [Fact]
+        public Task Sig_Hello_StrongHashLength_17() =>
+            Sig(TestCase.Hello_Hellooo_StrongHashLength_17);
 
         private async Task Sig(TestCase tc)
         {
