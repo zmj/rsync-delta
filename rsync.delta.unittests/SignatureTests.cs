@@ -13,11 +13,11 @@ namespace Rsync.Delta.UnitTests
 
         [Fact]
         public Task Sig_Hello_BlockLength_1() => 
-            Sig(TestCase.Hello_Hello_BlockLength_1);
+            Sig(TestCase.Hello_Hellooo_BlockLength_1);
 
         [Fact]
         public Task Sig_Hello_BlockLength_2() => 
-            Sig(TestCase.Hello_Hello_BlockLength_2);
+            Sig(TestCase.Hello_Hellooo_BlockLength_2);
 
         [Fact]
         public Task Sig_Hello_StrongHashLength_15() => 
@@ -43,7 +43,7 @@ namespace Rsync.Delta.UnitTests
             var expected = tc.Signature;
             var actual = output.ToArray();
             Assert.Equal(
-                expected: BitConverter.ToString(expected.ToArray()),
+                expected: BitConverter.ToString(expected),
                 actual: BitConverter.ToString(actual));
         }
     }

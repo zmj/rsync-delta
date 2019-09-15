@@ -10,8 +10,8 @@ namespace Rsync.Delta.UnitTests
         public readonly byte[] Version1;
         public readonly byte[] Version2;
         public readonly SignatureOptions Options;
-        public readonly ReadOnlyMemory<byte> Signature;
-        public readonly ReadOnlyMemory<byte> Delta;
+        public readonly byte[] Signature;
+        public readonly byte[] Delta;
 
         private TestCase(
             string version1,
@@ -27,7 +27,7 @@ namespace Rsync.Delta.UnitTests
             Delta = GetBytes(delta);
         }
 
-        private static ReadOnlyMemory<byte> GetBytes(string hex)
+        private static byte[] GetBytes(string hex)
         {
             hex = hex
                 .Replace("-", "")
@@ -46,7 +46,7 @@ namespace Rsync.Delta.UnitTests
                     hex.AsSpan().Slice(i * 2, 2),
                     System.Globalization.NumberStyles.HexNumber);
             }
-            return bytes.AsMemory();
+            return bytes;
         }
 
         public static readonly TestCase Hello_Hellooo_Default = new TestCase(
@@ -58,7 +58,7 @@ namespace Rsync.Delta.UnitTests
                          6b17 3def a4b8 e589 4825 3471 b81b 72cf",
             delta: "7273 0236 4107 6865 6c6c 6f6f 6f00");
 
-        public static readonly TestCase Hello_Hello_BlockLength_1 = new TestCase(
+        public static readonly TestCase Hello_Hellooo_BlockLength_1 = new TestCase(
             version1: "hello",
             version2: "hellooo",
             new SignatureOptions(blockLength: 1, SignatureOptions.Default.StrongHashLength),
@@ -77,7 +77,7 @@ namespace Rsync.Delta.UnitTests
             delta: @"7273 0236 4500 0345 0201 4504 0145 0401
                      4504 0100");
 
-        public static readonly TestCase Hello_Hello_BlockLength_2 = new TestCase(
+        public static readonly TestCase Hello_Hellooo_BlockLength_2 = new TestCase(
             version1: "hello",
             version2: "hellooo",
             new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
@@ -115,5 +115,47 @@ namespace Rsync.Delta.UnitTests
                          324d cf02 7dd4 a30a 932c 441f 365a 25e8
                          6b",
             delta: "7273 0236 4107 6865 6c6c 6f6f 6f00");
+
+        public static readonly TestCase Hello_Hello_BlockLength_2 = new TestCase(
+            version1: "hello",
+            version2: "hello",
+            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            signature: @"7273 0137 0000 0002 0000 0020 0192 010b
+                         734f 36ae 49af 5392 ff75 f37e 3583 6da9
+                         0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
+                         01a1 0116 e3b9 cf41 f998 57e0 ab72 5a32
+                         8580 330d 45dd 35af 9f61 fed0 c38a bab7
+                         dc55 0748 008e 008e deda b4ca 7101 07c6
+                         6d0f 9bad 9aef 7f52 f995 8e72 4198 fb99
+                         81b7 7e3f b6ae 4e56",
+            delta: "7273 0236 4500 0500");
+
+        public static readonly TestCase Hello_Ohello_BlockLength_2 = new TestCase(
+            version1: "hello",
+            version2: "ohello",
+            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            signature: @"7273 0137 0000 0002 0000 0020 0192 010b
+                         734f 36ae 49af 5392 ff75 f37e 3583 6da9
+                         0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
+                         01a1 0116 e3b9 cf41 f998 57e0 ab72 5a32
+                         8580 330d 45dd 35af 9f61 fed0 c38a bab7
+                         dc55 0748 008e 008e deda b4ca 7101 07c6
+                         6d0f 9bad 9aef 7f52 f995 8e72 4198 fb99
+                        81b7 7e3f b6ae 4e56",
+            delta: "7273 0236 4101 6f45 0005 00");
+
+        public static readonly TestCase Hello_Ohhello_BlockLength_2 = new TestCase(
+            version1: "hello",
+            version2: "ohhello",
+            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            signature: @"7273 0137 0000 0002 0000 0020 0192 010b
+                         734f 36ae 49af 5392 ff75 f37e 3583 6da9
+                         0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
+                         01a1 0116 e3b9 cf41 f998 57e0 ab72 5a32
+                         8580 330d 45dd 35af 9f61 fed0 c38a bab7
+                         dc55 0748 008e 008e deda b4ca 7101 07c6
+                         6d0f 9bad 9aef 7f52 f995 8e72 4198 fb99
+                         81b7 7e3f b6ae 4e56",
+            delta: "7273 0236 4102 6f68 4500 0500");
     }
 }
