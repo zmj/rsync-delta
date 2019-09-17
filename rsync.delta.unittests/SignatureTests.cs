@@ -42,9 +42,7 @@ namespace Rsync.Delta.UnitTests
             
             var expected = tc.Signature;
             var actual = output.ToArray();
-            Assert.Equal(
-                expected: BitConverter.ToString(expected),
-                actual: BitConverter.ToString(actual));
+            AssertHelpers.Equal(expected, actual);
         }
     }
 }
