@@ -62,8 +62,8 @@ namespace Rsync.Delta.Patch
                 LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct);
                 if (literal.HasValue)
                 {
-                    await _reader.CopyTo(
-                        _writer,
+                    await _writer.CopyFrom(
+                        _reader,
                         (long)literal.Value.LiteralLength,
                         ct);
                     continue;
