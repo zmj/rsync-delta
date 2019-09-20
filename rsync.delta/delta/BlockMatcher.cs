@@ -24,7 +24,7 @@ namespace Rsync.Delta.Delta
 
         public void Dispose() => _lazyBlockSig.Dispose();
 
-        public void Add(BlockSignature sig, ulong start)
+        public void Add(in BlockSignature sig, ulong start)
         {
 #if NETSTANDARD2_0
             if (!_blocks.ContainsKey(sig))
@@ -36,7 +36,7 @@ namespace Rsync.Delta.Delta
 #endif
         }
 
-        public LongRange? MatchBlock(BufferedBlock block)
+        public LongRange? MatchBlock(in BufferedBlock block)
         {
             _lazyBlockSig.Block = block;
             var sig = new BlockSignature(_lazyBlockSig);

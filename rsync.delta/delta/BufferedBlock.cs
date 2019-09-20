@@ -8,8 +8,8 @@ namespace Rsync.Delta.Delta
         public readonly ReadOnlySequence<byte> CurrentBlock;
 
         public BufferedBlock(
-            ReadOnlySequence<byte> pendingLiteral, 
-            ReadOnlySequence<byte> currentBlock)
+            in ReadOnlySequence<byte> pendingLiteral, 
+            in ReadOnlySequence<byte> currentBlock)
         {
             PendingLiteral = pendingLiteral;
             CurrentBlock = currentBlock;

@@ -52,50 +52,52 @@ namespace Rsync.Delta.Pipes
         {
             int valueLength = valueLengthBuffer.Length;
             Debug.Assert(sequence.Length >= valueLength);
-            if (sequence.First.Length >= valueLength)
+            var buffer = sequence.Slice(sequence.Start, valueLength);
+            sequence = sequence.Slice(buffer.End);
+            if (buffer.IsSingleSegment)
             {
-                var value = sequence.First.Span.Slice(0, valueLength);
-                sequence = sequence.Slice(valueLength);
-                return value;
+                return buffer.First.Span;
             }
-            else
-            {
-                sequence.Slice(0, valueLength).CopyTo(valueLengthBuffer);
-                sequence = sequence.Slice(valueLength);
-                return valueLengthBuffer;
-            }
+            buffer.CopyTo(valueLengthBuffer);
+            return valueLengthBuffer;
         }
 
-        internal static byte LastByte(this in ReadOnlySequence<byte> sequence)
+        public static byte LastByte(this in ReadOnlySequence<byte> sequence)
         {
             Debug.Assert(sequence.Length > 0);
-            ReadOnlySpan<byte> lastBuffer;
             if (sequence.IsSingleSegment)
             {
-                lastBuffer = sequence.First.Span;
+                var buffer = sequence.First.Span;
+                return buffer[buffer.Length - 1];
             }
-            else
+            byte last = default;
+            foreach (var memory in sequence)
             {
-                lastBuffer = sequence.Slice(
-                    sequence.GetPosition(offset: -1, sequence.End))
-                    .First.Span;
+                if (!memory.IsEmpty)
+                {
+                    last = memory.Span[memory.Length - 1];
+                }
             }
-            return lastBuffer[lastBuffer.Length - 1];
+            return last;
         }
 
-        internal static byte FirstByte(this in ReadOnlySequence<byte> data)
+        public static byte FirstByte(this in ReadOnlySequence<byte> data)
         {
             Debug.Assert(data.Length > 0);
-            if (data.First.Length > 0)
+            var buffer = data.Slice(data.Start, 1);
+            if (buffer.IsSingleSegment)
             {
-                return data.First.Span[0];
+                return buffer.First.Span[0];
             }
-            else
+            foreach (var memory in data)
             {
-                Span<byte> b = stackalloc byte[1];
-                data.Slice(0, 1).CopyTo(b);
-                return b[0];
+                if (!memory.IsEmpty)
+                {
+                    return memory.Span[0];
+                }
             }
+            Debug.Assert(false, "unreachable");
+            return 0;
         }
     }
 }
