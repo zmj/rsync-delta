@@ -1,10 +1,6 @@
 using System;
-using System.Buffers;
-using System.Buffers.Binary;
-using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta.Models
+namespace Rsync.Delta
 {
     public readonly struct SignatureOptions
     {

@@ -1,9 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Linq;
 using Rsync.Delta.Models;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {

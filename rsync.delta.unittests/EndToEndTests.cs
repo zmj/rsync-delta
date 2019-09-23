@@ -1,7 +1,6 @@
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Rsync.Delta.Models;
 using Xunit;
 
 namespace Rsync.Delta.UnitTests
