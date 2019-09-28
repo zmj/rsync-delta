@@ -1,8 +1,7 @@
-using System.IO;
+﻿using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Rsync.Delta.Models;
 
 namespace Rsync.Delta
 {
@@ -13,7 +12,7 @@ namespace Rsync.Delta
             PipeWriter signatureWriter,
             SignatureOptions? options = null,
             CancellationToken ct = default);
-        
+
         Task GenerateSignature(
             Stream fileStream,
             PipeWriter signatureWriter,
@@ -49,7 +48,7 @@ namespace Rsync.Delta
             Stream fileStream,
             PipeWriter deltaWriter,
             CancellationToken ct = default);
-        
+
         Task GenerateDelta(
             PipeReader signatureReader,
             PipeReader fileReader,

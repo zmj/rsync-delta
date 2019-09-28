@@ -41,20 +41,20 @@ namespace Rsync.Delta.Tests
         {
             var signature = new MemoryStream();
             await _rsync.GenerateSignature(
-                new MemoryStream(v1), 
-                signature, 
+                new MemoryStream(v1),
+                signature,
                 options);
 
             var delta = new MemoryStream();
             await _rsync.GenerateDelta(
-                new MemoryStream(signature.ToArray()), 
-                new MemoryStream(v2), 
+                new MemoryStream(signature.ToArray()),
+                new MemoryStream(v2),
                 delta);
 
             var patched = new MemoryStream();
             await _rsync.Patch(
-                new MemoryStream(delta.ToArray()), 
-                new MemoryStream(v1), 
+                new MemoryStream(delta.ToArray()),
+                new MemoryStream(v1),
                 patched);
             return patched.ToArray();
         }

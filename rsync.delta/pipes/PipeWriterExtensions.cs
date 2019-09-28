@@ -24,7 +24,7 @@ namespace Rsync.Delta.Pipes
             this PipeWriter writer,
             T writable,
             Options options)
-            where T : IWritable<Options> 
+            where T : IWritable<Options>
         {
             int size = writable.Size(options);
             var buffer = writer.GetSpan(size);
@@ -73,7 +73,7 @@ namespace Rsync.Delta.Pipes
             CancellationToken ct)
         {
             var reader = PipeReader.Create(readStream); // don't do this
-            await writer.CopyFrom(reader, count, ct);   
+            await writer.CopyFrom(reader, count, ct);
         }
     }
 }

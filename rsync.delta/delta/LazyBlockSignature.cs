@@ -1,7 +1,6 @@
-using System;
+﻿using System;
 using System.Buffers;
 using Rsync.Delta.Hash;
-using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
@@ -16,7 +15,7 @@ namespace Rsync.Delta.Delta
         private RollingHash _rollingHash;
         private bool _recalculateStrongHash;
 
-        public LazyBlockSignature(SignatureOptions options, MemoryPool<byte> pool) 
+        public LazyBlockSignature(SignatureOptions options, MemoryPool<byte> pool)
         {
             _options = options;
             _strongHashBuffer = pool.Rent(options.StrongHashLength);
@@ -31,7 +30,7 @@ namespace Rsync.Delta.Delta
                 if (_recalculateStrongHash)
                 {
                     _blake2b.Hash(
-                        _block.CurrentBlock, 
+                        _block.CurrentBlock,
                         _strongHashBuffer.Memory.Span);
                     _recalculateStrongHash = false;
                 }
@@ -69,7 +68,7 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        public void Dispose() 
+        public void Dispose()
         {
             _strongHashBuffer.Dispose();
             _blake2b.Dispose();

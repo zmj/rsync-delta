@@ -6,7 +6,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct BlockSignature : 
+    internal readonly struct BlockSignature :
         IEquatable<BlockSignature>,
         IWritable<SignatureOptions>,
         IReadable<BlockSignature, SignatureOptions>
@@ -22,7 +22,7 @@ namespace Rsync.Delta.Models
         {
             _rollingHash = rollingHash;
             SplitStrongHash(
-                strongHash.Span, 
+                strongHash.Span,
                 out _eagerStrongHash0,
                 out _eagerStrongHash1,
                 out _eagerStrongHash2,
@@ -97,10 +97,10 @@ namespace Rsync.Delta.Models
             BinaryPrimitives.WriteInt32BigEndian(buffer, _rollingHash);
             Span<byte> strongHash = stackalloc byte[options.StrongHashLength];
             CombineStrongHash(
-                strongHash, 
-                _eagerStrongHash0, 
-                _eagerStrongHash1, 
-                _eagerStrongHash2, 
+                strongHash,
+                _eagerStrongHash0,
+                _eagerStrongHash1,
+                _eagerStrongHash2,
                 _eagerStrongHash3);
             strongHash.CopyTo(buffer.Slice(4));
         }
@@ -133,7 +133,7 @@ namespace Rsync.Delta.Models
         }
 
         private static bool Equals(
-            in BlockSignature eager, 
+            in BlockSignature eager,
             Delta.LazyBlockSignature lazy)
         {
             if (eager._rollingHash != lazy.RollingHash)
@@ -151,7 +151,7 @@ namespace Rsync.Delta.Models
             return lazyStrongHash.SequenceEqual(eagerStrongHash);
         }
 
-        public override bool Equals(object? other) => 
+        public override bool Equals(object? other) =>
             other is BlockSignature sig ? Equals(sig) : false;
 
         public override int GetHashCode() => _rollingHash;

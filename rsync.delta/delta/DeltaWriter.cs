@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
@@ -58,7 +57,7 @@ namespace Rsync.Delta.Delta
                     await FlushPendingLiteral(buffer.PendingLiteral, ct);
                     return;
                 }
-                
+
                 LongRange? matched = _blocks.MatchBlock(buffer);
                 if (matched.HasValue)
                 {
@@ -106,7 +105,7 @@ namespace Rsync.Delta.Delta
                 if (_pendingCopyRange.Start + _pendingCopyRange.Length == range.Start)
                 {
                     _pendingCopyRange = new LongRange(
-                        start: _pendingCopyRange.Start, 
+                        start: _pendingCopyRange.Start,
                         length: _pendingCopyRange.Length + range.Length);
                     return true;
                 }
@@ -137,7 +136,7 @@ namespace Rsync.Delta.Delta
             while (!pendingLiteral.IsEmpty)
             {
                 var buffer = _writer.GetMemory((int)_flushThreshhold);
-                int copyLen = buffer.Length > pendingLiteral.Length ? 
+                int copyLen = buffer.Length > pendingLiteral.Length ?
                     (int)pendingLiteral.Length : buffer.Length;
                 pendingLiteral.Slice(0, copyLen)
                     .CopyTo(buffer.Slice(0, copyLen).Span);

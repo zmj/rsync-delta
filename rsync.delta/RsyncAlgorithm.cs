@@ -4,7 +4,6 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Rsync.Delta.Models;
 
 namespace Rsync.Delta
 {
@@ -23,9 +22,9 @@ namespace Rsync.Delta
         }
 
         public Task GenerateSignature(
-            PipeReader fileReader, 
+            PipeReader fileReader,
             PipeWriter signatureWriter,
-            SignatureOptions? options, 
+            SignatureOptions? options,
             CancellationToken ct)
         {
             if (fileReader == null)
@@ -40,8 +39,8 @@ namespace Rsync.Delta
             async Task GenerateSignatureAsync()
             {
                 using var writer = new Signature.SignatureWriter(
-                    fileReader, 
-                    signatureWriter, 
+                    fileReader,
+                    signatureWriter,
                     options ?? SignatureOptions.Default,
                     _memoryPool);
                 await writer.Write(ct);
@@ -49,8 +48,8 @@ namespace Rsync.Delta
         }
 
         public Task GenerateSignature(
-            Stream fileStream, 
-            PipeWriter signatureWriter, 
+            Stream fileStream,
+            PipeWriter signatureWriter,
             SignatureOptions? options,
             CancellationToken ct) =>
             GenerateSignature(
@@ -60,9 +59,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task GenerateSignature(
-            PipeReader fileReader, 
-            Stream signatureStream, 
-            SignatureOptions? options, 
+            PipeReader fileReader,
+            Stream signatureStream,
+            SignatureOptions? options,
             CancellationToken ct) =>
             GenerateSignature(
                 fileReader,
@@ -71,9 +70,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task GenerateSignature(
-            Stream fileStream, 
-            Stream signatureStream, 
-            SignatureOptions? options, 
+            Stream fileStream,
+            Stream signatureStream,
+            SignatureOptions? options,
             CancellationToken ct) =>
             GenerateSignature(
                 PipeReader.Create(fileStream, _readerOptions),
@@ -82,14 +81,14 @@ namespace Rsync.Delta
                 ct);
 
         public Task GenerateDelta(
-            PipeReader signatureReader, 
-            PipeReader fileReader, 
-            PipeWriter deltaWriter, 
+            PipeReader signatureReader,
+            PipeReader fileReader,
+            PipeWriter deltaWriter,
             CancellationToken ct)
         {
-            if (signatureReader == null) 
+            if (signatureReader == null)
             {
-                throw new ArgumentNullException(nameof(signatureReader)); 
+                throw new ArgumentNullException(nameof(signatureReader));
             }
             if (fileReader == null)
             {
@@ -110,31 +109,31 @@ namespace Rsync.Delta
         }
 
         public Task GenerateDelta(
-            Stream signatureStream, 
-            PipeReader fileReader, 
-            PipeWriter deltaWriter, 
-            CancellationToken ct) =>
-            GenerateDelta(
-                PipeReader.Create(signatureStream, _readerOptions),
-                fileReader,
-                deltaWriter,
-                ct);
-
-        public Task GenerateDelta(
-            PipeReader signatureReader, 
-            Stream fileStream, 
-            PipeWriter deltaWriter, 
-            CancellationToken ct) =>
-            GenerateDelta(
-                signatureReader,
-                PipeReader.Create(fileStream, _readerOptions),
-                deltaWriter,
-                ct);
-
-        public Task GenerateDelta(
-            PipeReader signatureReader, 
+            Stream signatureStream,
             PipeReader fileReader,
-            Stream deltaStream, 
+            PipeWriter deltaWriter,
+            CancellationToken ct) =>
+            GenerateDelta(
+                PipeReader.Create(signatureStream, _readerOptions),
+                fileReader,
+                deltaWriter,
+                ct);
+
+        public Task GenerateDelta(
+            PipeReader signatureReader,
+            Stream fileStream,
+            PipeWriter deltaWriter,
+            CancellationToken ct) =>
+            GenerateDelta(
+                signatureReader,
+                PipeReader.Create(fileStream, _readerOptions),
+                deltaWriter,
+                ct);
+
+        public Task GenerateDelta(
+            PipeReader signatureReader,
+            PipeReader fileReader,
+            Stream deltaStream,
             CancellationToken ct) =>
             GenerateDelta(
                 signatureReader,
@@ -143,9 +142,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task GenerateDelta(
-            Stream signatureStream, 
-            Stream fileStream, 
-            PipeWriter deltaWriter, 
+            Stream signatureStream,
+            Stream fileStream,
+            PipeWriter deltaWriter,
             CancellationToken ct) =>
             GenerateDelta(
                 PipeReader.Create(signatureStream, _readerOptions),
@@ -154,9 +153,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task GenerateDelta(
-            Stream signatureStream, 
-            PipeReader fileReader, 
-            Stream deltaStream, 
+            Stream signatureStream,
+            PipeReader fileReader,
+            Stream deltaStream,
             CancellationToken ct) =>
             GenerateDelta(
                 PipeReader.Create(signatureStream, _readerOptions),
@@ -165,9 +164,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task GenerateDelta(
-            PipeReader signatureReader, 
-            Stream fileStream, 
-            Stream deltaStream, 
+            PipeReader signatureReader,
+            Stream fileStream,
+            Stream deltaStream,
             CancellationToken ct) =>
             GenerateDelta(
                 signatureReader,
@@ -187,8 +186,8 @@ namespace Rsync.Delta
                 ct);
 
         public Task Patch(
-            PipeReader deltaReader, 
-            Stream oldFileStream, 
+            PipeReader deltaReader,
+            Stream oldFileStream,
             PipeWriter newFileWriter,
             CancellationToken ct = default)
         {
@@ -214,9 +213,9 @@ namespace Rsync.Delta
         }
 
         public Task Patch(
-            Stream deltaStream, 
-            Stream oldFileStream, 
-            PipeWriter newFileWriter, 
+            Stream deltaStream,
+            Stream oldFileStream,
+            PipeWriter newFileWriter,
             CancellationToken ct = default) =>
             Patch(
                 PipeReader.Create(deltaStream, _readerOptions),
@@ -225,9 +224,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task Patch(
-            PipeReader deltaReader, 
-            Stream oldFileStream, 
-            Stream newFileStream, 
+            PipeReader deltaReader,
+            Stream oldFileStream,
+            Stream newFileStream,
             CancellationToken ct = default) =>
             Patch(
                 deltaReader,
@@ -236,9 +235,9 @@ namespace Rsync.Delta
                 ct);
 
         public Task Patch(
-            Stream deltaStream, 
-            Stream oldFileStream, 
-            Stream newFileStream, 
+            Stream deltaStream,
+            Stream oldFileStream,
+            Stream newFileStream,
             CancellationToken ct = default) =>
             Patch(
                 PipeReader.Create(deltaStream, _readerOptions),

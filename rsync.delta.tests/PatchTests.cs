@@ -36,8 +36,8 @@ namespace Rsync.Delta.Tests
             var libraryOut = new MemoryStream();
             using (var deltaStream = delta.Stream())
                 await _rsync.Patch(
-                    deltaStream, 
-                    new MemoryStream(Encoding.UTF8.GetBytes(v1)), 
+                    deltaStream,
+                    new MemoryStream(Encoding.UTF8.GetBytes(v1)),
                     libraryOut);
             var actual = BitConverter.ToString(libraryOut.ToArray());
 

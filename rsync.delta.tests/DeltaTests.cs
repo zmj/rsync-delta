@@ -20,11 +20,11 @@ namespace Rsync.Delta.Tests
         [InlineData("hello", "ohhello", 2, null)]
         public async Task Delta(
             string v1, string v2, int? blockLength, int? strongHashLength)
-        { 
+        {
             using TempFile sig = await Rdiff.Signature(
-                new MemoryStream(Encoding.UTF8.GetBytes(v1)), 
+                new MemoryStream(Encoding.UTF8.GetBytes(v1)),
                 blockLength, strongHashLength);
-            
+
             var v2Bytes = Encoding.UTF8.GetBytes(v2);
             using TempFile rdiffOut = await Rdiff.Delta(sig, new MemoryStream(v2Bytes));
             var expected = BitConverter.ToString(await rdiffOut.Bytes());

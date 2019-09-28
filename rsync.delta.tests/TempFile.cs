@@ -15,7 +15,7 @@ namespace Rsync.Delta.Tests
         }
 
         public Stream Stream() => File.Open(
-            Name, 
+            Name,
             FileMode.OpenOrCreate,
             FileAccess.ReadWrite,
             FileShare.None);

@@ -38,8 +38,8 @@ namespace Rsync.Delta.Delta
         {
             _lazyBlockSig.Block = block;
             var sig = new BlockSignature(_lazyBlockSig);
-            return _blocks.TryGetValue(sig, out ulong start) ? 
-                new LongRange(start, (ulong)block.CurrentBlock.Length) : 
+            return _blocks.TryGetValue(sig, out ulong start) ?
+                new LongRange(start, (ulong)block.CurrentBlock.Length) :
                 (LongRange?)null;
         }
     }

@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
-using Rsync.Delta.Models;
 
 namespace Rsync.Delta.UnitTests
 {
@@ -36,7 +34,7 @@ namespace Rsync.Delta.UnitTests
                 .Replace("\n", "")
                 .Replace("\t", "")
                 .Replace("\r", "");
-            if (hex.Length % 2 != 0) 
+            if (hex.Length % 2 != 0)
             {
                 throw new ArgumentException("hex string must have even number of digits");
             }

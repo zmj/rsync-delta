@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
@@ -16,8 +15,8 @@ namespace Rsync.Delta.Patch
         private readonly StreamPipeReaderOptions _readerOptions;
 
         public Copier(
-            Stream stream, 
-            PipeWriter writer, 
+            Stream stream,
+            PipeWriter writer,
             StreamPipeReaderOptions readerOptions)
         {
             Debug.Assert(stream.CanSeek);

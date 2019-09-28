@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct SignatureHeader : 
+    internal readonly struct SignatureHeader :
         IWritable, IReadable<SignatureHeader>
     {
         public int Size => 12;
@@ -37,7 +37,7 @@ namespace Rsync.Delta.Models
                 throw new FormatException($"Unexpected signature magic: {Format}");
             }
         }
-        
+
         public void WriteTo(Span<byte> buffer)
         {
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);

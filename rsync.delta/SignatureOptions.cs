@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Rsync.Delta
 {
@@ -9,10 +9,10 @@ namespace Rsync.Delta
 
         public readonly int BlockLength;
         public readonly int StrongHashLength;
-        
+
         public SignatureOptions(int blockLength, int strongHashLength)
         {
-            if (blockLength <= 0) // todo: max blocklen
+            if (blockLength <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(BlockLength));
             }

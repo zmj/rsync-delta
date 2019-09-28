@@ -24,7 +24,7 @@ namespace Rsync.Delta.UnitTests
         [InlineData("hello", "oh hello", 2)]
         [InlineData("hello", "oh hello there", 2)]
         public Task EndToEnd(
-            string version1, 
+            string version1,
             string version2,
             int? blockLength = null,
             int? strongHashLength = null) =>
@@ -36,7 +36,7 @@ namespace Rsync.Delta.UnitTests
                     strongHashLength ?? SignatureOptions.Default.StrongHashLength));
 
         private async Task E2E(
-            byte[] version1, 
+            byte[] version1,
             byte[] version2,
             SignatureOptions options)
         {

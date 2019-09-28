@@ -27,7 +27,7 @@ namespace Rsync.Delta.Models
         }
 
         public CommandArg(
-            ref ReadOnlySequence<byte> buffer, 
+            ref ReadOnlySequence<byte> buffer,
             CommandModifier modifier)
         {
             Modifier = modifier;

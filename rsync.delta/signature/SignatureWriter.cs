@@ -87,7 +87,7 @@ namespace Rsync.Delta.Signature
             var strongHash = _strongHash.Memory
                 .Slice(0, (int)_options.StrongHashLength);
             _blake2b.Hash(block, strongHash.Span);
-            
+
             return new BlockSignature(
                 rollingHash.Value,
                 strongHash);

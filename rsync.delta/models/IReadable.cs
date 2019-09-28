@@ -12,7 +12,7 @@ namespace Rsync.Delta.Models
     {
         int MaxSize(Options options);
         T? ReadFrom(
-            ref ReadOnlySequence<byte> data, 
+            ref ReadOnlySequence<byte> data,
             Options options);
     }
 }

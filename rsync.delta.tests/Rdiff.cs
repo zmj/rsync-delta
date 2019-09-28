@@ -50,7 +50,7 @@ namespace Rsync.Delta.Tests
             await rdiff.Execute(delta.Stream(), patched.Stream());
             return patched;
         }
-        
+
         public async Task Execute(Stream input, Stream output)
         {
             using var proc = new Process { StartInfo = _proc };
