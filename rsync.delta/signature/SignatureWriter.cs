@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -78,14 +78,14 @@ namespace Rsync.Delta.Signature
             }
         }
 
-        private BlockSignature ComputeSignature(ReadOnlySequence<byte> block)
+        private BlockSignature ComputeSignature(in ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
             var rollingHash = new RollingHash();
             rollingHash.RotateIn(block);
 
             var strongHash = _strongHash.Memory
-                .Slice(0, (int)_options.StrongHashLength);
+                .Slice(0, _options.StrongHashLength);
             _blake2b.Hash(block, strongHash.Span);
 
             return new BlockSignature(

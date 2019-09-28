@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 
 namespace Rsync.Delta.Hash
@@ -41,7 +41,7 @@ namespace Rsync.Delta.Hash
             }
         }
 
-        public void RotateIn(ReadOnlySequence<byte> sequence)
+        public void RotateIn(in ReadOnlySequence<byte> sequence)
         {
             if (sequence.IsSingleSegment)
             {

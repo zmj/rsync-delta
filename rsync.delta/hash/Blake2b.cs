@@ -20,7 +20,7 @@ namespace Rsync.Delta.Hash
         }
 
         public void Hash(
-            ReadOnlySequence<byte> data,
+            in ReadOnlySequence<byte> data,
             Span<byte> hash)
         {
             Debug.Assert(hash.Length <= 32);
