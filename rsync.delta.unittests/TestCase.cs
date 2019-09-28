@@ -34,7 +34,8 @@ namespace Rsync.Delta.UnitTests
                 .Replace("_", "")
                 .Replace(" ", "")
                 .Replace("\n", "")
-                .Replace("\t", "");
+                .Replace("\t", "")
+                .Replace("\r", "");
             if (hex.Length % 2 != 0) 
             {
                 throw new ArgumentException("hex string must have even number of digits");
