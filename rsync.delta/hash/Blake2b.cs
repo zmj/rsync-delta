@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -191,6 +191,7 @@ namespace Rsync.Delta.Hash
 
         private void Compress(ReadOnlySpan<byte> block, int start)
         {
+            Debug.Assert(start == 0); // TODO research
             MemoryMarshal.Cast<byte, ulong>(block)
                 .Slice(0, 16)
                 .CopyTo(_m);
