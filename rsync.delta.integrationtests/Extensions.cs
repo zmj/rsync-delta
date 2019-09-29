@@ -6,9 +6,9 @@ namespace Rsync.Delta.IntegrationTests
 {
     internal static class Extensions
     {
-        public static async Task WriteAsync(
-            this Stream stream,
-            IEnumerable<byte[]> blocks)
+        public static async Task WriteTo(
+            this IEnumerable<byte[]> blocks,
+            Stream stream)
         {
             foreach (var block in blocks)
             {

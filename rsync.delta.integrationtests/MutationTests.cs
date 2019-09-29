@@ -1,26 +1,72 @@
+using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Rsync.Delta.IntegrationTests
 {
     public class MutationTests
     {
-        [Fact]
-        public void MutateFirstBlock()
+        private readonly IRsyncAlgorithm _rsync = new RsyncAlgorithm();
+
+        [Theory]
+        [MemberData(nameof(TestCases))]
+        public async Task MutateFirstBlock(BlockSequence blocks, Mutation mutation)
         {
-            // create test directory
+            using var files = new TestDirectory(nameof(MutateFirstBlock), blocks, mutation);
+            await blocks.WriteTo(files.Write(TestFile.v1));
 
-            // write v1 file content (random source, fixed seed)
-            // generate lib sig
+            using (var v1 = files.Read(TestFile.v1))
+            using (var sig = files.Write(TestFile.sig))
+            {
+                await _rsync.GenerateSignature(v1, sig);
+            }
             // generate rdiff sig
-            // compare sigs
+            using (var sig = files.Read(TestFile.sig))
+            using (var rssig = files.Read(TestFile.rs_sig))
+            {
+                await AssertEqual(rssig, sig);
+            }
 
-            // write v2 file content (apply mutation)
-            // generate lib delta
+            var mutated = mutation.ApplyTo(blocks, index: 0);
+            await mutated.WriteTo(files.Write(TestFile.v2));
+
+            using (var sig = files.Read(TestFile.sig))
+            using (var v2 = files.Read(TestFile.v2))
+            using (var delta = files.Write(TestFile.delta))
+            {
+                await _rsync.GenerateDelta(sig, v2, delta);
+            }
             // generate rdiff delta
-            // compare deltas
+            using (var delta = files.Read(TestFile.delta))
+            using (var rsdelta = files.Read(TestFile.rs_delta))
+            {
+                await AssertEqual(rsdelta, delta);
+            }
 
             // generate lib patched
-            // compare to v2 file
+            using (var patched = files.Read(TestFile.patched))
+            using (var v2 = files.Read(TestFile.v2))
+            {
+                await AssertEqual(v2, patched);
+            }
+        }
+
+        private static async Task AssertEqual(Stream expected, Stream actual)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static IEnumerable<object[]> TestCases()
+        {
+            foreach (var blocks in BlockSequence.All())
+            {
+                foreach (var mutation in Mutation.All())
+                {
+                    yield return new object[] { blocks, mutation };
+                }
+            }
         }
     }
 }

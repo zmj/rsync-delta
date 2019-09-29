@@ -22,5 +22,10 @@ namespace Rsync.Delta.IntegrationTests
         }
 
         public override string ToString() => _name;
+
+        public static IEnumerable<Mutation> All()
+        {
+            yield break;
+        }
     }
 }

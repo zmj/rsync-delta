@@ -27,5 +27,10 @@ namespace Rsync.Delta.IntegrationTests
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         public override string ToString() => _name;
+
+        public static IEnumerable<BlockSequence> All()
+        {
+            yield break;
+        }
     }
 }
