@@ -7,7 +7,7 @@ namespace Rsync.Delta.Hash
     {
         private const byte _magic = 31;
 
-        public int Value => (_b << 16) | _a;
+        public readonly int Value => (_b << 16) | _a;
 
         private ushort _a;
         private ushort _b;
