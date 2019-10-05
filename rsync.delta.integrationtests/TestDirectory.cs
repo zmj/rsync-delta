@@ -19,26 +19,14 @@ namespace Rsync.Delta.IntegrationTests
             Directory.CreateDirectory(_path);
         }
 
-        public async Task Write(TestFile filename, IEnumerable<byte[]> blocks)
-        {
-            using var file = Write(filename);
-            foreach (var block in blocks)
-            {
-                await file.WriteAsync(block.AsMemory());
-            }
-        }
+        public Stream Read(TestFile filename) =>
+            File.Open(Path(filename), FileMode.Open, FileAccess.Read);
 
-        public Stream Read(TestFile filename)
-        {
-            var path = Path.Combine(_path, filename.ToString());
-            return File.Open(path, FileMode.Open, FileAccess.Read);
-        }
+        public Stream Write(TestFile filename) =>
+            File.Open(Path(filename), FileMode.Create, FileAccess.Write);
 
-        public Stream Write(TestFile filename)
-        {
-            var path = Path.Combine(_path, filename.ToString());
-            return File.Open(path, FileMode.Create, FileAccess.Write);
-        }
+        public string Path(TestFile filename) => 
+            System.IO.Path.Combine(_path, filename.ToString());
 
         public void Dispose() => Directory.Delete(_path, recursive: true);
     }

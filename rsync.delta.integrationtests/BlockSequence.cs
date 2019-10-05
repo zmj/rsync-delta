@@ -23,7 +23,7 @@ namespace Rsync.Delta.IntegrationTests
             _blockCount = blockLength;
             _blockLength = blockLength;
             _lastBlockLength = lastBlockLength;
-            _name = name;
+            _name = name.TrimStart('_');
         }
 
         public IEnumerator<byte[]> GetEnumerator()
