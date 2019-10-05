@@ -123,7 +123,7 @@ namespace Rsync.Delta.Hash
                 _counter0 += _blockSize;
                 if (_counter0 == 0)
                     _counter1++;
-                Compress(_buf, 0);
+                Compress(_buf);
                 offset += bufferRemaining;
                 count -= bufferRemaining;
                 _bufferFilled = 0;
@@ -134,7 +134,7 @@ namespace Rsync.Delta.Hash
                 _counter0 += _blockSize; ;
                 if (_counter0 == 0)
                     _counter1++;
-                Compress(array, offset);
+                Compress(array.Slice(offset));
                 offset += _blockSize;
                 count -= _blockSize;
             }
@@ -155,7 +155,7 @@ namespace Rsync.Delta.Hash
                 _finalizationFlag1 = ulong.MaxValue;
             for (int i = _bufferFilled; i < _buf.Length; i++)
                 _buf[i] = 0;
-            Compress(_buf, 0);
+            Compress(_buf);
 
             Span<byte> hash = stackalloc byte[64];
             for (int i = 0; i < 8; ++i)
@@ -189,9 +189,8 @@ namespace Rsync.Delta.Hash
             _v[b] = RotateRight(_v[b] ^ _v[c], 63);
         }
 
-        private void Compress(ReadOnlySpan<byte> block, int start)
+        private void Compress(ReadOnlySpan<byte> block)
         {
-            Debug.Assert(start == 0); // TODO research
             MemoryMarshal.Cast<byte, ulong>(block)
                 .Slice(0, 16)
                 .CopyTo(_m);

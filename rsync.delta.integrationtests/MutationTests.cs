@@ -15,7 +15,10 @@ namespace Rsync.Delta.IntegrationTests
         public async Task MutateFirstBlock(BlockSequence blocks, Mutation mutation)
         {
             using var files = new TestDirectory(nameof(MutateFirstBlock), blocks, mutation);
-            await blocks.WriteTo(files.Write(TestFile.v1));
+            using (var v1 = files.Write(TestFile.v1))
+            {
+                await blocks.WriteTo(v1);
+            }
 
             using (var v1 = files.Read(TestFile.v1))
             using (var sig = files.Write(TestFile.sig))
@@ -53,7 +56,7 @@ namespace Rsync.Delta.IntegrationTests
             }
         }
 
-        private static async Task AssertEqual(Stream expected, Stream actual)
+        private static Task AssertEqual(Stream expected, Stream actual)
         {
             throw new NotImplementedException();
         }

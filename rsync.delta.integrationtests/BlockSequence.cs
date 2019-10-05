@@ -12,6 +12,20 @@ namespace Rsync.Delta.IntegrationTests
         private readonly int _lastBlockLength;
         private readonly string _name;
 
+        public BlockSequence(
+            int rngSeed,
+            int blockCount,
+            int blockLength,
+            int lastBlockLength,
+            string name)
+        {
+            _rngSeed = rngSeed;
+            _blockCount = blockLength;
+            _blockLength = blockLength;
+            _lastBlockLength = lastBlockLength;
+            _name = name;
+        }
+
         public IEnumerator<byte[]> GetEnumerator()
         {
             var rng = new Random(_rngSeed);
@@ -30,7 +44,14 @@ namespace Rsync.Delta.IntegrationTests
 
         public static IEnumerable<BlockSequence> All()
         {
-            yield break;
+            yield return _1KB;
         }
+
+        private static readonly BlockSequence _1KB = new BlockSequence(
+            rngSeed: 5,
+            blockCount: 1,
+            blockLength: 2048,
+            lastBlockLength: 1024,
+            nameof(_1KB));
     }
 }

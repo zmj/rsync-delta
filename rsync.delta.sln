@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rsync.delta.integrationtests", "rsync.delta.integrationtests\rsync.delta.integrationtests.csproj", "{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,6 +62,18 @@ Global
 		{2F9F8FFC-67DC-4BD7-B2AE-570BC21194A7}.Release|x64.Build.0 = Release|Any CPU
 		{2F9F8FFC-67DC-4BD7-B2AE-570BC21194A7}.Release|x86.ActiveCfg = Release|Any CPU
 		{2F9F8FFC-67DC-4BD7-B2AE-570BC21194A7}.Release|x86.Build.0 = Release|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Debug|x64.Build.0 = Debug|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Debug|x86.Build.0 = Debug|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Release|x64.ActiveCfg = Release|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Release|x64.Build.0 = Release|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Release|x86.ActiveCfg = Release|Any CPU
+		{5A59A913-7CB2-47F5-8370-A0F5275EC9CD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

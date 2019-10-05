@@ -8,6 +8,14 @@ namespace Rsync.Delta.IntegrationTests
         private readonly Func<byte[], byte[]> _mutation;
         private readonly string _name;
 
+        public Mutation(
+            Func<byte[], byte[]> mutation,
+            string name)
+        {
+            _mutation = mutation;
+            _name = name;
+        }
+
         public IEnumerable<byte[]> ApplyTo(
             IEnumerable<byte[]> blocks,
             int index)
@@ -25,7 +33,7 @@ namespace Rsync.Delta.IntegrationTests
 
         public static IEnumerable<Mutation> All()
         {
-            yield break;
+            yield return new Mutation(b => b, "NoChange");
         }
     }
 }
