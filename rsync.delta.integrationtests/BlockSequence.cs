@@ -4,26 +4,23 @@ using System.Collections.Generic;
 
 namespace Rsync.Delta.IntegrationTests
 {
-    public class BlockSequence : IEnumerable<byte[]>
+    public abstract class BlockSequence : IEnumerable<byte[]>
     {
         private readonly int _rngSeed;
         private readonly int _blockCount;
         private readonly int _blockLength;
         private readonly int _lastBlockLength;
-        private readonly string _name;
 
-        public BlockSequence(
+        protected BlockSequence(
             int rngSeed,
             int blockCount,
             int blockLength,
-            int lastBlockLength,
-            string name)
+            int lastBlockLength)
         {
             _rngSeed = rngSeed;
-            _blockCount = blockLength;
+            _blockCount = blockCount;
             _blockLength = blockLength;
             _lastBlockLength = lastBlockLength;
-            _name = name.TrimStart('_');
         }
 
         public IEnumerator<byte[]> GetEnumerator()
@@ -40,18 +37,70 @@ namespace Rsync.Delta.IntegrationTests
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public override string ToString() => _name;
+        public override string ToString() => GetType().Name.TrimStart('_');
 
         public static IEnumerable<BlockSequence> All()
         {
-            yield return _1KB;
+            yield return new _1KB();
+            yield return new _1MB();
+            yield return new _1MB_Plus_1();
+            yield return new _1MB_Minus_1();
+            //yield return new _1GB(); // 4min
+            //yield return new _10GB(); // forever
         }
 
-        private static readonly BlockSequence _1KB = new BlockSequence(
-            rngSeed: 5,
-            blockCount: 1,
-            blockLength: 2048,
-            lastBlockLength: 1024,
-            nameof(_1KB));
+        private class _1KB : BlockSequence
+        {
+            public _1KB() : base(
+                rngSeed: 5,
+                blockCount: 1,
+                blockLength: 2048,
+                lastBlockLength: 2048) { }
+        }
+
+        private class _1MB : BlockSequence
+        {
+            public _1MB() : base(
+                rngSeed: 6,
+                blockCount: 512,
+                blockLength: 2048,
+                lastBlockLength: 2048) { }
+        }
+
+        private class _1MB_Plus_1 : BlockSequence
+        {
+            public _1MB_Plus_1() : base(
+                rngSeed: 4,
+                blockCount: 513,
+                blockLength: 2048,
+                lastBlockLength: 1) { }
+        }
+
+        public class _1MB_Minus_1 : BlockSequence
+        {
+            public _1MB_Minus_1() : base(
+                rngSeed: 3,
+                blockCount: 512,
+                blockLength: 2048,
+                lastBlockLength: 2047) { }
+        }
+
+        private class _1GB : BlockSequence
+        {
+            public _1GB() : base(
+                rngSeed: 7,
+                blockCount: 524288,
+                blockLength: 2048,
+                lastBlockLength: 2048) { }
+        }
+
+        private class _10GB : BlockSequence
+        {
+            public _10GB() : base(
+                rngSeed: 8,
+                blockCount: 5242880,
+                blockLength: 2048,
+                lastBlockLength: 2048) { }
+        }
     }
 }

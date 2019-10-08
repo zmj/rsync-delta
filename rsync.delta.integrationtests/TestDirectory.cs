@@ -28,7 +28,10 @@ namespace Rsync.Delta.IntegrationTests
         public string Path(TestFile filename) => 
             System.IO.Path.Combine(_path, filename.ToString());
 
-        public void Dispose() => Directory.Delete(_path, recursive: true);
+        public void Dispose()
+        {
+            Directory.Delete(_path, recursive: true);
+        }
     }
 
     public enum TestFile

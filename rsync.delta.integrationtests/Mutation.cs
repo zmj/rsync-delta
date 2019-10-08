@@ -3,18 +3,9 @@ using System.Collections.Generic;
 
 namespace Rsync.Delta.IntegrationTests
 {
-    public class Mutation
+    public abstract class Mutation
     {
-        private readonly Func<byte[], byte[]> _mutation;
-        private readonly string _name;
-
-        public Mutation(
-            Func<byte[], byte[]> mutation,
-            string name)
-        {
-            _mutation = mutation;
-            _name = name;
-        }
+        protected abstract byte[] Mutate(byte[] block);
 
         public IEnumerable<byte[]> ApplyTo(
             IEnumerable<byte[]> blocks,
@@ -24,16 +15,53 @@ namespace Rsync.Delta.IntegrationTests
             foreach (var block in blocks)
             {
                 yield return i++ == index ?
-                    _mutation(block) :
+                    Mutate(block) :
                     block;
             }
         }
 
-        public override string ToString() => _name;
+        public override string ToString() => GetType().Name;
 
         public static IEnumerable<Mutation> All()
         {
-            yield return new Mutation(b => b, "NoChange");
+            yield return new NoChange();
+            yield return new TrimStart(1);
+            yield return new TrimStart(2);
+            yield return new TrimStart(10);
+            yield return new TrimEnd(1);
+            yield return new TrimEnd(2);
+            yield return new TrimEnd(10);
+        }
+
+        private class NoChange : Mutation
+        {
+            protected override byte[] Mutate(byte[] block) => block;
+        }
+
+        private class TrimStart : Mutation
+        {
+            private readonly int _n;
+            public TrimStart(int n) => _n = n;
+            protected override byte[] Mutate(byte[] block)
+            {
+                var mutated = new byte[block.Length - _n];
+                block.AsSpan().Slice(_n).CopyTo(mutated.AsSpan());
+                return mutated;
+            }
+            public override string ToString() => base.ToString() + '_' + _n;
+        }
+
+        private class TrimEnd : Mutation
+        {
+            private readonly int _n;
+            public TrimEnd(int n) => _n = n;
+            protected override byte[] Mutate(byte[] block)
+            {
+                var mutated = new byte[block.Length - _n];
+                block.AsSpan().Slice(0, block.Length - _n).CopyTo(mutated.AsSpan());
+                return mutated;
+            }
+            public override string ToString() => base.ToString() + '_' + _n;
         }
     }
 }
