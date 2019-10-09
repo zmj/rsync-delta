@@ -11,7 +11,7 @@ namespace Rsync.Delta.IntegrationTests
 
         public Rdiff(TestDirectory dir) => _dir = dir;
 
-        public async Task Signature(
+        public void Signature(
             TestFile v1, 
             TestFile sig,
             int? blockLength = null,
@@ -28,29 +28,28 @@ namespace Rsync.Delta.IntegrationTests
                 cmd.ArgumentList.Add($"-S {strongHashLength}");
             }
             cmd.ArgumentList.Add(_dir.Path(v1));
-            await Execute(cmd, sig);
+            cmd.ArgumentList.Add(_dir.Path(sig));
+            Execute(cmd);
         }
 
-        public async Task Delta(TestFile sig, TestFile v2, TestFile delta)
+        public void Delta(TestFile sig, TestFile v2, TestFile delta)
         {
             var cmd = new ProcessStartInfo("rdiff");
             cmd.ArgumentList.Add("delta");
             cmd.ArgumentList.Add(_dir.Path(sig));
             cmd.ArgumentList.Add(_dir.Path(v2));
-            await Execute(cmd, delta);
+            cmd.ArgumentList.Add(_dir.Path(delta));
+            Execute(cmd);
         }
 
-        private async Task Execute(ProcessStartInfo cmd, TestFile output)
+        private void Execute(ProcessStartInfo cmd)
         {
-            cmd.RedirectStandardOutput = true;
             using var process = new Process { StartInfo = cmd };
             bool ok = process.Start();
             if (!ok)
             {
                 throw new Exception("process failed to start");
             }
-            using var outFile = _dir.Write(output);
-            await process.StandardOutput.BaseStream.CopyToAsync(outFile);
             process.WaitForExit();
         }
     }

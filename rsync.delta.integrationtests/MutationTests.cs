@@ -15,6 +15,16 @@ namespace Rsync.Delta.IntegrationTests
         public async Task MutateFirstBlock(BlockSequence blocks, Mutation mutation)
         {
             using var files = new TestDirectory(nameof(MutateFirstBlock), blocks, mutation);
+            var mutated = mutation.ApplyTo(blocks, index: 0);
+            await Test(files, blocks, mutated, SignatureOptions.Default);
+        }
+
+        private async Task Test(
+            TestDirectory files,
+            BlockSequence blocks,
+            IEnumerable<byte[]> mutated,
+            SignatureOptions options)
+        {
             var rdiff = new Rdiff(files);
             using (var v1 = files.Write(TestFile.v1))
             {
@@ -26,14 +36,13 @@ namespace Rsync.Delta.IntegrationTests
             {
                 await _rsync.GenerateSignature(v1, sig);
             }
-            await rdiff.Signature(TestFile.v1, TestFile.rs_sig);
+            rdiff.Signature(TestFile.v1, TestFile.rs_sig);
             using (var sig = files.Read(TestFile.sig))
             using (var rssig = files.Read(TestFile.rs_sig))
             {
                 await AssertEqual(rssig, sig);
             }
 
-            var mutated = mutation.ApplyTo(blocks, index: 0);
             using (var v2 = files.Write(TestFile.v2))
             {
                 await mutated.WriteTo(v2);
@@ -45,7 +54,7 @@ namespace Rsync.Delta.IntegrationTests
             {
                 await _rsync.GenerateDelta(sig, v2, delta);
             }
-            await rdiff.Delta(TestFile.sig, TestFile.v2, TestFile.rs_delta);
+            rdiff.Delta(TestFile.sig, TestFile.v2, TestFile.rs_delta);
             using (var delta = files.Read(TestFile.delta))
             using (var rsdelta = files.Read(TestFile.rs_delta))
             {
