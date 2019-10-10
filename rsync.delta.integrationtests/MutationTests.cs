@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
+using System.Linq;
 
 namespace Rsync.Delta.IntegrationTests
 {
@@ -12,16 +13,25 @@ namespace Rsync.Delta.IntegrationTests
 
         [Theory]
         [MemberData(nameof(TestCases))]
-        public async Task MutateFirstBlock(BlockSequence blocks, Mutation mutation)
+        public async Task FirstBlock(BlockSequence blockSeq, Mutation mutation)
         {
-            using var files = new TestDirectory(nameof(MutateFirstBlock), blocks, mutation);
-            var mutated = mutation.ApplyTo(blocks, index: 0);
-            await Test(files, blocks, mutated, SignatureOptions.Default);
+            using var files = new TestDirectory(nameof(FirstBlock), blockSeq, mutation);
+            var mutated = mutation.ApplyTo(blockSeq.Blocks, index: 0);
+            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+        }
+
+        [Theory]
+        [MemberData(nameof(TestCases))]
+        public async Task AllBlocks(BlockSequence blockSeq, Mutation mutation)
+        {
+            using var files = new TestDirectory(nameof(AllBlocks), blockSeq, mutation);
+            var mutated = blockSeq.Blocks.Select(mutation.Mutate);
+            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
         }
 
         private async Task Test(
             TestDirectory files,
-            BlockSequence blocks,
+            IEnumerable<byte[]> blocks,
             IEnumerable<byte[]> mutated,
             SignatureOptions options)
         {
@@ -37,11 +47,7 @@ namespace Rsync.Delta.IntegrationTests
                 await _rsync.GenerateSignature(v1, sig);
             }
             rdiff.Signature(TestFile.v1, TestFile.rs_sig);
-            using (var sig = files.Read(TestFile.sig))
-            using (var rssig = files.Read(TestFile.rs_sig))
-            {
-                await AssertEqual(rssig, sig);
-            }
+            await AssertEqual(files, TestFile.rs_sig, TestFile.sig);
 
             using (var v2 = files.Write(TestFile.v2))
             {
@@ -55,11 +61,7 @@ namespace Rsync.Delta.IntegrationTests
                 await _rsync.GenerateDelta(sig, v2, delta);
             }
             rdiff.Delta(TestFile.sig, TestFile.v2, TestFile.rs_delta);
-            using (var delta = files.Read(TestFile.delta))
-            using (var rsdelta = files.Read(TestFile.rs_delta))
-            {
-                await AssertEqual(rsdelta, delta);
-            }
+            await AssertEqual(files, TestFile.rs_delta, TestFile.delta);
 
             using (var delta = files.Read(TestFile.delta))
             using (var v1 = files.Read(TestFile.v1))
@@ -67,26 +69,27 @@ namespace Rsync.Delta.IntegrationTests
             {
                 await _rsync.Patch(delta, v1, patched);
             }
-            using (var patched = files.Read(TestFile.patched))
-            using (var v2 = files.Read(TestFile.v2))
-            {
-                await AssertEqual(v2, patched);
-            }
+            await AssertEqual(files, TestFile.v2, TestFile.patched);
         }
 
-        private static async Task AssertEqual(Stream expected, Stream actual)
+        private static async Task AssertEqual(
+            TestDirectory files,
+            TestFile expected, 
+            TestFile actual)
         {
             const int page = 4096;
             var eBuffer = new byte[page];
             var aBuffer = new byte[page];
+            using var eStream = files.Read(expected);
+            using var aStream = files.Read(actual);
             for (long pos = 0; ; pos += page)
             {
-                var e = await Read(expected, eBuffer.AsMemory());
-                var a = await Read(actual, aBuffer.AsMemory());
+                var e = await Read(eStream, eBuffer.AsMemory());
+                var a = await Read(aStream, aBuffer.AsMemory());
                 bool eq = e.Span.SequenceEqual(a.Span);
                 if (!eq)
                 {
-                    Console.WriteLine("position: " + pos);
+                    Console.WriteLine($"expected:{expected} actual:{actual} position:{pos}");
                     Assert.Equal(
                         expected: BitConverter.ToString(e.ToArray()),
                         actual: BitConverter.ToString(a.ToArray()));

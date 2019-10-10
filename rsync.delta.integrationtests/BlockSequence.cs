@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Rsync.Delta.IntegrationTests
 {
-    public abstract class BlockSequence : IEnumerable<byte[]>
+    public abstract class BlockSequence
     {
         private readonly int _rngSeed;
         private readonly int _blockCount;
@@ -23,19 +23,20 @@ namespace Rsync.Delta.IntegrationTests
             _lastBlockLength = lastBlockLength;
         }
 
-        public IEnumerator<byte[]> GetEnumerator()
+        public IEnumerable<byte[]> Blocks
         {
-            var rng = new Random(_rngSeed);
-            for (int i = 0; i < _blockCount; i++)
+            get
             {
-                int len = i == _blockCount - 1 ? _lastBlockLength : _blockLength;
-                var buffer = new byte[len];
-                rng.NextBytes(buffer);
-                yield return buffer;
+                var rng = new Random(_rngSeed);
+                for (int i = 0; i < _blockCount; i++)
+                {
+                    int len = i == _blockCount - 1 ? _lastBlockLength : _blockLength;
+                    var buffer = new byte[len];
+                    rng.NextBytes(buffer);
+                    yield return buffer;
+                }
             }
         }
-
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         public override string ToString() => GetType().Name.TrimStart('_');
 
@@ -43,8 +44,8 @@ namespace Rsync.Delta.IntegrationTests
         {
             yield return new _1KB();
             yield return new _1MB();
-            yield return new _1MB_Plus_1();
-            yield return new _1MB_Minus_1();
+            //yield return new _1MB_Plus_1();
+            //yield return new _1MB_Minus_1();
             //yield return new _1GB(); // 4min
             //yield return new _10GB(); // forever
         }
