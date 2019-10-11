@@ -72,13 +72,13 @@ namespace Rsync.Delta.Delta
                 else // not matched
                 {
                     WritePendingCopy();
-                    _pendingLiteralLength++;
                     if (_pendingLiteralLength == 1 << 15)
                     {
                         await FlushPendingLiteral(buffer.PendingLiteral, ct);
                     }
                     else
                     {
+                        _pendingLiteralLength++;
                         _reader.AdvanceTo(
                             consumed: buffer.PendingLiteral.Start,
                             examined: buffer.CurrentBlock.End);

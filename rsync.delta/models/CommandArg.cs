@@ -17,13 +17,26 @@ namespace Rsync.Delta.Models
         public CommandArg(ulong value)
         {
             Value = value;
-            (Size, Modifier) = value switch
+            if (value <= byte.MaxValue)
             {
-                var _ when value <= byte.MaxValue => (1, CommandModifier.OneByte),
-                var _ when value <= ushort.MaxValue => (2, CommandModifier.TwoBytes),
-                var _ when value <= uint.MaxValue => (4, CommandModifier.FourBytes),
-                _ => (8, CommandModifier.EightBytes),
-            };
+                Size = 1;
+                Modifier = CommandModifier.OneByte;
+            }
+            else if (value <= ushort.MaxValue)
+            {
+                Size = 2;
+                Modifier = CommandModifier.TwoBytes;
+            }
+            else if (value <= uint.MaxValue)
+            {
+                Size = 4;
+                Modifier = CommandModifier.FourBytes;
+            }
+            else
+            {
+                Size = 8;
+                Modifier = CommandModifier.EightBytes;
+            }
         }
 
         public CommandArg(
