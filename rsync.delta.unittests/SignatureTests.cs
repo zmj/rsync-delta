@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -33,9 +33,9 @@ namespace Rsync.Delta.UnitTests
         private async Task Sig(TestCase tc)
         {
             var output = new MemoryStream();
-            await new RsyncAlgorithm().GenerateSignature(
-                fileStream: new MemoryStream(tc.Version1),
-                signatureStream: output,
+            await new Rdiff().Signature(
+                oldFile: new MemoryStream(tc.Version1),
+                signature: output,
                 tc.Options,
                 System.Threading.CancellationToken.None);
 

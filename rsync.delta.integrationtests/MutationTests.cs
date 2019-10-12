@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,7 +10,7 @@ namespace Rsync.Delta.IntegrationTests
 {
     public class MutationTests
     {
-        private readonly IRsyncAlgorithm _rsync = new RsyncAlgorithm();
+        private readonly IRdiff _rdiff = new Rsync.Delta.Rdiff();
 
         [Theory]
         [MemberData(nameof(TestCases))]
@@ -67,7 +67,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v1 = files.Read(TestFile.v1))
             using (var sig = files.Write(TestFile.sig))
             {
-                await _rsync.GenerateSignature(v1, sig);
+                await _rdiff.Signature(v1, sig);
             }
             timings.Add((TestFile.sig, timer.Elapsed));
 
@@ -89,7 +89,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v2 = files.Read(TestFile.v2))
             using (var delta = files.Write(TestFile.delta))
             {
-                await _rsync.GenerateDelta(sig, v2, delta);
+                await _rdiff.Delta(sig, v2, delta);
             }
             timings.Add((TestFile.delta, timer.Elapsed));
 
@@ -104,7 +104,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v1 = files.Read(TestFile.v1))
             using (var patched = files.Write(TestFile.patched))
             {
-                await _rsync.Patch(delta, v1, patched);
+                await _rdiff.Patch(delta, v1, patched);
             }
             timings.Add((TestFile.patched, timer.Elapsed));
 

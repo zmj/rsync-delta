@@ -14,14 +14,14 @@ namespace Rsync.Delta.Benchmarks
         private readonly BlockSequence _blockSeq;
         private readonly Mutation _mutation;
         private readonly Func<int, bool> _shouldMutate;
-        private readonly IRsyncAlgorithm _rsync;
+        private readonly IRdiff _rdiff;
 
         public TestCase(BlockSequence blockSeq, Mutation mutation, Func<int, bool> shouldMutate)
         {
             _blockSeq = blockSeq;
             _mutation = mutation;
             _shouldMutate = shouldMutate;
-            _rsync = new RsyncAlgorithm();
+            _rdiff = new Rdiff();
         }
 
         public Stream V1() => _blockSeq.Blocks.AsStream();
@@ -32,7 +32,7 @@ namespace Rsync.Delta.Benchmarks
         {
             v1.Seek(offset: 0, SeekOrigin.Begin);
             var sig = new MemoryStream();
-            await _rsync.GenerateSignature(v1, sig);
+            await _rdiff.Signature(v1, sig);
             return sig;
         }
 
@@ -41,7 +41,7 @@ namespace Rsync.Delta.Benchmarks
             sig.Seek(offset: 0, SeekOrigin.Begin);
             v2.Seek(offset: 0, SeekOrigin.Begin);
             var delta = new MemoryStream();
-            await _rsync.GenerateDelta(sig, v2, delta);
+            await _rdiff.Delta(sig, v2, delta);
             delta.Seek(offset: 0, SeekOrigin.Begin);
             return delta;
         }
@@ -51,7 +51,7 @@ namespace Rsync.Delta.Benchmarks
             delta.Seek(offset: 0, SeekOrigin.Begin);
             v1.Seek(offset: 0, SeekOrigin.Begin);
             var patched = new MemoryStream();
-            await _rsync.Patch(delta, v1, patched);
+            await _rdiff.Patch(delta, v1, patched);
             return patched;
         }
     }

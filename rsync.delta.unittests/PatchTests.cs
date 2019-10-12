@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -37,10 +37,10 @@ namespace Rsync.Delta.UnitTests
         private async Task Patch(TestCase tc)
         {
             var output = new MemoryStream();
-            await new RsyncAlgorithm().Patch(
-                deltaStream: new MemoryStream(tc.Delta),
-                oldFileStream: new MemoryStream(tc.Version1),
-                newFileStream: output,
+            await new Rdiff().Patch(
+                oldFile: new MemoryStream(tc.Version1),
+                delta: new MemoryStream(tc.Delta),
+                newFile: output,
                 System.Threading.CancellationToken.None);
 
             var expected = tc.Version2;

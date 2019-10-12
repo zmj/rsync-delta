@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -37,10 +37,10 @@ namespace Rsync.Delta.UnitTests
         private async Task Delta(TestCase tc)
         {
             var output = new MemoryStream();
-            await new RsyncAlgorithm().GenerateDelta(
-                signatureStream: new MemoryStream(tc.Signature),
-                fileStream: new MemoryStream(tc.Version2),
-                deltaStream: output,
+            await new Rdiff().Delta(
+                signature: new MemoryStream(tc.Signature),
+                newFile: new MemoryStream(tc.Version2),
+                delta: output,
                 System.Threading.CancellationToken.None);
 
             var expected = tc.Delta;

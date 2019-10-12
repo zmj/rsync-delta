@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -40,27 +40,27 @@ namespace Rsync.Delta.UnitTests
             byte[] version2,
             SignatureOptions options)
         {
-            IRsyncAlgorithm rsync = new RsyncAlgorithm();
+            IRdiff rdiff = new Rdiff();
 
             var sig = new MemoryStream();
-            await rsync.GenerateSignature(
-                fileStream: new MemoryStream(version1),
-                signatureStream: sig,
+            await rdiff.Signature(
+                oldFile: new MemoryStream(version1),
+                signature: sig,
                 options);
             sig.Seek(offset: 0, SeekOrigin.Begin);
 
             var delta = new MemoryStream();
-            await rsync.GenerateDelta(
-                signatureStream: sig,
-                fileStream: new MemoryStream(version2),
-                deltaStream: delta);
+            await rdiff.Delta(
+                signature: sig,
+                newFile: new MemoryStream(version2),
+                delta: delta);
             delta.Seek(offset: 0, SeekOrigin.Begin);
 
             var v2 = new MemoryStream();
-            await rsync.Patch(
-                deltaStream: delta,
-                oldFileStream: new MemoryStream(version1),
-                newFileStream: v2);
+            await rdiff.Patch(
+                oldFile: new MemoryStream(version1),
+                delta: delta,
+                newFile: v2);
 
             AssertHelpers.Equal(version2, v2.ToArray());
         }
