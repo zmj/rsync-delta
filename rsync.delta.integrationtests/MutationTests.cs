@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 using System.Linq;
+using System.Diagnostics;
 
 namespace Rsync.Delta.IntegrationTests
 {
@@ -29,6 +30,24 @@ namespace Rsync.Delta.IntegrationTests
             await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
         }
 
+        [Theory]
+        [MemberData(nameof(TestCases))]
+        public async Task LastBlock(BlockSequence blockSeq, Mutation mutation)
+        {
+            using var files = new TestDirectory(nameof(LastBlock), blockSeq, mutation);
+            var mutated = mutation.ApplyTo(blockSeq.Blocks, index: blockSeq.Count - 1);
+            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+        }
+
+        [Theory]
+        [MemberData(nameof(TestCases))]
+        public async Task MiddleBlock(BlockSequence blockSeq, Mutation mutation)
+        {
+            using var files = new TestDirectory(nameof(MiddleBlock), blockSeq, mutation);
+            var mutated = mutation.ApplyTo(blockSeq.Blocks, index: blockSeq.Count / 2);
+            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+        }
+
         private async Task Test(
             TestDirectory files,
             IEnumerable<byte[]> blocks,
@@ -36,40 +55,65 @@ namespace Rsync.Delta.IntegrationTests
             SignatureOptions options)
         {
             var rdiff = new Rdiff(files);
+            var timings = new List<(TestFile, TimeSpan)>();
+            var timer = Stopwatch.StartNew();
             using (var v1 = files.Write(TestFile.v1))
             {
                 await blocks.WriteTo(v1);
             }
+            timings.Add((TestFile.v1, timer.Elapsed));
 
+            timer.Restart();
             using (var v1 = files.Read(TestFile.v1))
             using (var sig = files.Write(TestFile.sig))
             {
                 await _rsync.GenerateSignature(v1, sig);
             }
+            timings.Add((TestFile.sig, timer.Elapsed));
+
+            timer.Restart();
             rdiff.Signature(TestFile.v1, TestFile.rs_sig);
+            timings.Add((TestFile.rs_sig, timer.Elapsed));
+
             await AssertEqual(files, TestFile.rs_sig, TestFile.sig);
 
+            timer.Restart();
             using (var v2 = files.Write(TestFile.v2))
             {
                 await mutated.WriteTo(v2);
             }
+            timings.Add((TestFile.v2, timer.Elapsed));
 
+            timer.Restart();
             using (var sig = files.Read(TestFile.sig))
             using (var v2 = files.Read(TestFile.v2))
             using (var delta = files.Write(TestFile.delta))
             {
                 await _rsync.GenerateDelta(sig, v2, delta);
             }
+            timings.Add((TestFile.delta, timer.Elapsed));
+
+            timer.Restart();
             rdiff.Delta(TestFile.sig, TestFile.v2, TestFile.rs_delta);
+            timings.Add((TestFile.rs_delta, timer.Elapsed));
+
             await AssertEqual(files, TestFile.rs_delta, TestFile.delta);
 
+            timer.Restart();
             using (var delta = files.Read(TestFile.delta))
             using (var v1 = files.Read(TestFile.v1))
             using (var patched = files.Write(TestFile.patched))
             {
                 await _rsync.Patch(delta, v1, patched);
             }
+            timings.Add((TestFile.patched, timer.Elapsed));
+
             await AssertEqual(files, TestFile.v2, TestFile.patched);
+
+            foreach (var (file, duration) in timings)
+            {
+                // Console.WriteLine($"{file}: {duration}");
+            }
         }
 
         private static async Task AssertEqual(
@@ -82,14 +126,14 @@ namespace Rsync.Delta.IntegrationTests
             var aBuffer = new byte[page];
             using var eStream = files.Read(expected);
             using var aStream = files.Read(actual);
-            for (long pos = 0; ; pos += page)
+            for (long offset = 0; ; offset += page)
             {
                 var e = await Read(eStream, eBuffer.AsMemory());
                 var a = await Read(aStream, aBuffer.AsMemory());
                 bool eq = e.Span.SequenceEqual(a.Span);
                 if (!eq)
                 {
-                    Console.WriteLine($"expected:{expected} actual:{actual} position:{pos}");
+                    Console.WriteLine($"expected:{expected} actual:{actual} offset:{offset}");
                     Assert.Equal(
                         expected: BitConverter.ToString(e.ToArray()),
                         actual: BitConverter.ToString(a.ToArray()));
