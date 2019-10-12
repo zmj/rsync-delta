@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rsync.Delta.IntegrationTests
 {
@@ -9,16 +10,13 @@ namespace Rsync.Delta.IntegrationTests
 
         public IEnumerable<byte[]> ApplyTo(
             IEnumerable<byte[]> blocks,
-            int index)
-        {
-            int i = 0;
-            foreach (var block in blocks)
-            {
-                yield return i++ == index ?
-                    Mutate(block) :
-                    block;
-            }
-        }
+            int index) =>
+            ApplyTo(blocks, i => i == index);
+
+        public IEnumerable<byte[]> ApplyTo(
+            IEnumerable<byte[]> blocks,
+            Func<int, bool> shouldMutate) =>
+            blocks.Select((b, i) => shouldMutate(i) ? Mutate(b) : b);
 
         public override string ToString() => GetType().Name;
 
@@ -34,12 +32,12 @@ namespace Rsync.Delta.IntegrationTests
             yield return new IncrementAll();
         }
 
-        private class NoChange : Mutation
+        public class NoChange : Mutation
         {
             public override byte[] Mutate(byte[] block) => block;
         }
 
-        private class TrimStart : Mutation
+        public class TrimStart : Mutation
         {
             private readonly int _n;
             public TrimStart(int n) => _n = n;
@@ -53,7 +51,7 @@ namespace Rsync.Delta.IntegrationTests
             public override string ToString() => base.ToString() + '_' + _n;
         }
 
-        private class TrimEnd : Mutation
+        public class TrimEnd : Mutation
         {
             private readonly int _n;
             public TrimEnd(int n) => _n = n;
@@ -67,7 +65,7 @@ namespace Rsync.Delta.IntegrationTests
             public override string ToString() => base.ToString() + '_' + _n;
         }
 
-        private class IncrementAll : Mutation
+        public class IncrementAll : Mutation
         {
             public override byte[] Mutate(byte[] block)
             {

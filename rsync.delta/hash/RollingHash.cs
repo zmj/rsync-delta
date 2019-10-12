@@ -33,7 +33,7 @@ namespace Rsync.Delta.Hash
             _count--;
         }
 
-        private void RotateIn(ReadOnlySpan<byte> buffer)
+        private void RotateIn(in ReadOnlySpan<byte> buffer)
         {
             for (int i = 0; i < buffer.Length; i++)
             {

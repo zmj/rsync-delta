@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Rsync.Delta.IntegrationTests
@@ -51,7 +51,7 @@ namespace Rsync.Delta.IntegrationTests
             // yield return new _10GB(); // forever
         }
 
-        private class _1KB : BlockSequence
+        public class _1KB : BlockSequence
         {
             public _1KB() : base(
                 rngSeed: 5,
@@ -61,7 +61,7 @@ namespace Rsync.Delta.IntegrationTests
             { }
         }
 
-        private class _1MB : BlockSequence
+        public class _1MB : BlockSequence
         {
             public _1MB() : base(
                 rngSeed: 6,
@@ -71,7 +71,7 @@ namespace Rsync.Delta.IntegrationTests
             { }
         }
 
-        private class _1MB_Plus_1 : BlockSequence
+        public class _1MB_Plus_1 : BlockSequence
         {
             public _1MB_Plus_1() : base(
                 rngSeed: 4,
@@ -91,7 +91,7 @@ namespace Rsync.Delta.IntegrationTests
             { }
         }
 
-        private class _1GB : BlockSequence
+        public class _1GB : BlockSequence
         {
             public _1GB() : base(
                 rngSeed: 7,
@@ -101,7 +101,7 @@ namespace Rsync.Delta.IntegrationTests
             { }
         }
 
-        private class _10GB : BlockSequence
+        public class _10GB : BlockSequence
         {
             public _10GB() : base(
                 rngSeed: 8,
