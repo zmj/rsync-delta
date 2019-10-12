@@ -1,10 +1,10 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
-using System.Linq;
-using System.Diagnostics;
 
 namespace Rsync.Delta.IntegrationTests
 {
@@ -118,7 +118,7 @@ namespace Rsync.Delta.IntegrationTests
 
         private static async Task AssertEqual(
             TestDirectory files,
-            TestFile expected, 
+            TestFile expected,
             TestFile actual)
         {
             const int page = 4096;

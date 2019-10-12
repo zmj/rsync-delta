@@ -31,12 +31,12 @@ namespace Rsync.Delta
         public override bool Equals(object? obj) =>
             obj is SignatureOptions other ? Equals(other) : false;
 
-        public override int GetHashCode() => 
+        public override int GetHashCode() =>
             HashCode.Combine(StrongHashLength, BlockLength);
 
         public static bool operator ==(
-            SignatureOptions left, 
-            SignatureOptions right) => 
+            SignatureOptions left,
+            SignatureOptions right) =>
             left.Equals(right);
 
         public static bool operator !=(

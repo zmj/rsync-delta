@@ -1,8 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace Rsync.Delta.IntegrationTests
 {
@@ -25,7 +22,7 @@ namespace Rsync.Delta.IntegrationTests
         public Stream Write(TestFile filename) =>
             File.Open(Path(filename), FileMode.Create, FileAccess.Write);
 
-        public string Path(TestFile filename) => 
+        public string Path(TestFile filename) =>
             System.IO.Path.Combine(_path, filename.ToString());
 
         public void Dispose()

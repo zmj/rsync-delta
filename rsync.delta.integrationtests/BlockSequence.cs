@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Rsync.Delta.IntegrationTests
@@ -58,7 +57,8 @@ namespace Rsync.Delta.IntegrationTests
                 rngSeed: 5,
                 blockCount: 1,
                 blockLength: 2048,
-                lastBlockLength: 2048) { }
+                lastBlockLength: 2048)
+            { }
         }
 
         private class _1MB : BlockSequence
@@ -67,7 +67,8 @@ namespace Rsync.Delta.IntegrationTests
                 rngSeed: 6,
                 blockCount: 512,
                 blockLength: 2048,
-                lastBlockLength: 2048) { }
+                lastBlockLength: 2048)
+            { }
         }
 
         private class _1MB_Plus_1 : BlockSequence
@@ -76,7 +77,8 @@ namespace Rsync.Delta.IntegrationTests
                 rngSeed: 4,
                 blockCount: 513,
                 blockLength: 2048,
-                lastBlockLength: 1) { }
+                lastBlockLength: 1)
+            { }
         }
 
         public class _1MB_Minus_1 : BlockSequence
@@ -85,7 +87,8 @@ namespace Rsync.Delta.IntegrationTests
                 rngSeed: 3,
                 blockCount: 512,
                 blockLength: 2048,
-                lastBlockLength: 2047) { }
+                lastBlockLength: 2047)
+            { }
         }
 
         private class _1GB : BlockSequence
@@ -94,7 +97,8 @@ namespace Rsync.Delta.IntegrationTests
                 rngSeed: 7,
                 blockCount: 524288,
                 blockLength: 2048,
-                lastBlockLength: 2048) { }
+                lastBlockLength: 2048)
+            { }
         }
 
         private class _10GB : BlockSequence
@@ -103,7 +107,8 @@ namespace Rsync.Delta.IntegrationTests
                 rngSeed: 8,
                 blockCount: 5242880,
                 blockLength: 2048,
-                lastBlockLength: 2048) { }
+                lastBlockLength: 2048)
+            { }
         }
     }
 }

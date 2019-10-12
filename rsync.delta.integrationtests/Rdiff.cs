@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using System.Threading.Tasks;
 using System.Diagnostics;
 
 namespace Rsync.Delta.IntegrationTests
@@ -12,7 +10,7 @@ namespace Rsync.Delta.IntegrationTests
         public Rdiff(TestDirectory dir) => _dir = dir;
 
         public void Signature(
-            TestFile v1, 
+            TestFile v1,
             TestFile sig,
             int? blockLength = null,
             int? strongHashLength = null)
