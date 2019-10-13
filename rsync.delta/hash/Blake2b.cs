@@ -45,17 +45,20 @@ namespace Rsync.Delta.Hash
     internal ref struct Blake2bCore
     {
         public const int ScratchSize = 320;
+        private const int _numRounds = 12;
+        private const int _blockLength = 128;
 
-        private int _bufferFilled;
-        private readonly Span<byte> _buf;
+        private readonly Span<byte> _blockBuffer;
+        private ReadOnlySpan<byte> _incompleteBlock;
+        private Span<byte> _incompleteBlockRemainder =>
+            _blockBuffer.Slice(_incompleteBlock.Length);
+
         private readonly Span<ulong> _v;
         private readonly Span<ulong> _h;
+        
         private ulong _counter0;
         private ulong _counter1;
         private ulong _finalizationFlag;
-
-        private const int _numRounds = 12;
-        private const int _blockSize = 128;
 
         private const ulong IV0 = 0x6A09E667F3BCC908UL;
         private const ulong IV1 = 0xBB67AE8584CAA73BUL;
@@ -85,7 +88,7 @@ namespace Rsync.Delta.Hash
         public Blake2bCore(Span<byte> scratch)
         {
             Debug.Assert(scratch.Length >= ScratchSize);
-            _buf = scratch.Slice(0, _blockSize);
+            _blockBuffer = scratch.Slice(0, _blockLength);
             _v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
             _h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 64));
 
@@ -101,63 +104,78 @@ namespace Rsync.Delta.Hash
             _counter0 = 0;
             _counter1 = 0;
             _finalizationFlag = 0;
-            _bufferFilled = 0;
+            _incompleteBlock = default;
         }
 
-        public void HashCore(ReadOnlySpan<byte> array)
+        public void HashCore(ReadOnlySpan<byte> data)
         {
-            int count = array.Length;
-            int offset = 0;
-            int bufferRemaining = _blockSize - _bufferFilled;
-
-            if (_bufferFilled > 0 && count > bufferRemaining)
+            data = FinishIncompleteBlock(data);
+            while (data.Length > _blockLength)
             {
-                array.Slice(offset, bufferRemaining).CopyTo(
-                    _buf.Slice(_bufferFilled));
-                _counter0 += _blockSize;
-                if (_counter0 == 0)
-                    _counter1++;
-                Compress(_buf);
-                offset += bufferRemaining;
-                count -= bufferRemaining;
-                _bufferFilled = 0;
+                HashNonFinalBlock(data);
+                data = data.Slice(_blockLength);
             }
-
-            while (count > _blockSize)
-            {
-                _counter0 += _blockSize; ;
-                if (_counter0 == 0)
-                    _counter1++;
-                Compress(array.Slice(offset));
-                offset += _blockSize;
-                count -= _blockSize;
-            }
-
-            if (count > 0)
-            {
-                array.Slice(offset, count).CopyTo(
-                    _buf.Slice(_bufferFilled));
-                _bufferFilled += count;
-            }
+            SaveIncompleteBlock(data);
         }
 
-        public void HashFinal(Span<byte> result)
+        private ReadOnlySpan<byte> FinishIncompleteBlock(ReadOnlySpan<byte> data)
         {
-            Debug.Assert(result.Length <= 32);
-            _counter0 += (uint)_bufferFilled;
+            if (_incompleteBlock.IsEmpty)
+            {
+                return data;
+            }
+            var remainder = _incompleteBlockRemainder;
+            if (data.Length < remainder.Length)
+            {
+                return data;
+            }
+            data.Slice(0, remainder.Length).CopyTo(remainder);
+            HashNonFinalBlock(_blockBuffer);
+            _incompleteBlock = default;
+            return data.Slice(remainder.Length);
+        }
+
+        private void SaveIncompleteBlock(ReadOnlySpan<byte> data)
+        {
+            Debug.Assert(data.Length <= _incompleteBlockRemainder.Length);
+            if (data.IsEmpty)
+            {
+                return;
+            }
+            data.CopyTo(_incompleteBlockRemainder);
+            _incompleteBlock = _blockBuffer.Slice(
+                start: 0, 
+                length: _incompleteBlock.Length + data.Length);
+        }
+
+        private void HashNonFinalBlock(ReadOnlySpan<byte> block)
+        {
+            Debug.Assert(block.Length >= _blockLength);
+            _counter0 += _blockLength;
+            if (_counter0 == 0)
+            {
+                _counter1++;
+            }
+            Compress(block);
+        }
+
+        public void HashFinal(Span<byte> hash)
+        {
+            Debug.Assert(hash.Length <= 32);
+            _counter0 += (uint)_incompleteBlock.Length;
             _finalizationFlag = ulong.MaxValue;
-            _buf.Slice(_bufferFilled).Clear();
-            Compress(_buf);
+            _incompleteBlockRemainder.Clear();
+            Compress(_blockBuffer);
 
-            if (result.Length == 32)
+            if (hash.Length == 32)
             {
-                Fill(result, _h);
+                Fill(hash, _h);
             }
             else
             {
                 Span<byte> tmp = stackalloc byte[32];
                 Fill(tmp, _h);
-                tmp.Slice(0, result.Length).CopyTo(result);
+                tmp.Slice(0, hash.Length).CopyTo(hash);
             }
 
             static void Fill(Span<byte> buf, ReadOnlySpan<ulong> h)
@@ -190,8 +208,8 @@ namespace Rsync.Delta.Hash
 
         private void Compress(ReadOnlySpan<byte> block)
         {
-            Debug.Assert(block.Length >= _blockSize);
-            var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockSize));
+            Debug.Assert(block.Length >= _blockLength);
+            var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockLength));
             _h.CopyTo(_v);
             _v[8] = IV0;
             _v[9] = IV1;
