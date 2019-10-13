@@ -54,20 +54,22 @@ namespace Rsync.Delta.Hash
             _blockBuffer.Slice(_incompleteBlock.Length);
 
         private readonly Span<ulong> _v;
-        private readonly Span<ulong> _h;
-        
-        private ulong _counter0;
-        private ulong _counter1;
-        private ulong _finalizationFlag;
+        private readonly Span<ulong> _h;        
+        private ulong _bytesHashed;
+        private ulong _bytesHashedOverflows;
 
-        private const ulong IV0 = 0x6A09E667F3BCC908UL;
-        private const ulong IV1 = 0xBB67AE8584CAA73BUL;
-        private const ulong IV2 = 0x3C6EF372FE94F82BUL;
-        private const ulong IV3 = 0xA54FF53A5F1D36F1UL;
-        private const ulong IV4 = 0x510E527FADE682D1UL;
-        private const ulong IV5 = 0x9B05688C2B3E6C1FUL;
-        private const ulong IV6 = 0x1F83D9ABFB41BD6BUL;
-        private const ulong IV7 = 0x5BE0CD19137E2179UL;
+
+        private static readonly ulong[] IV = new ulong[8]
+        {
+            0x6A09E667F3BCC908UL,
+            0xBB67AE8584CAA73BUL,
+            0x3C6EF372FE94F82BUL,
+            0xA54FF53A5F1D36F1UL,
+            0x510E527FADE682D1UL,
+            0x9B05688C2B3E6C1FUL,
+            0x1F83D9ABFB41BD6BUL,
+            0x5BE0CD19137E2179UL,
+        };
 
         private static readonly int[] Sigma = new int[_numRounds * 16]
         {
@@ -92,19 +94,12 @@ namespace Rsync.Delta.Hash
             _v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
             _h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 64));
 
-            _h[0] = IV0 ^ 0x01_01_00_20;
-            _h[1] = IV1;
-            _h[2] = IV2;
-            _h[3] = IV3;
-            _h[4] = IV4;
-            _h[5] = IV5;
-            _h[6] = IV6;
-            _h[7] = IV7;
+            IV.CopyTo(_h);
+            _h[0] ^= 0x01_01_00_20;
 
-            _counter0 = 0;
-            _counter1 = 0;
-            _finalizationFlag = 0;
-            _incompleteBlock = default;
+            _bytesHashed = 0;
+            _bytesHashedOverflows = 0;
+            _incompleteBlock = Span<byte>.Empty;
         }
 
         public void HashCore(ReadOnlySpan<byte> data)
@@ -131,7 +126,7 @@ namespace Rsync.Delta.Hash
             }
             data.Slice(0, remainder.Length).CopyTo(remainder);
             HashNonFinalBlock(_blockBuffer);
-            _incompleteBlock = default;
+            _incompleteBlock = Span<byte>.Empty;
             return data.Slice(remainder.Length);
         }
 
@@ -151,21 +146,25 @@ namespace Rsync.Delta.Hash
         private void HashNonFinalBlock(ReadOnlySpan<byte> block)
         {
             Debug.Assert(block.Length >= _blockLength);
-            _counter0 += _blockLength;
-            if (_counter0 == 0)
+            _bytesHashed += _blockLength;
+            if (_bytesHashed == 0)
             {
-                _counter1++;
+                _bytesHashedOverflows++;
             }
-            Compress(block);
+            Compress(block, finalizationFlag: 0);
+        }
+
+        private void HashFinalBlock()
+        {
+            _bytesHashed += (uint)_incompleteBlock.Length;
+            _incompleteBlockRemainder.Clear();
+            Compress(_blockBuffer, finalizationFlag: ulong.MaxValue);
         }
 
         public void HashFinal(Span<byte> hash)
         {
             Debug.Assert(hash.Length <= 32);
-            _counter0 += (uint)_incompleteBlock.Length;
-            _finalizationFlag = ulong.MaxValue;
-            _incompleteBlockRemainder.Clear();
-            Compress(_blockBuffer);
+            HashFinalBlock();
 
             if (hash.Length == 32)
             {
@@ -188,11 +187,6 @@ namespace Rsync.Delta.Hash
             }
         }
 
-        private static ulong RotateRight(ulong value, int nBits)
-        {
-            return (value >> nBits) | (value << (64 - nBits));
-        }
-
         private void G(ReadOnlySpan<ulong> m, int a, int b, int c, int d, int r, int i)
         {
             int p = (r << 4) + i;
@@ -204,21 +198,21 @@ namespace Rsync.Delta.Hash
             _v[d] = RotateRight(_v[d] ^ _v[a], 16);
             _v[c] += _v[d];
             _v[b] = RotateRight(_v[b] ^ _v[c], 63);
+
+            static ulong RotateRight(ulong value, int nBits) =>
+                (value >> nBits) | (value << (64 - nBits));
         }
 
-        private void Compress(ReadOnlySpan<byte> block)
+        private void Compress(ReadOnlySpan<byte> block, ulong finalizationFlag)
         {
             Debug.Assert(block.Length >= _blockLength);
             var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockLength));
+
             _h.CopyTo(_v);
-            _v[8] = IV0;
-            _v[9] = IV1;
-            _v[10] = IV2;
-            _v[11] = IV3;
-            _v[12] = IV4 ^ _counter0;
-            _v[13] = IV5 ^ _counter1;
-            _v[14] = IV6 ^ _finalizationFlag;
-            _v[15] = IV7;
+            IV.CopyTo(_v.Slice(8));
+            _v[12] ^= _bytesHashed;
+            _v[13] ^= _bytesHashedOverflows;
+            _v[14] ^= finalizationFlag;
 
             for (int r = 0; r < _numRounds; ++r)
             {
