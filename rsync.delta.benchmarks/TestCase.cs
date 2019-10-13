@@ -51,7 +51,7 @@ namespace Rsync.Delta.Benchmarks
             delta.Seek(offset: 0, SeekOrigin.Begin);
             v1.Seek(offset: 0, SeekOrigin.Begin);
             var patched = new MemoryStream();
-            await _rdiff.Patch(delta, v1, patched);
+            await _rdiff.Patch(v1, delta, patched);
             return patched;
         }
     }

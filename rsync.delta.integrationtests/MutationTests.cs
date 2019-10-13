@@ -104,7 +104,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v1 = files.Read(TestFile.v1))
             using (var patched = files.Write(TestFile.patched))
             {
-                await _rdiff.Patch(delta, v1, patched);
+                await _rdiff.Patch(v1, delta, patched);
             }
             timings.Add((TestFile.patched, timer.Elapsed));
 

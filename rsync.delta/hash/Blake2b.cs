@@ -36,7 +36,7 @@ namespace Rsync.Delta.Hash
                     core.HashCore(buffer.Span);
                 }
             }
-            core.HashFinal(hash, isEndOfLayer: false);
+            core.HashFinal(hash);
         }
 
         public void Dispose() => _scratch.Dispose();
@@ -44,17 +44,15 @@ namespace Rsync.Delta.Hash
 
     internal ref struct Blake2bCore
     {
-        public const int ScratchSize = 448;
+        public const int ScratchSize = 320;
 
         private int _bufferFilled;
         private readonly Span<byte> _buf;
         private readonly Span<ulong> _v;
-        private readonly Span<ulong> _m;
         private readonly Span<ulong> _h;
         private ulong _counter0;
         private ulong _counter1;
-        private ulong _finalizationFlag0;
-        private ulong _finalizationFlag1;
+        private ulong _finalizationFlag;
 
         private const int _numRounds = 12;
         private const int _blockSize = 128;
@@ -87,11 +85,9 @@ namespace Rsync.Delta.Hash
         public Blake2bCore(Span<byte> scratch)
         {
             Debug.Assert(scratch.Length >= ScratchSize);
-            _buf = scratch.Slice(0, 128);
-
+            _buf = scratch.Slice(0, _blockSize);
             _v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
-            _m = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 128));
-            _h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(384, 64));
+            _h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 64));
 
             _h[0] = IV0 ^ 0x01_01_00_20;
             _h[1] = IV1;
@@ -104,16 +100,14 @@ namespace Rsync.Delta.Hash
 
             _counter0 = 0;
             _counter1 = 0;
-            _finalizationFlag0 = 0;
-            _finalizationFlag1 = 0;
+            _finalizationFlag = 0;
             _bufferFilled = 0;
         }
 
         public void HashCore(ReadOnlySpan<byte> array)
         {
-            int start = 0;
             int count = array.Length;
-            int offset = start;
+            int offset = 0;
             int bufferRemaining = _blockSize - _bufferFilled;
 
             if (_bufferFilled > 0 && count > bufferRemaining)
@@ -147,28 +141,33 @@ namespace Rsync.Delta.Hash
             }
         }
 
-        public void HashFinal(Span<byte> result, bool isEndOfLayer)
+        public void HashFinal(Span<byte> result)
         {
+            Debug.Assert(result.Length <= 32);
             _counter0 += (uint)_bufferFilled;
-            _finalizationFlag0 = ulong.MaxValue;
-            if (isEndOfLayer)
-                _finalizationFlag1 = ulong.MaxValue;
-            for (int i = _bufferFilled; i < _buf.Length; i++)
-                _buf[i] = 0;
+            _finalizationFlag = ulong.MaxValue;
+            _buf.Slice(_bufferFilled).Clear();
             Compress(_buf);
 
-            Span<byte> hash = stackalloc byte[64];
-            for (int i = 0; i < 8; ++i)
+            if (result.Length == 32)
             {
-                var buf = hash.Slice(i << 3);
-                BinaryPrimitives.WriteUInt64LittleEndian(buf, _h[i]);
+                Fill(result, _h);
+            }
+            else
+            {
+                Span<byte> tmp = stackalloc byte[32];
+                Fill(tmp, _h);
+                tmp.Slice(0, result.Length).CopyTo(result);
             }
 
-            if (result.Length < hash.Length)
+            static void Fill(Span<byte> buf, ReadOnlySpan<ulong> h)
             {
-                hash = hash.Slice(0, result.Length);
+                Debug.Assert(buf.Length == 32);
+                BinaryPrimitives.WriteUInt64LittleEndian(buf, h[0]);
+                BinaryPrimitives.WriteUInt64LittleEndian(buf.Slice(8), h[1]);
+                BinaryPrimitives.WriteUInt64LittleEndian(buf.Slice(16), h[2]);
+                BinaryPrimitives.WriteUInt64LittleEndian(buf.Slice(24), h[3]);
             }
-            hash.CopyTo(result);
         }
 
         private static ulong RotateRight(ulong value, int nBits)
@@ -176,14 +175,14 @@ namespace Rsync.Delta.Hash
             return (value >> nBits) | (value << (64 - nBits));
         }
 
-        private void G(int a, int b, int c, int d, int r, int i)
+        private void G(ReadOnlySpan<ulong> m, int a, int b, int c, int d, int r, int i)
         {
             int p = (r << 4) + i;
-            _v[a] += _v[b] + _m[Sigma[p]];
+            _v[a] += _v[b] + m[Sigma[p]];
             _v[d] = RotateRight(_v[d] ^ _v[a], 32);
             _v[c] += _v[d];
             _v[b] = RotateRight(_v[b] ^ _v[c], 24);
-            _v[a] += _v[b] + _m[Sigma[p + 1]];
+            _v[a] += _v[b] + m[Sigma[p + 1]];
             _v[d] = RotateRight(_v[d] ^ _v[a], 16);
             _v[c] += _v[d];
             _v[b] = RotateRight(_v[b] ^ _v[c], 63);
@@ -191,10 +190,8 @@ namespace Rsync.Delta.Hash
 
         private void Compress(ReadOnlySpan<byte> block)
         {
-            MemoryMarshal.Cast<byte, ulong>(block)
-                .Slice(0, 16)
-                .CopyTo(_m);
-
+            Debug.Assert(block.Length >= _blockSize);
+            var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockSize));
             _h.CopyTo(_v);
             _v[8] = IV0;
             _v[9] = IV1;
@@ -202,19 +199,19 @@ namespace Rsync.Delta.Hash
             _v[11] = IV3;
             _v[12] = IV4 ^ _counter0;
             _v[13] = IV5 ^ _counter1;
-            _v[14] = IV6 ^ _finalizationFlag0;
-            _v[15] = IV7 ^ _finalizationFlag1;
+            _v[14] = IV6 ^ _finalizationFlag;
+            _v[15] = IV7;
 
             for (int r = 0; r < _numRounds; ++r)
             {
-                G(0, 4, 8, 12, r, 0);
-                G(1, 5, 9, 13, r, 2);
-                G(2, 6, 10, 14, r, 4);
-                G(3, 7, 11, 15, r, 6);
-                G(3, 4, 9, 14, r, 14);
-                G(2, 7, 8, 13, r, 12);
-                G(0, 5, 10, 15, r, 8);
-                G(1, 6, 11, 12, r, 10);
+                G(m, 0, 4, 8, 12, r, 0);
+                G(m, 1, 5, 9, 13, r, 2);
+                G(m, 2, 6, 10, 14, r, 4);
+                G(m, 3, 7, 11, 15, r, 6);
+                G(m, 3, 4, 9, 14, r, 14);
+                G(m, 2, 7, 8, 13, r, 12);
+                G(m, 0, 5, 10, 15, r, 8);
+                G(m, 1, 6, 11, 12, r, 10);
             }
 
             for (int i = 0; i < 8; ++i)
