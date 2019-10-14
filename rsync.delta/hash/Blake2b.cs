@@ -3,6 +3,9 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+#if !NETSTANDARD2_0
+using System.Runtime.Intrinsics.X86;
+#endif
 
 namespace Rsync.Delta.Hash
 {
@@ -57,7 +60,6 @@ namespace Rsync.Delta.Hash
         private readonly Span<ulong> _h;        
         private ulong _bytesHashed;
         private ulong _bytesHashedOverflows;
-
 
         private static readonly ulong[] IV = new ulong[8]
         {
@@ -207,13 +209,38 @@ namespace Rsync.Delta.Hash
         {
             Debug.Assert(block.Length >= _blockLength);
             var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockLength));
-
             _h.CopyTo(_v);
             IV.CopyTo(_v.Slice(8));
             _v[12] ^= _bytesHashed;
             _v[13] ^= _bytesHashedOverflows;
             _v[14] ^= finalizationFlag;
 
+#if !NETSTANDARD2_0
+            if (false) // Avx2.IsSupported)
+            {
+                // CompressAvx2(m);
+            }
+            else if (false) // Avx.IsSupported)
+            {
+                // CompressAvx(m);
+            }
+            else if (false) // Sse2.IsSupported)
+            {
+                // CompressSse2(m);
+            }
+#else
+            if (false)
+            {
+            }
+#endif
+            else
+            {
+                CompressSlow(m);
+            }
+        }
+
+        private void CompressSlow(ReadOnlySpan<ulong> m)
+        {
             for (int r = 0; r < _numRounds; ++r)
             {
                 G(m, 0, 4, 8, 12, r, 0);
@@ -231,5 +258,22 @@ namespace Rsync.Delta.Hash
                 _h[i] ^= _v[i] ^ _v[i + 8];
             }
         }
+
+#if !NETSTANDARD2_0
+        private static void CompressSse2() // ReadOnlySpan<ulong> m)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static void CompressAvx() // ReadOnlySpan<ulong> m)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static void CompressAvx2() // ReadOnlySpan<ulong> m)
+        {
+            throw new NotImplementedException();
+        }
+#endif
     }
 }
