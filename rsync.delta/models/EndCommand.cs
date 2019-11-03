@@ -20,5 +20,7 @@ namespace Rsync.Delta.Models
             data = data.Slice(Size);
             return new EndCommand();
         }
+
+        public override string ToString() => "END";
     }
 }

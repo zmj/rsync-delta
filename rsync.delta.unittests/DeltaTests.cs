@@ -34,6 +34,10 @@ namespace Rsync.Delta.UnitTests
         public Task Delta_Hello_Ohhello_BlockLength_2() =>
             Delta(TestCase.Hello_Ohhello_BlockLength_2);
 
+        [Fact]
+        public Task Delta_Hello_Heollo_BlockLength_2() =>
+            Delta(TestCase.Hello_Heollo_BlockLength_2);
+
         private async Task Delta(TestCase tc)
         {
             var output = new MemoryStream();

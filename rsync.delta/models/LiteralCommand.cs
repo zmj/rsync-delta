@@ -45,5 +45,7 @@ namespace Rsync.Delta.Models
                 ref data,
                 (CommandModifier)(command - _baseCommand));
         }
+
+        public override string ToString() => $"LITERAL: length:{_length}";
     }
 }

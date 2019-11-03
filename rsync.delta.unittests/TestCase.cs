@@ -156,5 +156,19 @@ namespace Rsync.Delta.UnitTests
                          6d0f 9bad 9aef 7f52 f995 8e72 4198 fb99
                          81b7 7e3f b6ae 4e56",
             delta: "7273 0236 4102 6f68 4500 0500");
+
+        public static readonly TestCase Hello_Heollo_BlockLength_2 = new TestCase(
+            version1: "hello",
+            version2: "heollo",
+            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            signature: @"7273 0137 0000 0002 0000 0020 0192 010b
+                         734f 36ae 49af 5392 ff75 f37e 3583 6da9
+                         0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
+                         01a1 0116 e3b9 cf41 f998 57e0 ab72 5a32
+                         8580 330d 45dd 35af 9f61 fed0 c38a bab7
+                         dc55 0748 008e 008e deda b4ca 7101 07c6
+                         6d0f 9bad 9aef 7f52 f995 8e72 4198 fb99
+                         81b7 7e3f b6ae 4e56",
+            delta: @"7273 0236 4500 0241 016f 4502 0300");
     }
 }

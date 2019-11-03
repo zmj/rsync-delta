@@ -63,5 +63,7 @@ namespace Rsync.Delta.Models
                 (CommandModifier)startModifier,
                 (CommandModifier)lengthModifier);
         }
+
+        public override string ToString() => $"COPY: start:{_start} length:{_length}";
     }
 }

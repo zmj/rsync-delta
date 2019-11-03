@@ -47,6 +47,7 @@ namespace Rsync.Delta.IntegrationTests
             yield return new _1MB();
             yield return new _1MB_Plus_1();
             yield return new _1MB_Minus_1();
+
             // yield return new _1GB(); // 4min
             // yield return new _10GB(); // forever
         }

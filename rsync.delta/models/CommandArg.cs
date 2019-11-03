@@ -86,6 +86,8 @@ namespace Rsync.Delta.Models
                     break;
             }
         }
+
+        public override string ToString() => Value.ToString();
     }
 
     internal enum CommandModifier : byte
