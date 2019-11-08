@@ -13,7 +13,7 @@ namespace Rsync.Delta.Models
             Length = length;
         }
 
-        public override string ToString() => $"[{Start},{checked(Start+Length)})";
+        public override string ToString() => $"[{Start},{checked(Start + Length)})";
 
         public bool Equals(LongRange other) =>
             Start == other.Start &&

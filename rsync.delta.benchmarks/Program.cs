@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Rsync.Delta.IntegrationTests;
 
 namespace Rsync.Delta.Benchmarks

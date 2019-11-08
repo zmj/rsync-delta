@@ -58,7 +58,7 @@ namespace Rsync.Delta.Hash
             _blockBuffer.Slice(_incompleteBlock.Length);
 
         private readonly Span<ulong> _v;
-        private readonly Span<ulong> _h;        
+        private readonly Span<ulong> _h;
         private ulong _bytesHashed;
         private ulong _bytesHashedOverflows;
 
@@ -142,7 +142,7 @@ namespace Rsync.Delta.Hash
             }
             data.CopyTo(_incompleteBlockRemainder);
             _incompleteBlock = _blockBuffer.Slice(
-                start: 0, 
+                start: 0,
                 length: _incompleteBlock.Length + data.Length);
         }
 
