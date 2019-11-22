@@ -123,7 +123,7 @@ namespace Rsync.Delta.Hash
                 return data;
             }
             var remainder = _incompleteBlockRemainder;
-            if (data.Length < remainder.Length)
+            if (data.Length <= remainder.Length)
             {
                 return data;
             }
