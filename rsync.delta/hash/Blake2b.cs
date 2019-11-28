@@ -190,17 +190,20 @@ namespace Rsync.Delta.Hash
             }
         }
 
-        private void G(ReadOnlySpan<ulong> m, int a, int b, int c, int d, int r, int i)
+        private static void G(
+            Span<ulong> v,
+            ReadOnlySpan<ulong> m, 
+            int a, int b, int c, int d, int r, int i)
         {
             int p = (r << 4) + i;
-            _v[a] += _v[b] + m[Sigma[p]];
-            _v[d] = RotateRight(_v[d] ^ _v[a], 32);
-            _v[c] += _v[d];
-            _v[b] = RotateRight(_v[b] ^ _v[c], 24);
-            _v[a] += _v[b] + m[Sigma[p + 1]];
-            _v[d] = RotateRight(_v[d] ^ _v[a], 16);
-            _v[c] += _v[d];
-            _v[b] = RotateRight(_v[b] ^ _v[c], 63);
+            v[a] += v[b] + m[Sigma[p]];
+            v[d] = RotateRight(v[d] ^ v[a], 32);
+            v[c] += v[d];
+            v[b] = RotateRight(v[b] ^ v[c], 24);
+            v[a] += v[b] + m[Sigma[p + 1]];
+            v[d] = RotateRight(v[d] ^ v[a], 16);
+            v[c] += v[d];
+            v[b] = RotateRight(v[b] ^ v[c], 63);
 
             static ulong RotateRight(ulong value, int nBits) =>
                 (value >> nBits) | (value << (64 - nBits));
@@ -219,13 +222,13 @@ namespace Rsync.Delta.Hash
 #if !NETSTANDARD2_0
             if (Avx2.IsSupported)
             {
-                RoundsAvx2(m);
-                CompressAvx2();
+                RoundsAvx2(_v, m);
+                CompressAvx2(_h, _v);
             }
             else if (Sse2.IsSupported)
             {
-                RoundsSse2(m);
-                CompressSse2();
+                RoundsSse2(_v, m);
+                CompressSse2(_h, _v);
             }
 #else
             if (false)
@@ -234,119 +237,142 @@ namespace Rsync.Delta.Hash
 #endif
             else
             {
-                RoundsScalar(m);
-                CompressScalar();
+                RoundsScalar(_v, m);
+                CompressScalar(_h, _v);
             }
         }
 
-        private void RoundsScalar(ReadOnlySpan<ulong> m)
+        private static void RoundsScalar(Span<ulong> v, ReadOnlySpan<ulong> m)
         {
             for (int r = 0; r < _numRounds; ++r)
             {
-                G(m, 0, 4, 8, 12, r, 0);
-                G(m, 1, 5, 9, 13, r, 2);
-                G(m, 2, 6, 10, 14, r, 4);
-                G(m, 3, 7, 11, 15, r, 6);
-                G(m, 3, 4, 9, 14, r, 14);
-                G(m, 2, 7, 8, 13, r, 12);
-                G(m, 0, 5, 10, 15, r, 8);
-                G(m, 1, 6, 11, 12, r, 10);
+                G(v, m, 0, 4, 8, 12, r, 0);
+                G(v, m, 1, 5, 9, 13, r, 2);
+                G(v, m, 2, 6, 10, 14, r, 4);
+                G(v, m, 3, 7, 11, 15, r, 6);
+                G(v, m, 3, 4, 9, 14, r, 14);
+                G(v, m, 2, 7, 8, 13, r, 12);
+                G(v, m, 0, 5, 10, 15, r, 8);
+                G(v, m, 1, 6, 11, 12, r, 10);
             }
         }
 
-        private void CompressScalar()
+        private static void CompressScalar(Span<ulong> h, ReadOnlySpan<ulong> v)
         {
             for (int i = 0; i < 8; ++i)
             {
-                _h[i] ^= _v[i] ^ _v[i + 8];
+                h[i] ^= v[i] ^ v[i + 8];
             }
         }
 
 #if !NETSTANDARD2_0
-        private void RoundsSse2(ReadOnlySpan<ulong> m) // todo
+        private static void RoundsSse2(Span<ulong> v, ReadOnlySpan<ulong> m) // todo
         {
             for (int r = 0; r < _numRounds; ++r)
             {
-                G(m, 0, 4, 8, 12, r, 0);
-                G(m, 1, 5, 9, 13, r, 2);
-                G(m, 2, 6, 10, 14, r, 4);
-                G(m, 3, 7, 11, 15, r, 6);
-                G(m, 3, 4, 9, 14, r, 14);
-                G(m, 2, 7, 8, 13, r, 12);
-                G(m, 0, 5, 10, 15, r, 8);
-                G(m, 1, 6, 11, 12, r, 10);
+                G(v, m, 0, 4, 8, 12, r, 0);
+                G(v, m, 1, 5, 9, 13, r, 2);
+                G(v, m, 2, 6, 10, 14, r, 4);
+                G(v, m, 3, 7, 11, 15, r, 6);
+                G(v, m, 3, 4, 9, 14, r, 14);
+                G(v, m, 2, 7, 8, 13, r, 12);
+                G(v, m, 0, 5, 10, 15, r, 8);
+                G(v, m, 1, 6, 11, 12, r, 10);
             }
         }
 
-        private unsafe void CompressSse2()
+        private static unsafe void CompressSse2(Span<ulong> h, ReadOnlySpan<ulong> v)
         {
             for (int i = 0; i < 8; i += Vector128<ulong>.Count)
             {
                 Vector128<ulong> vLow;
                 Vector128<ulong> vHigh;
-                fixed (ulong* low = _v.Slice(i, Vector128<ulong>.Count))
+                fixed (ulong* low = v.Slice(i, Vector128<ulong>.Count))
                 {
                     vLow = Sse2.LoadVector128(low);
                 }
-                fixed (ulong* high = _v.Slice(i + 8, Vector128<ulong>.Count))
+                fixed (ulong* high = v.Slice(i + 8, Vector128<ulong>.Count))
                 {
                     vHigh = Sse2.LoadVector128(high);
                 }
                 var vMixed = Sse2.Xor(vLow, vHigh);
 
                 Vector128<ulong> hOld;
-                fixed (ulong* h = _h.Slice(i))
+                fixed (ulong* hPtr = h.Slice(i))
                 {
-                    hOld = Sse2.LoadVector128(h);
+                    hOld = Sse2.LoadVector128(hPtr);
                 }
                 var hNew = Sse2.Xor(vMixed, hOld);
                 for (int j = 0; j < Vector128<ulong>.Count; j++)
                 {
-                    _h[i + j] = hNew.GetElement(j);
+                    h[i + j] = hNew.GetElement(j);
                 }
             }
         }
 
-        private void RoundsAvx2(ReadOnlySpan<ulong> m) // todo
+        private static void RoundsAvx2(Span<ulong> v, ReadOnlySpan<ulong> m) // todo
         {
             for (int r = 0; r < _numRounds; ++r)
             {
-                G(m, 0, 4, 8, 12, r, 0);
-                G(m, 1, 5, 9, 13, r, 2);
-                G(m, 2, 6, 10, 14, r, 4);
-                G(m, 3, 7, 11, 15, r, 6);
-                G(m, 3, 4, 9, 14, r, 14);
-                G(m, 2, 7, 8, 13, r, 12);
-                G(m, 0, 5, 10, 15, r, 8);
-                G(m, 1, 6, 11, 12, r, 10);
+                ColumnStep(v, m, r, 0);
+
+                // rotate left
+                for (int i = 0; i < 4; i++)
+                {
+                    Span<ulong> row = v.Slice(i * 4, 4);
+                    Span<ulong> tmp = stackalloc ulong[4];
+                    row[..i].CopyTo(tmp[^i..]);
+                    row[i..].CopyTo(tmp);
+                    tmp.CopyTo(row);
+                }
+
+                ColumnStep(v, m, r, 8);
+
+                // rotate right
+                for (int i = 0; i < 4; i++)
+                {
+                    Span<ulong> row = v.Slice(i * 4, 4);
+                    Span<ulong> tmp = stackalloc ulong[4];
+                    row[..^i].CopyTo(tmp[i..]);
+                    row[^i..].CopyTo(tmp);
+                    tmp.CopyTo(row);
+                }
+            }
+
+            static void ColumnStep(Span<ulong> v, ReadOnlySpan<ulong> m, int r, int o)
+            {
+                G(v, m, 0, 4, 8, 12, r, 0 + o);
+                G(v, m, 1, 5, 9, 13, r, 2 + o);
+                G(v, m, 2, 6, 10, 14, r, 4 + o);
+                G(v, m, 3, 7, 11, 15, r, 6 + o);
             }
         }
 
-        private unsafe void CompressAvx2()
+        private static unsafe void CompressAvx2(Span<ulong> h, ReadOnlySpan<ulong> v)
         {
             for (int i = 0; i < 8; i += Vector256<ulong>.Count)
             {
                 Vector256<ulong> vLow;
                 Vector256<ulong> vHigh;
-                fixed (ulong* low = _v.Slice(i, Vector256<ulong>.Count))
+                fixed (ulong* low = v.Slice(i, Vector256<ulong>.Count))
                 {
                     vLow = Avx.LoadVector256(low);
                 }
-                fixed (ulong* high = _v.Slice(i + 8, Vector256<ulong>.Count))
+                fixed (ulong* high = v.Slice(i + 8, Vector256<ulong>.Count))
                 {
                     vHigh = Avx.LoadVector256(high);
                 }
                 var vMixed = Avx2.Xor(vLow, vHigh);
 
                 Vector256<ulong> hOld;
-                fixed (ulong* h = _h.Slice(i))
+                fixed (ulong* hPtr = h.Slice(i))
                 {
-                    hOld = Avx.LoadVector256(h);
+                    hOld = Avx.LoadVector256(hPtr);
                 }
                 var hNew = Avx2.Xor(vMixed, hOld);
                 for (int j = 0; j < Vector256<ulong>.Count; j++)
                 {
-                    _h[i + j] = hNew.GetElement(j);
+                    h[i + j] = hNew.GetElement(j);
                 }
             }
         }
