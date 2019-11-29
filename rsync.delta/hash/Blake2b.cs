@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Diagnostics;
+using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash
 {
@@ -21,7 +22,7 @@ namespace Rsync.Delta.Hash
             var core = new Blake2bCore(_scratch.Memory.Span);
             if (data.IsSingleSegment)
             {
-                core.HashCore(data.First.Span);
+                core.HashCore(data.FirstSpan());
             }
             else
             {

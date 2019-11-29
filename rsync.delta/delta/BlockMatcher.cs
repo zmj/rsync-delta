@@ -24,13 +24,13 @@ namespace Rsync.Delta.Delta
 
         public void Add(in BlockSignature sig, ulong start)
         {
-#if NETSTANDARD2_0
+#if !NETSTANDARD2_0
+            _blocks.TryAdd(sig, start);
+#else
             if (!_blocks.ContainsKey(sig))
             {
                 _blocks.Add(sig, start);
             }
-#else
-            _blocks.TryAdd(sig, start);
 #endif
         }
 

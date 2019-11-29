@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash
 {
@@ -45,7 +46,7 @@ namespace Rsync.Delta.Hash
         {
             if (sequence.IsSingleSegment)
             {
-                RotateIn(sequence.First.Span);
+                RotateIn(sequence.FirstSpan());
             }
             else
             {

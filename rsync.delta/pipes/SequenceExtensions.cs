@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Rsync.Delta.Pipes
 {
@@ -56,7 +57,7 @@ namespace Rsync.Delta.Pipes
             sequence = sequence.Slice(buffer.End);
             if (buffer.IsSingleSegment)
             {
-                return buffer.First.Span;
+                return buffer.FirstSpan();
             }
             buffer.CopyTo(valueLengthBuffer);
             return valueLengthBuffer;
@@ -67,37 +68,49 @@ namespace Rsync.Delta.Pipes
             Debug.Assert(sequence.Length > 0);
             if (sequence.IsSingleSegment)
             {
-                var buffer = sequence.First.Span;
-                return buffer[buffer.Length - 1];
+                var span = sequence.FirstSpan();
+                return span[span.Length - 1];
             }
             byte last = default;
             foreach (var memory in sequence)
             {
-                if (!memory.IsEmpty)
+                var span = memory.Span;
+                if (!span.IsEmpty)
                 {
-                    last = memory.Span[memory.Length - 1];
+                    last = span[span.Length - 1];
                 }
             }
             return last;
         }
 
-        public static byte FirstByte(this in ReadOnlySequence<byte> data)
+        public static byte FirstByte(this in ReadOnlySequence<byte> sequence)
         {
-            Debug.Assert(data.Length > 0);
-            var buffer = data.Slice(data.Start, 1);
-            if (buffer.IsSingleSegment)
+            Debug.Assert(sequence.Length > 0);
+            if (sequence.IsSingleSegment)
             {
-                return buffer.First.Span[0];
+                return sequence.FirstSpan()[0];
             }
-            foreach (var memory in data)
+            foreach (var memory in sequence)
             {
-                if (!memory.IsEmpty)
+                var span = memory.Span;
+                if (!span.IsEmpty)
                 {
-                    return memory.Span[0];
+                    return span[0];
                 }
             }
             Debug.Assert(false, "unreachable");
             return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> FirstSpan(
+            this in ReadOnlySequence<byte> sequence)
+        {
+#if !NETSTANDARD2_0
+            return sequence.FirstSpan;
+#else
+            return sequence.First.Span;
+#endif
         }
     }
 }
