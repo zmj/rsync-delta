@@ -1,5 +1,6 @@
 ﻿#if !NETSTANDARD2_0
 using System;
+using System.Diagnostics;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
@@ -7,7 +8,28 @@ namespace Rsync.Delta.Hash
 {
     internal ref partial struct Blake2bCore
     {
-        private static void RoundsAvx2(Span<ulong> v, ReadOnlySpan<ulong> m) // todo
+        private static unsafe void HashBlockAvx2(
+            ReadOnlySpan<ulong> block,
+            Span<ulong> scratch,
+            Span<ulong> hash)
+        {
+            Debug.Assert(block.Length == 16);
+            Debug.Assert(scratch.Length == 16);
+            Debug.Assert(hash.Length == 8);
+            fixed (ulong* v = scratch)
+            {
+                fixed (ulong* m = block)
+                {
+                    RoundsAvx2(v: scratch, m: block);
+                }
+                fixed (ulong* h = hash)
+                {
+                    CompressAvx2(v, h);
+                }
+            }
+        }
+
+        private static void RoundsAvx2(Span<ulong> v, ReadOnlySpan<ulong> m)
         {
             for (int r = 0; r < _numRounds; ++r)
             {
@@ -45,32 +67,17 @@ namespace Rsync.Delta.Hash
             }
         }
 
-        private static unsafe void CompressAvx2(Span<ulong> h, ReadOnlySpan<ulong> v)
+        private static unsafe void CompressAvx2(ulong* v, ulong* h)
         {
             for (int i = 0; i < 8; i += Vector256<ulong>.Count)
             {
-                Vector256<ulong> vLow;
-                Vector256<ulong> vHigh;
-                fixed (ulong* low = v.Slice(i, Vector256<ulong>.Count))
-                {
-                    vLow = Avx.LoadVector256(low);
-                }
-                fixed (ulong* high = v.Slice(i + 8, Vector256<ulong>.Count))
-                {
-                    vHigh = Avx.LoadVector256(high);
-                }
-                var vMixed = Avx2.Xor(vLow, vHigh);
+                var low = Avx.LoadVector256(v + i);
+                var high = Avx.LoadVector256(v + i + 8);
+                var mixed = Avx2.Xor(low, high);
 
-                Vector256<ulong> hOld;
-                fixed (ulong* hPtr = h.Slice(i))
-                {
-                    hOld = Avx.LoadVector256(hPtr);
-                }
-                var hNew = Avx2.Xor(vMixed, hOld);
-                for (int j = 0; j < Vector256<ulong>.Count; j++)
-                {
-                    h[i + j] = hNew.GetElement(j);
-                }
+                var hOld = Avx.LoadVector256(h + i);
+                var hNew = Avx2.Xor(mixed, hOld);
+                Avx.Store(h + i, hNew);
             }
         }
     }
