@@ -22,7 +22,6 @@ namespace Rsync.Delta.Hash
                 {
                     RoundsAvx2(v: scratch, m: block);
                 }
-
                 fixed (ulong* h = hash)
                 {
                     CompressAvx2(v, h);
@@ -72,16 +71,13 @@ namespace Rsync.Delta.Hash
         {
             for (int i = 0; i < 8; i += Vector256<ulong>.Count)
             {
-                var low = Avx.LoadVector256(v + i * 8);
-                var high = Avx.LoadVector256(v + (i + 1) * 8);
+                var low = Avx.LoadVector256(v + i);
+                var high = Avx.LoadVector256(v + i + 8);
                 var mixed = Avx2.Xor(low, high);
 
-                var hOld = Avx.LoadVector256(h + i * 8);
+                var hOld = Avx.LoadVector256(h + i);
                 var hNew = Avx2.Xor(mixed, hOld);
-                for (int j = 0; j < Vector256<ulong>.Count; j++)
-                {
-                    h[i + j] = hNew.GetElement(j);
-                }
+                Avx.Store(h + i, hNew);
             }
         }
     }
