@@ -4,6 +4,15 @@ namespace Rsync.Delta.Hash
 {
     internal ref partial struct Blake2bCore
     {
+        private static void HashBlockScalar(
+            ReadOnlySpan<ulong> block,
+            Span<ulong> scratch,
+            Span<ulong> hash)
+        {
+            RoundsScalar(scratch, block);
+            CompressScalar(hash, scratch);
+        }
+
         private static void RoundsScalar(Span<ulong> v, ReadOnlySpan<ulong> m)
         {
             for (int r = 0; r < _numRounds; ++r)

@@ -171,13 +171,11 @@ namespace Rsync.Delta.Hash
 #if !NETSTANDARD2_0
             if (Avx2.IsSupported)
             {
-                RoundsAvx2(_v, m);
-                CompressAvx2(_h, _v);
+                HashBlockAvx2(m, _v, _h);
             }
             else if (Sse2.IsSupported)
             {
-                RoundsSse2(_v, m);
-                CompressSse2(_h, _v);
+                HashBlockSse2(m, _v, _h);
             }
 #else
             if (false)
@@ -186,8 +184,7 @@ namespace Rsync.Delta.Hash
 #endif
             else
             {
-                RoundsScalar(_v, m);
-                CompressScalar(_h, _v);
+                HashBlockScalar(m, _v, _h);
             }
         }
     }
