@@ -170,5 +170,14 @@ namespace Rsync.Delta.UnitTests
                          6d0f 9bad 9aef 7f52 f995 8e72 4198 fb99
                          81b7 7e3f b6ae 4e56",
             delta: @"7273 0236 4500 0241 016f 4502 0300");
+
+        public static readonly TestCase LoremIpsum = new TestCase(
+            version1: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+            version2: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+            SignatureOptions.Default,
+            signature: @"7273 0137 0000 0800 0000 0020 86fb daeb
+                         d6d9 034f 61e2 f7ad a6e5 8c25 2e15 684c
+                         8df7 f0b1 97a9 5d80 f42c a0a3 685d e26e",
+            delta: @"7273 0236 4600 01bd 00");
     }
 }

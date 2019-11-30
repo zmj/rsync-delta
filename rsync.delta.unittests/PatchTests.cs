@@ -34,6 +34,9 @@ namespace Rsync.Delta.UnitTests
         public Task Hello_Ohhello_BlockLength_2() =>
             Patch(TestCase.Hello_Ohhello_BlockLength_2);
 
+        [Fact]
+        public Task Patch_LoremIpsum() => Patch(TestCase.LoremIpsum);
+
         private async Task Patch(TestCase tc)
         {
             var output = new MemoryStream();

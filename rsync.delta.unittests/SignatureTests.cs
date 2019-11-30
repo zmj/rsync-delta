@@ -30,6 +30,9 @@ namespace Rsync.Delta.UnitTests
         public Task Sig_Hello_StrongHashLength_17() =>
             Sig(TestCase.Hello_Hellooo_StrongHashLength_17);
 
+        [Fact]
+        public Task Sig_LoremIpsum() => Sig(TestCase.LoremIpsum);
+
         private async Task Sig(TestCase tc)
         {
             var output = new MemoryStream();
