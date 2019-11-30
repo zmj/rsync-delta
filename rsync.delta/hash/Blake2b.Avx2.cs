@@ -20,7 +20,7 @@ namespace Rsync.Delta.Hash
             {
                 fixed (ulong* m = block)
                 {
-                    RoundsAvx2(v: scratch, m: block);
+                    RoundsAvx2(v: scratch, v, m: block);
                 }
                 fixed (ulong* h = hash)
                 {
@@ -29,33 +29,42 @@ namespace Rsync.Delta.Hash
             }
         }
 
-        private static void RoundsAvx2(Span<ulong> v, ReadOnlySpan<ulong> m)
+        private static unsafe void RoundsAvx2(
+            Span<ulong> v, 
+            ulong* vv,
+            ReadOnlySpan<ulong> m)
         {
             for (int r = 0; r < _numRounds; ++r)
             {
                 ColumnStep(v, m, r, 0);
 
                 // rotate left
-                for (int i = 0; i < 4; i++)
-                {
-                    Span<ulong> row = v.Slice(i * 4, 4);
-                    Span<ulong> tmp = stackalloc ulong[4];
-                    row[..i].CopyTo(tmp[^i..]);
-                    row[i..].CopyTo(tmp);
-                    tmp.CopyTo(row);
-                }
+                var row1 = Avx.LoadVector256(vv + Vector256<ulong>.Count);
+                row1 = Avx2.Permute4x64(row1, 0b_00_11_10_01);
+                Avx.Store(vv + 4, row1);
+
+                var row2 = Avx.LoadVector256(vv + 2 * Vector256<ulong>.Count);
+                row2 = Avx2.Permute4x64(row2, 0b_01_00_11_10);
+                Avx.Store(vv + 8, row2);
+
+                var row3 = Avx.LoadVector256(vv + 3 * Vector256<ulong>.Count);
+                row3 = Avx2.Permute4x64(row3, 0b_10_01_00_11);
+                Avx.Store(vv + 12, row3);
 
                 ColumnStep(v, m, r, 8);
 
                 // rotate right
-                for (int i = 0; i < 4; i++)
-                {
-                    Span<ulong> row = v.Slice(i * 4, 4);
-                    Span<ulong> tmp = stackalloc ulong[4];
-                    row[..^i].CopyTo(tmp[i..]);
-                    row[^i..].CopyTo(tmp);
-                    tmp.CopyTo(row);
-                }
+                row1 = Avx.LoadVector256(vv + Vector256<ulong>.Count);
+                row1 = Avx2.Permute4x64(row1, 0b_10_01_00_11);
+                Avx.Store(vv + 4, row1);
+
+                row2 = Avx.LoadVector256(vv + 2 * Vector256<ulong>.Count);
+                row2 = Avx2.Permute4x64(row2, 0b_01_00_11_10);
+                Avx.Store(vv + 8, row2);
+
+                row3 = Avx.LoadVector256(vv + 3 * Vector256<ulong>.Count);
+                row3 = Avx2.Permute4x64(row3, 0b_00_11_10_01);
+                Avx.Store(vv + 12, row3);
             }
 
             static void ColumnStep(Span<ulong> v, ReadOnlySpan<ulong> m, int r, int o)
