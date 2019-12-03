@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -30,10 +30,13 @@ namespace Rsync.Delta.Models
             _lazySignature = null;
         }
 
-        public BlockSignature(ref ReadOnlySequence<byte> buffer, int strongHashLength)
+        public BlockSignature(ref ReadOnlySequence<byte> sequence, int strongHashLength)
         {
-            _rollingHash = buffer.ReadIntBigEndian();
-            var strongHash = buffer.ReadN(stackalloc byte[strongHashLength]);
+            _rollingHash = sequence.ReadIntBigEndian();
+            var strongHash = sequence.TryGetSpan(strongHashLength, out var span) ? 
+                span : 
+                sequence.CopyTo(stackalloc byte[strongHashLength]);
+            sequence = sequence.Slice(strongHashLength);
             SplitStrongHash(
                 strongHash,
                 out _eagerStrongHash0,

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -10,57 +10,78 @@ namespace Rsync.Delta.Pipes
     {
         public static byte ReadByte(this ref ReadOnlySequence<byte> sequence)
         {
-            Span<byte> buffer = stackalloc byte[1];
-            var value = sequence.ReadN(buffer);
-            return value[0];
+            byte value = sequence.FirstByte();
+            sequence = sequence.Slice(1);
+            return value;
         }
 
         public static ushort ReadUShortBigEndian(
             this ref ReadOnlySequence<byte> sequence)
         {
-            Span<byte> buffer = stackalloc byte[2];
-            var value = sequence.ReadN(buffer);
-            return BinaryPrimitives.ReadUInt16BigEndian(value);
+            const int length = 2;
+            ushort value = sequence.TryGetSpan(length, out var span) ?
+                BinaryPrimitives.ReadUInt16BigEndian(span) :
+                BinaryPrimitives.ReadUInt16BigEndian(sequence.CopyTo(stackalloc byte[length]));
+            sequence = sequence.Slice(length);
+            return value;
         }
 
         public static int ReadIntBigEndian(
             this ref ReadOnlySequence<byte> sequence)
         {
-            Span<byte> buffer = stackalloc byte[4];
-            var value = sequence.ReadN(buffer);
-            return BinaryPrimitives.ReadInt32BigEndian(value);
+            const int length = 4;
+            int value = sequence.TryGetSpan(length, out var span) ?
+                BinaryPrimitives.ReadInt32BigEndian(span) :
+                BinaryPrimitives.ReadInt32BigEndian(sequence.CopyTo(stackalloc byte[length]));
+            sequence = sequence.Slice(length);
+            return value;
         }
 
         public static uint ReadUIntBigEndian(
             this ref ReadOnlySequence<byte> sequence)
         {
-            Span<byte> buffer = stackalloc byte[4];
-            var value = sequence.ReadN(buffer);
-            return BinaryPrimitives.ReadUInt32BigEndian(value);
+            const int length = 4;
+            uint value = sequence.TryGetSpan(length, out var span) ?
+                BinaryPrimitives.ReadUInt32BigEndian(span) :
+                BinaryPrimitives.ReadUInt32BigEndian(sequence.CopyTo(stackalloc byte[length]));
+            sequence = sequence.Slice(length);
+            return value;
         }
 
         public static ulong ReadULongBigEndian(
             this ref ReadOnlySequence<byte> sequence)
         {
-            Span<byte> buffer = stackalloc byte[8];
-            var value = sequence.ReadN(buffer);
-            return BinaryPrimitives.ReadUInt64BigEndian(value);
+            const int length = 8;
+            ulong value = sequence.TryGetSpan(length, out var span) ?
+                BinaryPrimitives.ReadUInt64BigEndian(span) :
+                BinaryPrimitives.ReadUInt64BigEndian(sequence.CopyTo(stackalloc byte[length]));
+            sequence = sequence.Slice(length);
+            return value;
         }
 
-        public static ReadOnlySpan<byte> ReadN(
-            this ref ReadOnlySequence<byte> sequence,
-            Span<byte> valueLengthBuffer)
+        public static bool TryGetSpan(
+            this in ReadOnlySequence<byte> sequence,
+            int spanLength,
+            out ReadOnlySpan<byte> span)
         {
-            int valueLength = valueLengthBuffer.Length;
-            Debug.Assert(sequence.Length >= valueLength);
-            var buffer = sequence.Slice(sequence.Start, valueLength);
-            sequence = sequence.Slice(buffer.End);
-            if (buffer.IsSingleSegment)
+            Debug.Assert(sequence.Length >= spanLength);
+            var firstSpan = sequence.FirstSpan();
+            if (firstSpan.Length >= spanLength)
             {
-                return buffer.FirstSpan();
+                span = firstSpan.Slice(0, spanLength);
+                return true;
             }
-            buffer.CopyTo(valueLengthBuffer);
-            return valueLengthBuffer;
+            span = default;
+            return false;
+        }
+
+        public static ReadOnlySpan<byte> CopyTo(
+            this in ReadOnlySequence<byte> sequence,
+            Span<byte> span)
+        {
+            Debug.Assert(sequence.Length >= span.Length);
+            BuffersExtensions.CopyTo(sequence.Slice(0, span.Length), span);
+            return span;
         }
 
         public static byte LastByte(this in ReadOnlySequence<byte> sequence)
@@ -86,9 +107,10 @@ namespace Rsync.Delta.Pipes
         public static byte FirstByte(this in ReadOnlySequence<byte> sequence)
         {
             Debug.Assert(sequence.Length > 0);
-            if (sequence.IsSingleSegment)
+            var firstSpan = sequence.FirstSpan();
+            if (!firstSpan.IsEmpty)
             {
-                return sequence.FirstSpan()[0];
+                return firstSpan[0];
             }
             foreach (var memory in sequence)
             {
