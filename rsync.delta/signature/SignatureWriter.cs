@@ -45,7 +45,7 @@ namespace Rsync.Delta.Signature
             {
                 _writer.Write(new SignatureHeader(_options));
                 await WriteBlockSignatures(ct);
-                await _writer.FlushAsync(ct); // handle flushresult
+                await _writer.FlushAsync(ct);
                 _reader.Complete();
                 _writer.Complete();
             }
@@ -59,8 +59,9 @@ namespace Rsync.Delta.Signature
 
         private async ValueTask WriteBlockSignatures(CancellationToken ct)
         {
+            FlushResult flushResult = default;
             int writtenSinceFlush = new SignatureHeader().Size;
-            while (true)
+            while (!flushResult.IsCompleted)
             {
                 var readResult = await _reader.Buffer(_options.BlockLength, ct);
                 if (readResult.Buffer.IsEmpty)
@@ -72,7 +73,7 @@ namespace Rsync.Delta.Signature
                 writtenSinceFlush += _writer.Write(sig, _options);
                 if (writtenSinceFlush >= _flushThreshhold)
                 {
-                    await _writer.FlushAsync(ct); // handle flushresult
+                    flushResult = await _writer.FlushAsync(ct);
                     writtenSinceFlush = 0;
                 }
             }
