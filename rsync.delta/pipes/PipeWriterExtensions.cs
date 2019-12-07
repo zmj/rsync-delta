@@ -34,16 +34,21 @@ namespace Rsync.Delta.Pipes
             return size;
         }
 
-        public static async ValueTask CopyFrom(
+        public static async ValueTask<FlushResult> CopyFrom(
             this PipeWriter writer,
             PipeReader reader,
             long count,
             CancellationToken ct)
         {
+            FlushResult flushResult = default;
             int writtenSinceFlush = 0;
-            while (count > 0)
+            while (count > 0 && !flushResult.IsCompleted)
             {
-                var readResult = await reader.ReadAsync(ct); // handle result
+                var readResult = await reader.ReadAsync(ct);
+                if (readResult.Buffer.IsEmpty)
+                {
+                    break;
+                }
                 var readBuffer = readResult.Buffer.First;
                 if (readBuffer.Length > count)
                 {
@@ -56,25 +61,26 @@ namespace Rsync.Delta.Pipes
                 writtenSinceFlush += readBuffer.Length;
                 if (writtenSinceFlush > 1 << 12)
                 {
-                    await writer.FlushAsync(ct); // handle result
+                    flushResult = await writer.FlushAsync(ct);
                     writtenSinceFlush = 0;
                 }
                 count -= readBuffer.Length;
             }
             if (writtenSinceFlush > 0)
             {
-                await writer.FlushAsync(ct);
+                flushResult = await writer.FlushAsync(ct);
             }
+            return flushResult;
         }
 
-        public static async ValueTask CopyFrom(
+        public static async ValueTask<FlushResult> CopyFrom(
             this PipeWriter writer,
             Stream readStream,
             long count,
             CancellationToken ct)
         {
             var reader = PipeReader.Create(readStream); // don't do this
-            await writer.CopyFrom(reader, count, ct);
+            return await writer.CopyFrom(reader, count, ct);
         }
     }
 }

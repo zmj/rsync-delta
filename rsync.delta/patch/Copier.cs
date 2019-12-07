@@ -25,7 +25,7 @@ namespace Rsync.Delta.Patch
             _readerOptions = readerOptions;
         }
 
-        public async ValueTask WriteCopy(LongRange range, CancellationToken ct)
+        public async ValueTask<FlushResult> WriteCopy(LongRange range, CancellationToken ct)
         {
             if ((ulong)_stream.Position != range.Start)
             {
@@ -33,7 +33,7 @@ namespace Rsync.Delta.Patch
                 _stream.Seek((long)range.Start, SeekOrigin.Begin); // fix this cast
             }
             long count = (long)range.Length;
-            await _writer.CopyFrom(_stream, count, ct);
+            return await _writer.CopyFrom(_stream, count, ct);
         }
     }
 }

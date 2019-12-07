@@ -49,7 +49,8 @@ namespace Rsync.Delta.Patch
 
         private async ValueTask ExecuteCommands(CancellationToken ct)
         {
-            while (true)
+            FlushResult flushResult = default;
+            while (!flushResult.IsCompleted)
             {
                 CopyCommand? copy = await _reader.Read<CopyCommand>(ct);
                 if (copy.HasValue)
