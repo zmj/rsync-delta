@@ -16,6 +16,7 @@ namespace Rsync.Delta.IntegrationTests
             int? strongHashLength = null)
         {
             var cmd = new ProcessStartInfo("rdiff");
+            cmd.ArgumentList.Add("--force");
             cmd.ArgumentList.Add("signature");
             if (blockLength != null)
             {
@@ -27,28 +28,18 @@ namespace Rsync.Delta.IntegrationTests
             }
             cmd.ArgumentList.Add(_dir.Path(v1));
             cmd.ArgumentList.Add(_dir.Path(sig));
-            Execute(cmd);
+            cmd.Execute();
         }
 
         public void Delta(TestFile sig, TestFile v2, TestFile delta)
         {
             var cmd = new ProcessStartInfo("rdiff");
+            cmd.ArgumentList.Add("--force");
             cmd.ArgumentList.Add("delta");
             cmd.ArgumentList.Add(_dir.Path(sig));
             cmd.ArgumentList.Add(_dir.Path(v2));
             cmd.ArgumentList.Add(_dir.Path(delta));
-            Execute(cmd);
-        }
-
-        private void Execute(ProcessStartInfo cmd)
-        {
-            using var process = new Process { StartInfo = cmd };
-            bool ok = process.Start();
-            if (!ok)
-            {
-                throw new Exception("process failed to start");
-            }
-            process.WaitForExit();
+            cmd.Execute();
         }
     }
 }

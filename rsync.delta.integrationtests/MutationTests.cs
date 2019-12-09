@@ -14,100 +14,103 @@ namespace Rsync.Delta.IntegrationTests
 
         [Theory]
         [MemberData(nameof(TestCases))]
-        public async Task FirstBlock(BlockSequence blockSeq, Mutation mutation)
+        public async Task FirstBlock(BlockSequence blocks, Mutation mutation)
         {
-            using var files = new TestDirectory(nameof(FirstBlock), blockSeq, mutation);
-            var mutated = mutation.ApplyTo(blockSeq.Blocks, index: 0);
-            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+            using var files = new TestDirectory(nameof(FirstBlock), blocks, mutation);
+            await Test(files, blocks, mutation, blockToMutate: 0);
         }
 
         [Theory]
         [MemberData(nameof(TestCases))]
-        public async Task AllBlocks(BlockSequence blockSeq, Mutation mutation)
+        public async Task AllBlocks(BlockSequence blocks, Mutation mutation)
         {
-            using var files = new TestDirectory(nameof(AllBlocks), blockSeq, mutation);
-            var mutated = blockSeq.Blocks.Select(mutation.Mutate);
-            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+            using var files = new TestDirectory(nameof(AllBlocks), blocks, mutation);
+            await Test(files, blocks, mutation);
         }
 
         [Theory]
         [MemberData(nameof(TestCases))]
-        public async Task LastBlock(BlockSequence blockSeq, Mutation mutation)
+        public async Task LastBlock(BlockSequence blocks, Mutation mutation)
         {
-            using var files = new TestDirectory(nameof(LastBlock), blockSeq, mutation);
-            var mutated = mutation.ApplyTo(blockSeq.Blocks, index: blockSeq.Count - 1);
-            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+            using var files = new TestDirectory(nameof(LastBlock), blocks, mutation);
+            await Test(files, blocks, mutation, blockToMutate: blocks.Count - 1);
         }
 
         [Theory]
         [MemberData(nameof(TestCases))]
-        public async Task MiddleBlock(BlockSequence blockSeq, Mutation mutation)
+        public async Task MiddleBlock(BlockSequence blocks, Mutation mutation)
         {
-            using var files = new TestDirectory(nameof(MiddleBlock), blockSeq, mutation);
-            var mutated = mutation.ApplyTo(blockSeq.Blocks, index: blockSeq.Count / 2);
-            await Test(files, blockSeq.Blocks, mutated, SignatureOptions.Default);
+            using var files = new TestDirectory(nameof(MiddleBlock), blocks, mutation);
+            await Test(files, blocks, mutation, blockToMutate: blocks.Count / 2);
         }
 
         private async Task Test(
             TestDirectory files,
-            IEnumerable<byte[]> blocks,
-            IEnumerable<byte[]> mutated,
-            SignatureOptions options)
+            BlockSequence blockSequence,
+            Mutation mutation,
+            int? blockToMutate = null,
+            SignatureOptions? options = null)
         {
             var rdiff = new Rdiff(files);
             var timings = new List<(TestFile, TimeSpan)>();
             var timer = Stopwatch.StartNew();
-            using (var v1 = files.Write(TestFile.v1))
-            {
-                await blocks.WriteTo(v1);
-            }
-            timings.Add((TestFile.v1, timer.Elapsed));
 
+            blockSequence.WriteTo(files.Path(TestFile.v1));
+
+            timings.Add((TestFile.v1, timer.Elapsed));
             timer.Restart();
+
             using (var v1 = files.Read(TestFile.v1))
             using (var sig = files.Write(TestFile.sig))
             {
                 await _rdiff.Signature(v1, sig);
             }
+
             timings.Add((TestFile.sig, timer.Elapsed));
-
             timer.Restart();
+
             rdiff.Signature(TestFile.v1, TestFile.rs_sig);
+
             timings.Add((TestFile.rs_sig, timer.Elapsed));
-
             await AssertEqual(files, TestFile.rs_sig, TestFile.sig);
-
             timer.Restart();
+
             using (var v2 = files.Write(TestFile.v2))
+            using (var v1 = files.Read(TestFile.v1))
             {
-                await mutated.WriteTo(v2);
+                await mutation.WriteTo(
+                    blockSequence.Blocks(v1),
+                    i => i == (blockToMutate ?? i),
+                    v2);
             }
-            timings.Add((TestFile.v2, timer.Elapsed));
 
+            timings.Add((TestFile.v2, timer.Elapsed));
             timer.Restart();
+
             using (var sig = files.Read(TestFile.sig))
             using (var v2 = files.Read(TestFile.v2))
             using (var delta = files.Write(TestFile.delta))
             {
                 await _rdiff.Delta(sig, v2, delta);
             }
+
             timings.Add((TestFile.delta, timer.Elapsed));
-
             timer.Restart();
+
             rdiff.Delta(TestFile.sig, TestFile.v2, TestFile.rs_delta);
+
             timings.Add((TestFile.rs_delta, timer.Elapsed));
-
             await AssertEqual(files, TestFile.rs_delta, TestFile.delta);
-
             timer.Restart();
+
             using (var delta = files.Read(TestFile.delta))
             using (var v1 = files.Read(TestFile.v1))
             using (var patched = files.Write(TestFile.patched))
             {
                 await _rdiff.Patch(v1, delta, patched);
             }
-            timings.Add((TestFile.patched, timer.Elapsed));
 
+            timings.Add((TestFile.patched, timer.Elapsed));
             await AssertEqual(files, TestFile.v2, TestFile.patched);
 
             foreach (var (file, duration) in timings)

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -6,14 +8,15 @@ namespace Rsync.Delta.IntegrationTests
 {
     internal static class Extensions
     {
-        public static async Task WriteTo(
-            this IEnumerable<byte[]> blocks,
-            Stream stream)
+        public static void Execute(this ProcessStartInfo cmd)
         {
-            foreach (var block in blocks)
+            using var process = new Process { StartInfo = cmd };
+            bool ok = process.Start();
+            if (!ok)
             {
-                await stream.WriteAsync(block, offset: 0, count: block.Length);
+                throw new Exception("process failed to start");
             }
+            process.WaitForExit();
         }
     }
 }

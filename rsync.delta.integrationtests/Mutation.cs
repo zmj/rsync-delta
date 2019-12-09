@@ -1,22 +1,36 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Rsync.Delta.IntegrationTests
 {
     public abstract class Mutation
     {
-        public abstract byte[] Mutate(byte[] block);
+        public abstract Memory<byte> Mutate(Memory<byte> block);
 
-        public IEnumerable<byte[]> ApplyTo(
-            IEnumerable<byte[]> blocks,
-            int index) =>
-            ApplyTo(blocks, i => i == index);
-
-        public IEnumerable<byte[]> ApplyTo(
-            IEnumerable<byte[]> blocks,
-            Func<int, bool> shouldMutate) =>
-            blocks.Select((b, i) => shouldMutate(i) ? Mutate(b) : b);
+        public async Task WriteTo(
+            IAsyncEnumerable<ReadOnlySequence<byte>> blocks,
+            Func<int, bool> shouldMutate,
+            Stream file)
+        {
+            int i = 0;
+            await foreach (var block in blocks)
+            {
+                int length = checked((int)block.Length);
+                using var lease = MemoryPool<byte>.Shared.Rent(length);
+                var memory = lease.Memory[..length];
+                block.CopyTo(memory.Span);
+                if (shouldMutate(i))
+                {
+                    memory = Mutate(memory);
+                }
+                await file.WriteAsync(memory);
+                i++;
+            }
+        }
 
         public override string ToString() => GetType().Name;
 
@@ -40,19 +54,17 @@ namespace Rsync.Delta.IntegrationTests
 
         public class NoChange : Mutation
         {
-            public override byte[] Mutate(byte[] block) => block;
+            public override Memory<byte> Mutate(Memory<byte> block) => block;
         }
 
         public class TrimStart : Mutation
         {
             private readonly int _n;
             public TrimStart(int n) => _n = n;
-            public override byte[] Mutate(byte[] block)
+            public override Memory<byte> Mutate(Memory<byte> block)
             {
                 int n = _n > block.Length ? block.Length : _n;
-                var mutated = new byte[block.Length - n];
-                block.AsSpan().Slice(n).CopyTo(mutated.AsSpan());
-                return mutated;
+                return block[n..];
             }
             public override string ToString() => base.ToString() + '_' + _n;
         }
@@ -61,12 +73,10 @@ namespace Rsync.Delta.IntegrationTests
         {
             private readonly int _n;
             public TrimEnd(int n) => _n = n;
-            public override byte[] Mutate(byte[] block)
+            public override Memory<byte> Mutate(Memory<byte> block)
             {
                 int n = _n > block.Length ? block.Length : _n;
-                var mutated = new byte[block.Length - n];
-                block.AsSpan().Slice(0, block.Length - n).CopyTo(mutated.AsSpan());
-                return mutated;
+                return block[..^n];
             }
             public override string ToString() => base.ToString() + '_' + _n;
         }
@@ -75,12 +85,12 @@ namespace Rsync.Delta.IntegrationTests
         {
             private readonly int _n;
             public PadStart(int n) => _n = n;
-            public override byte[] Mutate(byte[] block)
+            public override Memory<byte> Mutate(Memory<byte> block)
             {
-                var mutated = new byte[_n + block.Length];
+                var mutated = new byte[_n + block.Length].AsMemory();
                 int n = _n > block.Length ? block.Length : _n;
-                block.AsSpan().Slice(block.Length - n).CopyTo(mutated.AsSpan());
-                block.AsSpan().CopyTo(mutated.AsSpan().Slice(_n));
+                block[^n..].CopyTo(mutated);
+                block.CopyTo(mutated[_n..]);
                 return mutated;
             }
             public override string ToString() => base.ToString() + '_' + _n;
@@ -90,12 +100,12 @@ namespace Rsync.Delta.IntegrationTests
         {
             private readonly int _n;
             public PadEnd(int n) => _n = n;
-            public override byte[] Mutate(byte[] block)
+            public override Memory<byte> Mutate(Memory<byte> block)
             {
-                var mutated = new byte[block.Length + _n];
-                block.AsSpan().CopyTo(mutated.AsSpan());
+                var mutated = new byte[block.Length + _n].AsMemory();
+                block.CopyTo(mutated);
                 int n = _n > block.Length ? block.Length : _n;
-                block.AsSpan().Slice(0, n).CopyTo(mutated.AsSpan().Slice(block.Length));
+                block[..n].CopyTo(mutated[block.Length..]);
                 return mutated;
             }
             public override string ToString() => base.ToString() + '_' + _n;
@@ -103,11 +113,12 @@ namespace Rsync.Delta.IntegrationTests
 
         public class IncrementAll : Mutation
         {
-            public override byte[] Mutate(byte[] block)
+            public override Memory<byte> Mutate(Memory<byte> block)
             {
-                for (int i = 0; i < block.Length; i++)
+                var span = block.Span;
+                for (int i = 0; i < span.Length; i++)
                 {
-                    block[i]++;
+                    span[i]++;
                 }
                 return block;
             }
