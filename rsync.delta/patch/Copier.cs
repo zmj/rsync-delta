@@ -1,3 +1,4 @@
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipelines;
@@ -19,7 +20,10 @@ namespace Rsync.Delta.Patch
             PipeWriter writer,
             StreamPipeReaderOptions readerOptions)
         {
-            Debug.Assert(stream.CanSeek);
+            if (!stream.CanSeek)
+            {
+                throw new ArgumentException("copy source must be seekable");
+            }
             _stream = stream;
             _writer = writer;
             _readerOptions = readerOptions;
@@ -27,13 +31,20 @@ namespace Rsync.Delta.Patch
 
         public async ValueTask<FlushResult> WriteCopy(LongRange range, CancellationToken ct)
         {
-            if ((ulong)_stream.Position != range.Start)
-            {
-                // is there any benefit to choosing seekorigin based on position?
-                _stream.Seek((long)range.Start, SeekOrigin.Begin); // fix this cast
-            }
-            long count = (long)range.Length;
+            SeekTo(range.Start);
+            long count = checked((long)range.Length);
             return await _writer.CopyFrom(_stream, count, ct);
+        }
+
+        private void SeekTo(ulong position)
+        {
+            ulong currentPosition = checked((ulong)_stream.Position);
+            if (currentPosition == position)
+            {
+                return;
+            }
+            long offset = (long)(position - currentPosition);
+            _stream.Seek(offset, SeekOrigin.Current);
         }
     }
 }
