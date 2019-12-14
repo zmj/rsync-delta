@@ -30,7 +30,7 @@ namespace Rsync.Delta.Hash
         }
 
         private static unsafe void RoundsAvx2(
-            Span<ulong> v, 
+            Span<ulong> v,
             ulong* vv,
             ReadOnlySpan<ulong> m)
         {

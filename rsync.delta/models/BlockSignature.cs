@@ -33,8 +33,8 @@ namespace Rsync.Delta.Models
         public BlockSignature(ref ReadOnlySequence<byte> sequence, int strongHashLength)
         {
             _rollingHash = sequence.ReadIntBigEndian();
-            var strongHash = sequence.TryGetSpan(strongHashLength, out var span) ? 
-                span : 
+            var strongHash = sequence.TryGetSpan(strongHashLength, out var span) ?
+                span :
                 sequence.CopyTo(stackalloc byte[strongHashLength]);
             sequence = sequence.Slice(strongHashLength);
             SplitStrongHash(

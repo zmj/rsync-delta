@@ -12,8 +12,8 @@ namespace Rsync.Delta.IntegrationTests
         private readonly int _blockCount;
         private readonly int _blockLength;
         private readonly int _lastBlockLength;
-        private int _totalLength => 
-            (_blockCount-1)*_blockLength + _lastBlockLength;
+        private int _totalLength =>
+            (_blockCount - 1) * _blockLength + _lastBlockLength;
 
         protected BlockSequence(
             int blockCount,
@@ -36,11 +36,11 @@ namespace Rsync.Delta.IntegrationTests
         {
             Debug.Assert(file.Length == _totalLength);
             var reader = PipeReader.Create(
-                file, 
-                new StreamPipeReaderOptions(leaveOpen:true));
-            for (int i=0; i<_blockCount; i++)
+                file,
+                new StreamPipeReaderOptions(leaveOpen: true));
+            for (int i = 0; i < _blockCount; i++)
             {
-                int len = i == _blockCount-1 ? _lastBlockLength : _blockLength;
+                int len = i == _blockCount - 1 ? _lastBlockLength : _blockLength;
                 ReadOnlySequence<byte> sequence;
                 do
                 {
