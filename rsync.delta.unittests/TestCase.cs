@@ -51,7 +51,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hellooo_Default = new TestCase(
             version1: "hello",
             version2: "hellooo",
-            SignatureOptions.Default,
+            default,
             signature: @"7273 0137 0000 0800 0000 0020 07f8 02af
                          324d cf02 7dd4 a30a 932c 441f 365a 25e8
                          6b17 3def a4b8 e589 4825 3471 b81b 72cf",
@@ -60,7 +60,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hellooo_BlockLength_1 = new TestCase(
             version1: "hello",
             version2: "hellooo",
-            new SignatureOptions(blockLength: 1, SignatureOptions.Default.StrongHashLength),
+            new SignatureOptions(blockLength: 1),
             signature: @"7273 0137 0000 0001 0000 0020 0087 0087
                          23c7 46ec c949 815d 3a1f 142c f32a 29b8
                          04d8 9274 e792 fcd5 66c6 59b7 e4e5 f3bd
@@ -79,7 +79,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hellooo_BlockLength_2 = new TestCase(
             version1: "hello",
             version2: "hellooo",
-            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            new SignatureOptions(blockLength: 2),
             signature: @"7273 0137 0000 0002 0000 0020 0192 010b
                          734f 36ae 49af 5392 ff75 f37e 3583 6da9
                          0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
@@ -93,7 +93,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hellooo_StrongHashLength_15 = new TestCase(
             version1: "hello",
             version2: "hellooo",
-            new SignatureOptions(SignatureOptions.Default.BlockLength, strongHashLength: 15),
+            new SignatureOptions(strongHashLength: 15),
             signature: @"7273 0137 0000 0800 0000 000f 07f8 02af
                          324d cf02 7dd4 a30a 932c 441f 365a 25",
             delta: "7273 0236 4107 6865 6c6c 6f6f 6f00");
@@ -101,7 +101,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hellooo_StrongHashLength_16 = new TestCase(
             version1: "hello",
             version2: "hellooo",
-            new SignatureOptions(SignatureOptions.Default.BlockLength, strongHashLength: 16),
+            new SignatureOptions(strongHashLength: 16),
             signature: @"7273 0137 0000 0800 0000 0010 07f8 02af
                          324d cf02 7dd4 a30a 932c 441f 365a 25e8",
             delta: "7273 0236 4107 6865 6c6c 6f6f 6f00");
@@ -109,7 +109,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hellooo_StrongHashLength_17 = new TestCase(
             version1: "hello",
             version2: "hellooo",
-            new SignatureOptions(SignatureOptions.Default.BlockLength, strongHashLength: 17),
+            new SignatureOptions(strongHashLength: 17),
             signature: @"7273 0137 0000 0800 0000 0011 07f8 02af
                          324d cf02 7dd4 a30a 932c 441f 365a 25e8
                          6b",
@@ -118,7 +118,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Hello_BlockLength_2 = new TestCase(
             version1: "hello",
             version2: "hello",
-            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            new SignatureOptions(blockLength: 2),
             signature: @"7273 0137 0000 0002 0000 0020 0192 010b
                          734f 36ae 49af 5392 ff75 f37e 3583 6da9
                          0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
@@ -132,7 +132,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Ohello_BlockLength_2 = new TestCase(
             version1: "hello",
             version2: "ohello",
-            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            new SignatureOptions(blockLength: 2),
             signature: @"7273 0137 0000 0002 0000 0020 0192 010b
                          734f 36ae 49af 5392 ff75 f37e 3583 6da9
                          0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
@@ -146,7 +146,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Ohhello_BlockLength_2 = new TestCase(
             version1: "hello",
             version2: "ohhello",
-            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            new SignatureOptions(blockLength: 2),
             signature: @"7273 0137 0000 0002 0000 0020 0192 010b
                          734f 36ae 49af 5392 ff75 f37e 3583 6da9
                          0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
@@ -160,7 +160,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase Hello_Heollo_BlockLength_2 = new TestCase(
             version1: "hello",
             version2: "heollo",
-            new SignatureOptions(blockLength: 2, SignatureOptions.Default.StrongHashLength),
+            new SignatureOptions(blockLength: 2),
             signature: @"7273 0137 0000 0002 0000 0020 0192 010b
                          734f 36ae 49af 5392 ff75 f37e 3583 6da9
                          0bc7 5047 7070 ccbb 3149 cdc1 2733 9214
@@ -174,7 +174,7 @@ namespace Rsync.Delta.UnitTests
         public static readonly TestCase LoremIpsum = new TestCase(
             version1: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
             version2: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-            SignatureOptions.Default,
+            default,
             signature: @"7273 0137 0000 0800 0000 0020 86fb daeb
                          d6d9 034f 61e2 f7ad a6e5 8c25 2e15 684c
                          8df7 f0b1 97a9 5d80 f42c a0a3 685d e26e",

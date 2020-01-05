@@ -32,8 +32,8 @@ namespace Rsync.Delta.UnitTests
                 Encoding.UTF8.GetBytes(version1),
                 Encoding.UTF8.GetBytes(version2),
                 new SignatureOptions(
-                    blockLength ?? SignatureOptions.Default.BlockLength,
-                    strongHashLength ?? SignatureOptions.Default.StrongHashLength));
+                    blockLength ?? default(SignatureOptions).BlockLength,
+                    strongHashLength ?? default(SignatureOptions).StrongHashLength));
 
         private async Task E2E(
             byte[] version1,

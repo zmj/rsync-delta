@@ -8,39 +8,33 @@ namespace Rsync.Delta.Models
     internal readonly struct SignatureHeader :
         IWritable, IReadable<SignatureHeader>
     {
+        private const int _magicBase = 0x72730100;
+
         public int Size => 12;
         public int MaxSize => 12;
 
-        public readonly SignatureFormat Format;
         public readonly SignatureOptions Options;
 
-        public SignatureHeader(SignatureOptions options)
-        {
-            Format = SignatureFormat.Blake2b;
-            Options = options;
-            Validate();
-        }
+        public SignatureHeader(SignatureOptions options) => Options = options;
 
         public SignatureHeader(ref ReadOnlySequence<byte> buffer)
         {
-            Format = (SignatureFormat)buffer.ReadUIntBigEndian();
+            int magic = buffer.ReadIntBigEndian();
+            if ((magic & 0xFFFFFF00) != _magicBase)
+            {
+                throw new FormatException($"unknown magic: {magic}");
+            }
             Options = new SignatureOptions(
                 blockLength: buffer.ReadIntBigEndian(),
-                strongHashLength: buffer.ReadIntBigEndian());
-            Validate();
-        }
-
-        private void Validate()
-        {
-            if (Format != SignatureFormat.Blake2b)
-            {
-                throw new FormatException($"Unexpected signature magic: {Format}");
-            }
+                strongHashLength: buffer.ReadIntBigEndian(),
+                rollingHash: (RollingHashAlgorithm)(magic & 0xF0),
+                strongHash: (StrongHashAlgorithm)(magic & 0xF));
         }
 
         public void WriteTo(Span<byte> buffer)
         {
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);
+            int magic = _magicBase | (int)Options.RollingHash | (int)Options.StrongHash;
+            BinaryPrimitives.WriteInt32BigEndian(buffer, magic);
             BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(4), Options.BlockLength);
             BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(8), Options.StrongHashLength);
         }
@@ -49,10 +43,5 @@ namespace Rsync.Delta.Models
         {
             return new SignatureHeader(ref data);
         }
-    }
-
-    internal enum SignatureFormat : uint
-    {
-        Blake2b = 0x72730137,
     }
 }

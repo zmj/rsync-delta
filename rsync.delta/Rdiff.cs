@@ -41,7 +41,7 @@ namespace Rsync.Delta
                 using var writer = new Signature.SignatureWriter(
                     oldFile,
                     signature,
-                    options ?? SignatureOptions.Default,
+                    options ?? default,
                     _memoryPool);
                 await writer.Write(ct);
             }
