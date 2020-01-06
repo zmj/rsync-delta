@@ -17,13 +17,19 @@ namespace Rsync.Delta.IntegrationTests
             var cmd = new ProcessStartInfo("rdiff");
             cmd.ArgumentList.Add("--force");
             cmd.ArgumentList.Add("signature");
+            cmd.ArgumentList.Add("-R"); 
+            cmd.ArgumentList.Add("rollsum"); // take sigoptions input
+            cmd.ArgumentList.Add("-H");
+            cmd.ArgumentList.Add("blake2");
             if (blockLength != null)
             {
-                cmd.ArgumentList.Add($"-b {blockLength}");
+                cmd.ArgumentList.Add("-b");
+                cmd.ArgumentList.Add(blockLength.ToString());
             }
             if (strongHashLength != null)
             {
-                cmd.ArgumentList.Add($"-S {strongHashLength}");
+                cmd.ArgumentList.Add("-S");
+                cmd.ArgumentList.Add(strongHashLength.ToString());
             }
             cmd.ArgumentList.Add(_dir.Path(v1));
             cmd.ArgumentList.Add(_dir.Path(sig));
