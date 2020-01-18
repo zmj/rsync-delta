@@ -55,13 +55,13 @@ namespace Rsync.Delta.Patch
                 CopyCommand? copy = await _reader.Read<CopyCommand>(ct);
                 if (copy.HasValue)
                 {
-                    await _copier.WriteCopy(copy.Value.Range, ct);
+                    flushResult = await _copier.WriteCopy(copy.Value.Range, ct);
                     continue;
                 }
                 LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct);
                 if (literal.HasValue)
                 {
-                    await _writer.CopyFrom(
+                    flushResult = await _writer.CopyFrom(
                         _reader,
                         (long)literal.Value.LiteralLength,
                         ct);
@@ -72,8 +72,17 @@ namespace Rsync.Delta.Patch
                 {
                     return;
                 }
-                throw new FormatException("unknown command");
+                await ThrowUnknownCommand(ct);
             }
+        }
+
+        private async ValueTask ThrowUnknownCommand(CancellationToken ct)
+        {
+            var readResult = await _reader.Buffer(1, ct);
+            string msg = readResult.Buffer.IsEmpty ?
+                "expected a command; got EOF" :
+                $"unknown command: {readResult.Buffer.FirstByte()}";
+            throw new FormatException(msg);
         }
     }
 }
