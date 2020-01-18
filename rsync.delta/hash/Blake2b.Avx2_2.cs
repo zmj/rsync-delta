@@ -12,33 +12,61 @@ namespace Rsync.Delta.Hash
         private static unsafe void HashBlockAvx2_2(
             ReadOnlySpan<ulong> block,
             Span<ulong> hash,
-            ReadOnlySpan<ulong> initializationVector,
             ulong bytesHashed,
             ulong bytesHashedOverflows,
             ulong finalizationFlag)
         {
             Debug.Assert(block.Length == 16);
             Debug.Assert(hash.Length == 8);
+
+            InitAvx2(hash, bytesHashed, bytesHashedOverflows, finalizationFlag,
+                out var row1, out var row2, out var row3, out var row4);
             fixed (ulong* m = block)
-            fixed (ulong* h = hash)
-            fixed (ulong* iv = initializationVector)
             {
-                var row1 = Avx.LoadVector256(h);
-                var row2 = Avx.LoadVector256(h + Vector256<ulong>.Count);
-                var row3 = Avx.LoadVector256(iv);
-                var row4 = Avx.LoadVector256(iv + Vector256<ulong>.Count);
-                fixed (ulong* tmp = stackalloc ulong[4])
+                for (int r = 0; r < _numRounds; r++)
                 {
-                    tmp[0] = bytesHashed;
-                    tmp[1] = bytesHashedOverflows;
-                    tmp[2] = finalizationFlag;
-                    row4 = Avx2.Xor(row4, Avx.LoadVector256(tmp));
+                    // round
                 }
+            }
+            var (r1, r2, r3, r4) = (Dbg(row1), Dbg(row2), Dbg(row3), Dbg(row4));
+            CompressAvx2(hash, row1, row2, row3, row4);
+        }
 
+        private static unsafe void InitAvx2(
+            ReadOnlySpan<ulong> hash,
+            ulong bytesHashed,
+            ulong bytesHashedOverflows,
+            ulong finalizationFlag,
+            out Vector256<ulong> row1,
+            out Vector256<ulong> row2,
+            out Vector256<ulong> row3,
+            out Vector256<ulong> row4)
+        {
+            fixed (ulong* h = hash)
+            fixed (ulong* iv = IV)
+            fixed (ulong* tmp = stackalloc ulong[4])
+            {
+                row1 = Avx.LoadVector256(h);
+                row2 = Avx.LoadVector256(h + Vector256<ulong>.Count);
+                row3 = Avx.LoadVector256(iv);
+                row4 = Avx.LoadVector256(iv + Vector256<ulong>.Count);
+                tmp[0] = bytesHashed;
+                tmp[1] = bytesHashedOverflows;
+                tmp[2] = finalizationFlag;
+                row4 = Avx2.Xor(row4, Avx.LoadVector256(tmp));
+            }
+        }
 
-
-                string mm = Dbg(m, 16);
-                var (r1, r2, r3, r4) = (Dbg(row1), Dbg(row2), Dbg(row3), Dbg(row4));
+        private static unsafe void CompressAvx2(
+            Span<ulong> hash,
+            Vector256<ulong> row1,
+            Vector256<ulong> row2,
+            Vector256<ulong> row3,
+            Vector256<ulong> row4)
+        {
+            fixed (ulong* h = hash)
+            {
+                // compress
                 throw new NotImplementedException();
             }
         }

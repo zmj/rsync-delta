@@ -175,7 +175,6 @@ namespace Rsync.Delta.Hash
                 HashBlockAvx2_2(
                     block: m,
                     hash: _h,
-                    IV,
                     _bytesHashed,
                     _bytesHashedOverflows,
                     finalizationFlag);
