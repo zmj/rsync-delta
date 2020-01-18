@@ -72,8 +72,17 @@ namespace Rsync.Delta.Patch
                 {
                     return;
                 }
-                throw new FormatException("unknown command");
+                await ThrowUnknownCommand(ct);
             }
+        }
+
+        private async ValueTask ThrowUnknownCommand(CancellationToken ct)
+        {
+            var readResult = await _reader.Buffer(1, ct);
+            string msg = readResult.Buffer.IsEmpty ?
+                "expected a command; got EOF" :
+                $"unknown command: {readResult.Buffer.FirstByte()}";
+            throw new FormatException(msg);
         }
     }
 }

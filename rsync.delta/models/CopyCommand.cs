@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Diagnostics;
 using Rsync.Delta.Pipes;
@@ -7,7 +7,7 @@ namespace Rsync.Delta.Models
 {
     internal readonly struct CopyCommand : IWritable, IReadable<CopyCommand>
     {
-        private const byte _baseCommand = 0x45;
+        private const byte _baseCommand = 0x40;
 
         private readonly CommandArg _start;
         private readonly CommandArg _length;
@@ -47,10 +47,13 @@ namespace Rsync.Delta.Models
         public CopyCommand? ReadFrom(ref ReadOnlySequence<byte> data)
         {
             byte command = data.FirstByte();
+            const byte minCommand = _baseCommand +
+                4 * (byte)CommandModifier.OneByte +
+                (byte)CommandModifier.OneByte;
             const byte maxCommand = _baseCommand +
-                    4 * (byte)CommandModifier.EightBytes +
-                    (byte)CommandModifier.EightBytes;
-            if (command < _baseCommand || command > maxCommand)
+                4 * (byte)CommandModifier.EightBytes +
+                (byte)CommandModifier.EightBytes;
+            if (command < minCommand || command > maxCommand)
             {
                 return null;
             }

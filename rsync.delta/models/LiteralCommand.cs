@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Diagnostics;
 using Rsync.Delta.Pipes;
@@ -9,7 +9,7 @@ namespace Rsync.Delta.Models
     {
         private const byte _baseCommand = 0x40;
 
-        private readonly DeltaCommandArg _lengthArg;
+        private readonly CommandArg _lengthArg;
         private readonly byte _shortLiteralLength;
 
         public LiteralCommand(ulong length)
@@ -21,17 +21,17 @@ namespace Rsync.Delta.Models
             }
             else
             {
-                _lengthArg = new DeltaCommandArg(length);
+                _lengthArg = new CommandArg(length);
                 _shortLiteralLength = 0;
             }
         }
 
         private LiteralCommand(
             ref ReadOnlySequence<byte> buffer,
-            DeltaCommandModifier argModifier,
+            CommandModifier argModifier,
             byte shortLiteralLength)
         {
-            _lengthArg = new DeltaCommandArg(ref buffer, argModifier);
+            _lengthArg = new CommandArg(ref buffer, argModifier);
             _shortLiteralLength = shortLiteralLength;
         }
 
@@ -54,21 +54,21 @@ namespace Rsync.Delta.Models
         public LiteralCommand? ReadFrom(ref ReadOnlySequence<byte> data)
         {
             byte command = data.FirstByte();
-            const byte maxCommand = _baseCommand + (byte)DeltaCommandModifier.EightBytes;
+            const byte maxCommand = _baseCommand + (byte)CommandModifier.EightBytes;
             if (command == 0 || command > maxCommand)
             {
                 return null;
             }
-            DeltaCommandModifier argModifier;
+            CommandModifier argModifier;
             byte shortLiteralLength;
             if (command <= _baseCommand)
             {
-                argModifier = DeltaCommandModifier.ZeroBytes;
+                argModifier = CommandModifier.ZeroBytes;
                 shortLiteralLength = command;
             }
             else
             {
-                argModifier = (DeltaCommandModifier)(command - _baseCommand);
+                argModifier = (CommandModifier)(command - _baseCommand);
                 shortLiteralLength = 0;
             }
             data = data.Slice(1);

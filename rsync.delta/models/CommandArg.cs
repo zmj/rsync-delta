@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -46,6 +46,10 @@ namespace Rsync.Delta.Models
             Modifier = modifier;
             switch (modifier)
             {
+                case CommandModifier.ZeroBytes:
+                    Value = 0;
+                    Size = 0;
+                    break;
                 case CommandModifier.OneByte:
                     Value = buffer.ReadByte();
                     Size = 1;
@@ -72,6 +76,8 @@ namespace Rsync.Delta.Models
             Debug.Assert(buffer.Length >= Size);
             switch (Size)
             {
+                case 0:
+                    break;
                 case 1:
                     buffer[0] = (byte)Value;
                     break;
@@ -81,9 +87,11 @@ namespace Rsync.Delta.Models
                 case 4:
                     BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Value);
                     break;
-                default:
+                case 8:
                     BinaryPrimitives.WriteUInt64BigEndian(buffer, Value);
                     break;
+                default:
+                    throw new ArgumentException(nameof(Size));
             }
         }
 
@@ -92,9 +100,10 @@ namespace Rsync.Delta.Models
 
     internal enum CommandModifier : byte
     {
-        OneByte = 0,
-        TwoBytes = 1,
-        FourBytes = 2,
+        ZeroBytes = 0,
+        OneByte = 1,
+        TwoBytes = 2,
+        FourBytes = 3,
         EightBytes = 4,
     }
 }
