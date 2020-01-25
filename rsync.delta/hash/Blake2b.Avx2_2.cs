@@ -21,10 +21,9 @@ namespace Rsync.Delta.Hash
 
             InitAvx2(hash, bytesHashed, bytesHashedOverflows, finalizationFlag,
                 out var row1, out var row2, out var row3, out var row4);
-            LoadMessage(block, out var msg1, out var msg2, out var msg3, out var msg4);
             for (int r = 0; r < _numRounds; r++)
             {
-                MixMessage(r, msg1, msg2, msg3, msg4,
+                LoadMessage(r, block,
                     out var tmp1, out var tmp2, out var tmp3, out var tmp4);
                 G(tmp1, tmp2, ref row1, ref row2, ref row3, ref row4);
                 Diagonalize(ref row1, ref row2, ref row3);
@@ -61,33 +60,48 @@ namespace Rsync.Delta.Hash
         }
 
         private static unsafe void LoadMessage(
-            ReadOnlySpan<ulong> block,
-            out Vector256<ulong> msg1,
-            out Vector256<ulong> msg2,
-            out Vector256<ulong> msg3,
-            out Vector256<ulong> msg4)
-        {
-            fixed (ulong* m = block)
-            {
-                msg1 = Avx.LoadVector256(m);
-                msg2 = Avx.LoadVector256(m + Vector256<ulong>.Count);
-                msg3 = Avx.LoadVector256(m + 2 * Vector256<ulong>.Count);
-                msg4 = Avx.LoadVector256(m + 3 * Vector256<ulong>.Count);
-            }
-        }
-
-        private static unsafe void MixMessage(
             int round,
-            Vector256<ulong> msg1,
-            Vector256<ulong> msg2,
-            Vector256<ulong> msg3,
-            Vector256<ulong> msg4,
+            ReadOnlySpan<ulong> block,
             out Vector256<ulong> tmp1,
             out Vector256<ulong> tmp2,
             out Vector256<ulong> tmp3,
             out Vector256<ulong> tmp4)
         {
-            throw new NotImplementedException();
+            Vector256<ulong> ffMask = default; // move up
+            ffMask = Avx2.CompareEqual(ffMask, ffMask);
+            fixed (int* sigma = Sigma) // move up
+            fixed (ulong* m = block)
+            {
+                var index1 = Avx.LoadVector128(sigma + round * 16);
+                var index2 = Avx.LoadVector128(sigma + round * 16 + Vector128<int>.Count);
+                var index3 = Avx.LoadVector128(sigma + round * 16 + 2 * Vector128<int>.Count);
+                var index4 = Avx.LoadVector128(sigma + round * 16 + 3 * Vector128<int>.Count);
+
+                tmp1 = Avx2.GatherMaskVector256(
+                    source: default,
+                    baseAddress: m, 
+                    index1, 
+                    mask: ffMask,
+                    scale: 8);
+                tmp2 = Avx2.GatherMaskVector256(
+                    source: default,
+                    baseAddress: m,
+                    index2,
+                    mask: ffMask,
+                    scale: 8);
+                tmp3 = Avx2.GatherMaskVector256(
+                    source: default,
+                    baseAddress: m,
+                    index3,
+                    mask: ffMask,
+                    scale: 8);
+                tmp4 = Avx2.GatherMaskVector256(
+                    source: default,
+                    baseAddress: m,
+                    index3,
+                    mask: ffMask,
+                    scale: 8);
+            }
         }
 
         private static readonly byte[] _mask16 = new byte[]
@@ -111,7 +125,7 @@ namespace Rsync.Delta.Hash
 
             row3 = Avx2.Add(row3, row4);
             row2 = Avx2.Xor(row2, row3);
-            row2 = Rotate(row2, 25);
+            row2 = RotateRight(row2, 25);
 
             row1 = Avx2.Add(row1, buf2);
             row1 = Avx2.Add(row1, row2);
@@ -123,10 +137,10 @@ namespace Rsync.Delta.Hash
 
             row3 = Avx2.Add(row3, row4);
             row2 = Avx2.Xor(row2, row3);
-            row2 = Rotate(row2, 11);
+            row2 = RotateRight(row2, 11);
         }
 
-        private static unsafe Vector256<ulong> Rotate(Vector256<ulong> v, byte n)
+        private static unsafe Vector256<ulong> RotateRight(Vector256<ulong> v, byte n)
         {
             var tmp = Avx2.ShiftLeftLogical(v, (byte)(64 - n));
             v = Avx2.ShiftRightLogical(v, n);
