@@ -26,9 +26,9 @@ namespace Rsync.Delta.Hash
                 LoadMessage(r, block,
                     out var tmp1, out var tmp2, out var tmp3, out var tmp4);
                 G(tmp1, tmp2, ref row1, ref row2, ref row3, ref row4);
-                Diagonalize(ref row1, ref row2, ref row3);
-                G(tmp3, tmp4, ref row1, ref row2, ref row4, ref row4);
-                Undiagonalize(ref row1, ref row2, ref row3);
+                Diagonalize(ref row2, ref row3, ref row4);
+                G(tmp3, tmp4, ref row1, ref row2, ref row3, ref row4);
+                Undiagonalize(ref row2, ref row3, ref row4);
             }
             //var (r1, r2, r3, r4) = (Dbg(row1), Dbg(row2), Dbg(row3), Dbg(row4));
             CompressAvx2(hash, row1, row2, row3, row4);
@@ -69,7 +69,7 @@ namespace Rsync.Delta.Hash
         {
             Vector256<ulong> ffMask = default; // move up
             ffMask = Avx2.CompareEqual(ffMask, ffMask);
-            fixed (int* sigma = Sigma) // move up
+            fixed (int* sigma = Constants.MessagePermutation) // move up
             fixed (ulong* m = block)
             {
                 var index1 = Avx.LoadVector128(sigma + round * 16);
@@ -98,7 +98,7 @@ namespace Rsync.Delta.Hash
                 tmp4 = Avx2.GatherMaskVector256(
                     source: default,
                     baseAddress: m,
-                    index3,
+                    index4,
                     mask: ffMask,
                     scale: 8);
             }
@@ -125,19 +125,20 @@ namespace Rsync.Delta.Hash
 
             row3 = Avx2.Add(row3, row4);
             row2 = Avx2.Xor(row2, row3);
-            row2 = RotateRight(row2, 25);
+            row2 = RotateRight(row2, 24); // 25);
 
             row1 = Avx2.Add(row1, buf2);
             row1 = Avx2.Add(row1, row2);
             row4 = Avx2.Xor(row4, row1);
 
             Vector256<byte> mask16; // move this up
-            fixed (byte* b = _mask16) { mask16 = Avx.LoadVector256(b); }
+            fixed (byte* b = _mask16) { mask16 = Avx2.BroadcastVector128ToVector256(b); }
+            var zz = RotateRight(row4, 16);
             row4 = Avx2.Shuffle(row4.AsByte(), mask16).AsUInt64();
 
             row3 = Avx2.Add(row3, row4);
             row2 = Avx2.Xor(row2, row3);
-            row2 = RotateRight(row2, 11);
+            row2 = RotateRight(row2, 63); // 11);
         }
 
         private static unsafe Vector256<ulong> RotateRight(Vector256<ulong> v, byte n)
@@ -200,6 +201,13 @@ namespace Rsync.Delta.Hash
             ulong* zz = stackalloc ulong[Vector256<ulong>.Count];
             Avx.Store(zz, z);
             return Dbg(zz, Vector256<ulong>.Count);
+        }
+
+        static unsafe string Dbg(ulong z)
+        {
+            Span<ulong> zz = stackalloc ulong[1];
+            zz[0] = z;
+            return Dbg(zz);
         }
     }
 }

@@ -171,13 +171,13 @@ namespace Rsync.Delta.Hash
 #if !NETSTANDARD2_0
             if (Avx2.IsSupported)
             {
-                // HashBlockAvx2(m, _v, _h);
-                HashBlockAvx2_2(
+                HashBlockAvx2(m, _v, _h);
+                /*HashBlockAvx2_2(
                     block: m,
                     hash: _h,
                     _bytesHashed,
                     _bytesHashedOverflows,
-                    finalizationFlag);
+                    finalizationFlag);*/
             }
             else if (Sse2.IsSupported)
             {
