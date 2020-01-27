@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Rsync.Delta.Hash.Blake2b
 {
@@ -7,8 +8,20 @@ namespace Rsync.Delta.Hash.Blake2b
         public static void HashBlock(
             ReadOnlySpan<ulong> block,
             Span<ulong> scratch,
-            Span<ulong> hash)
+            Span<ulong> hash,
+            ulong bytesHashed,
+            ulong bytesHashedOverflows,
+            ulong finalizationFlag)
         {
+            Debug.Assert(block.Length == 16);
+            Debug.Assert(scratch.Length == 16);
+            Debug.Assert(hash.Length == 8);
+
+            hash.CopyTo(scratch);
+            Constants.IV.CopyTo(scratch.Slice(8));
+            scratch[12] ^= bytesHashed;
+            scratch[13] ^= bytesHashedOverflows;
+            scratch[14] ^= finalizationFlag;
             Rounds(scratch, block);
             Compress(hash, scratch);
         }

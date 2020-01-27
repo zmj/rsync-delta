@@ -133,11 +133,6 @@ namespace Rsync.Delta.Hash.Blake2b
         {
             Debug.Assert(block.Length >= _blockLength);
             var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockLength));
-            _h.CopyTo(_v);
-            Constants.IV.CopyTo(_v.Slice(8));
-            _v[12] ^= _bytesHashed;
-            _v[13] ^= _bytesHashedOverflows;
-            _v[14] ^= finalizationFlag;
 
 #if !NETSTANDARD2_0
             if (Avx2.IsSupported)
@@ -156,7 +151,13 @@ namespace Rsync.Delta.Hash.Blake2b
 #endif
             else
             {
-                Blake2bScalar.HashBlock(m, _v, _h);
+                Blake2bScalar.HashBlock(
+                    block: m,
+                    scratch: _v,
+                    hash: _h,
+                    _bytesHashed,
+                    _bytesHashedOverflows,
+                    finalizationFlag);
             }
         }
     }

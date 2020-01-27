@@ -7,9 +7,9 @@ using System.Runtime.Intrinsics.X86;
 
 namespace Rsync.Delta.Hash.Blake2b
 {
-    internal static class Blake2bAvx2
+    internal static unsafe class Blake2bAvx2
     {
-        public static unsafe void HashBlock(
+        public static void HashBlock(
             ReadOnlySpan<ulong> block,
             Span<ulong> hash,
             ulong bytesHashed,
@@ -21,9 +21,11 @@ namespace Rsync.Delta.Hash.Blake2b
 
             Init(hash, bytesHashed, bytesHashedOverflows, finalizationFlag,
                 out var row1, out var row2, out var row3, out var row4);
+            Vector256<ulong> ffMask = default;
+            ffMask = Avx2.CompareEqual(ffMask, ffMask);
             for (int r = 0; r < Constants.Rounds; r++)
             {
-                LoadMessage(r, block,
+                LoadMessage(r, block, ffMask,
                     out var tmp1, out var tmp2, out var tmp3, out var tmp4);
                 G(tmp1, tmp2, ref row1, ref row2, ref row3, ref row4);
                 Diagonalize(ref row2, ref row3, ref row4);
@@ -33,7 +35,7 @@ namespace Rsync.Delta.Hash.Blake2b
             Compress(hash, row1, row2, row3, row4);
         }
 
-        private static unsafe void Init(
+        private static void Init(
             ReadOnlySpan<ulong> hash,
             ulong bytesHashed,
             ulong bytesHashedOverflows,
@@ -58,16 +60,15 @@ namespace Rsync.Delta.Hash.Blake2b
             }
         }
 
-        private static unsafe void LoadMessage(
+        private static void LoadMessage(
             int round,
             ReadOnlySpan<ulong> block,
+            Vector256<ulong> ffMask,
             out Vector256<ulong> tmp1,
             out Vector256<ulong> tmp2,
             out Vector256<ulong> tmp3,
             out Vector256<ulong> tmp4)
         {
-            Vector256<ulong> ffMask = default; // move up
-            ffMask = Avx2.CompareEqual(ffMask, ffMask);
             fixed (int* sigma = Constants.MessagePermutation) // move up
             fixed (ulong* m = block)
             {
@@ -103,7 +104,7 @@ namespace Rsync.Delta.Hash.Blake2b
             }
         }
 
-        private static unsafe void G(
+        private static void G(
             Vector256<ulong> buf1,
             Vector256<ulong> buf2,
             ref Vector256<ulong> row1,
@@ -134,14 +135,14 @@ namespace Rsync.Delta.Hash.Blake2b
             row2 = RotateRight(row2, 63); // 11);
         }
 
-        private static unsafe Vector256<ulong> RotateRight(Vector256<ulong> v, byte n)
+        private static Vector256<ulong> RotateRight(Vector256<ulong> v, byte n)
         {
             var tmp = Avx2.ShiftLeftLogical(v, (byte)(64 - n));
             v = Avx2.ShiftRightLogical(v, n);
             return Avx2.Xor(v, tmp);
         }
 
-        private static unsafe void Diagonalize(
+        private static void Diagonalize(
             ref Vector256<ulong> row1,
             ref Vector256<ulong> row2,
             ref Vector256<ulong> row3)
@@ -151,7 +152,7 @@ namespace Rsync.Delta.Hash.Blake2b
             row3 = Avx2.Permute4x64(row3, 0b_10_01_00_11);
         }
 
-        private static unsafe void Undiagonalize(
+        private static void Undiagonalize(
             ref Vector256<ulong> row1,
             ref Vector256<ulong> row2,
             ref Vector256<ulong> row3)
@@ -161,7 +162,7 @@ namespace Rsync.Delta.Hash.Blake2b
             row3 = Avx2.Permute4x64(row3, 0b_00_11_10_01);
         }
 
-        private static unsafe void Compress(
+        private static void Compress(
             Span<ulong> hash,
             Vector256<ulong> row1,
             Vector256<ulong> row2,

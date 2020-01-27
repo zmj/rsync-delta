@@ -14,7 +14,7 @@ namespace Rsync.Delta.Benchmarks
         private IRdiff _rdiff;
         private byte[] _content;
 
-        [Params(1 << 20)]
+        [Params(1 << 26)]
         public long Length;
 
         [GlobalSetup]
