@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Diagnostics;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta.Hash
+namespace Rsync.Delta.Hash.Blake2b
 {
     internal readonly struct Blake2b : IDisposable
     {

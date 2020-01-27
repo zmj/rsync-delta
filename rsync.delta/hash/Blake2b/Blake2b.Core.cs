@@ -7,7 +7,7 @@ using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 #endif
 
-namespace Rsync.Delta.Hash
+namespace Rsync.Delta.Hash.Blake2b
 {
     /* Partial implementation of the blake2 hash algorithm.
 	 * Based on the reference implementation at https://github.com/BLAKE2/BLAKE2

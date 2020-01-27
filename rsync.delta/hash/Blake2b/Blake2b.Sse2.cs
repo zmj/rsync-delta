@@ -3,7 +3,7 @@ using System;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
-namespace Rsync.Delta.Hash
+namespace Rsync.Delta.Hash.Blake2b
 {
     internal ref partial struct Blake2bCore
     {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Rsync.Delta.Hash
+namespace Rsync.Delta.Hash.Blake2b
 {
     internal ref partial struct Blake2bCore
     {

@@ -2,7 +2,7 @@
 using System.Buffers;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta.Hash
+namespace Rsync.Delta.Hash.Adler
 {
     internal struct RollingHash
     {
