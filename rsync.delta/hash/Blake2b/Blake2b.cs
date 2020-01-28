@@ -11,7 +11,7 @@ namespace Rsync.Delta.Hash.Blake2b
 
         public Blake2b(MemoryPool<byte> memoryPool)
         {
-            _scratch = memoryPool.Rent(Blake2bCore.ScratchSize);
+            _scratch = memoryPool.Rent(Constants.ScratchLength);
         }
 
         public void Hash(
@@ -19,7 +19,8 @@ namespace Rsync.Delta.Hash.Blake2b
             Span<byte> hash)
         {
             Debug.Assert(hash.Length <= 32);
-            var core = new Blake2bCore(_scratch.Memory.Span);
+            var core = new Blake2bCore(
+                _scratch.Memory.Span.Slice(0, Constants.ScratchLength));
             if (data.IsSingleSegment)
             {
                 core.HashCore(data.FirstSpan());

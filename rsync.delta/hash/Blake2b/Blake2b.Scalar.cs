@@ -5,6 +5,8 @@ namespace Rsync.Delta.Hash.Blake2b
 {
     internal static class Blake2bScalar
     {
+        public const int ScratchLength = 128;
+
         public static void HashBlock(
             ReadOnlySpan<ulong> block,
             Span<ulong> scratch,

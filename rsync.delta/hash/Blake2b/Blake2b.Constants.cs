@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+#if !NETSTANDARD2_0
+using System.Runtime.Intrinsics.X86;
+#endif
 
 namespace Rsync.Delta.Hash.Blake2b
 {
@@ -84,7 +87,19 @@ namespace Rsync.Delta.Hash.Blake2b
             12, 2,  7,  3,
         };
 
-#if !NETSTANDARD2_0
+#if NETSTANDARD2_0
+        public const int ScratchLength =
+            Blake2bCore.BlockLength +
+            Blake2bCore.MaxHashLength +
+            Blake2bScalar.ScratchLength;
+#else
+        public static readonly int ScratchLength =
+            Blake2bCore.BlockLength +
+            Blake2bCore.MaxHashLength +
+            (Avx2.IsSupported ?
+                Blake2bAvx2.ScratchLength :
+                Blake2bScalar.ScratchLength);
+
         public static readonly byte[] ShuffleMask16 = new byte[]
         {
             2,  3,  4,  5,  6,  7,  0, 1,

@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 #if !NETSTANDARD2_0
-using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 #endif
 
@@ -14,31 +13,36 @@ namespace Rsync.Delta.Hash.Blake2b
 	 * Thanks to Christian Winnerlein and Dominik Reichl
      * for sharing their work as public domain.
 	 */
-    internal ref partial struct Blake2bCore
+    internal ref struct Blake2bCore
     {
-        public const int ScratchSize = BlockLength + MaxHashSize + 128; // todo: don't allocate scratch for simd
         public const int BlockLength = 128;
-        public const int MaxHashSize = 64;
+        public const int MaxHashLength = 64;
 
         private readonly Span<byte> _blockBuffer;
         private ReadOnlySpan<byte> _incompleteBlock;
         private Span<byte> _incompleteBlockRemainder =>
             _blockBuffer.Slice(_incompleteBlock.Length);
 
-        private readonly Span<ulong> _v;
-        private readonly Span<ulong> _h;
+        private readonly Span<ulong> _scratch;
+        private readonly Span<ulong> _hash;
         private ulong _bytesHashed;
         private ulong _bytesHashedOverflows;
 
         public Blake2bCore(Span<byte> scratch)
         {
-            Debug.Assert(scratch.Length >= ScratchSize);
-            _blockBuffer = scratch.Slice(0, BlockLength);
-            _v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
-            _h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 64));
+            Debug.Assert(scratch.Length == Constants.ScratchLength);
 
-            Constants.IV.CopyTo(_h);
-            _h[0] ^= 0x01_01_00_20;
+            _blockBuffer = scratch.Slice(0, BlockLength);
+            scratch = scratch.Slice(BlockLength);
+
+            var hash = scratch.Slice(0, MaxHashLength);
+            _hash = MemoryMarshal.Cast<byte, ulong>(hash);
+            scratch = scratch.Slice(MaxHashLength);
+
+            _scratch = MemoryMarshal.Cast<byte, ulong>(scratch);
+
+            Constants.IV.CopyTo(_hash);
+            _hash[0] ^= 0x01_01_00_20;
 
             _bytesHashed = 0;
             _bytesHashedOverflows = 0;
@@ -111,12 +115,12 @@ namespace Rsync.Delta.Hash.Blake2b
 
             if (hash.Length == 32)
             {
-                Fill(hash, _h);
+                Fill(hash, _hash);
             }
             else
             {
                 Span<byte> tmp = stackalloc byte[32];
-                Fill(tmp, _h);
+                Fill(tmp, _hash);
                 tmp.Slice(0, hash.Length).CopyTo(hash);
             }
 
@@ -140,7 +144,7 @@ namespace Rsync.Delta.Hash.Blake2b
             {
                 Blake2bAvx2.HashBlock(
                     block: m,
-                    hash: _h,
+                    hash: _hash,
                     _bytesHashed,
                     _bytesHashedOverflows,
                     finalizationFlag);
@@ -154,8 +158,8 @@ namespace Rsync.Delta.Hash.Blake2b
             {
                 Blake2bScalar.HashBlock(
                     block: m,
-                    scratch: _v,
-                    hash: _h,
+                    scratch: _scratch,
+                    hash: _hash,
                     _bytesHashed,
                     _bytesHashedOverflows,
                     finalizationFlag);

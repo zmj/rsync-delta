@@ -9,6 +9,8 @@ namespace Rsync.Delta.Hash.Blake2b
 {
     internal static unsafe class Blake2bAvx2
     {
+        public const int ScratchLength = 0;
+
         public static void HashBlock(
             ReadOnlySpan<ulong> block,
             Span<ulong> hash,
@@ -119,7 +121,7 @@ namespace Rsync.Delta.Hash.Blake2b
 
             row3 = Avx2.Add(row3, row4);
             row2 = Avx2.Xor(row2, row3);
-            row2 = RotateRight(row2, 24); // 25);
+            row2 = RotateRight(row2, 24);
 
             row1 = Avx2.Add(row1, buf2);
             row1 = Avx2.Add(row1, row2);
@@ -132,7 +134,7 @@ namespace Rsync.Delta.Hash.Blake2b
 
             row3 = Avx2.Add(row3, row4);
             row2 = Avx2.Xor(row2, row3);
-            row2 = RotateRight(row2, 63); // 11);
+            row2 = RotateRight(row2, 63);
         }
 
         private static Vector256<ulong> RotateRight(Vector256<ulong> v, byte n)
