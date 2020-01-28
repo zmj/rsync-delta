@@ -25,13 +25,13 @@ namespace Rsync.Delta.Hash.Blake2b
                 out var row1, out var row2, out var row3, out var row4);
             Vector256<ulong> ffMask = default;
             ffMask = Avx2.CompareEqual(ffMask, ffMask);
+            Span<Vector256<ulong>> msg = stackalloc Vector256<ulong>[4];
             for (int r = 0; r < Constants.Rounds; r++)
             {
-                LoadMessage(r, block, ffMask,
-                    out var tmp1, out var tmp2, out var tmp3, out var tmp4);
-                G(tmp1, tmp2, ref row1, ref row2, ref row3, ref row4);
+                LoadMessage(r, block, ffMask, msg);
+                G(msg[0], msg[1], ref row1, ref row2, ref row3, ref row4);
                 Diagonalize(ref row2, ref row3, ref row4);
-                G(tmp3, tmp4, ref row1, ref row2, ref row3, ref row4);
+                G(msg[2], msg[3], ref row1, ref row2, ref row3, ref row4);
                 Undiagonalize(ref row2, ref row3, ref row4);
             }
             Compress(hash, row1, row2, row3, row4);
@@ -66,11 +66,9 @@ namespace Rsync.Delta.Hash.Blake2b
             int round,
             ReadOnlySpan<ulong> block,
             Vector256<ulong> ffMask,
-            out Vector256<ulong> tmp1,
-            out Vector256<ulong> tmp2,
-            out Vector256<ulong> tmp3,
-            out Vector256<ulong> tmp4)
+            Span<Vector256<ulong>> msg)
         {
+            Debug.Assert(msg.Length == 4);
             fixed (int* sigma = Constants.MessagePermutation) // move up
             fixed (ulong* m = block)
             {
@@ -79,25 +77,25 @@ namespace Rsync.Delta.Hash.Blake2b
                 var index3 = Avx.LoadVector128(sigma + round * 16 + 2 * Vector128<int>.Count);
                 var index4 = Avx.LoadVector128(sigma + round * 16 + 3 * Vector128<int>.Count);
 
-                tmp1 = Avx2.GatherMaskVector256(
+                msg[0] = Avx2.GatherMaskVector256(
                     source: default,
                     baseAddress: m, 
                     index1, 
                     mask: ffMask,
                     scale: 8);
-                tmp2 = Avx2.GatherMaskVector256(
+                msg[1] = Avx2.GatherMaskVector256(
                     source: default,
                     baseAddress: m,
                     index2,
                     mask: ffMask,
                     scale: 8);
-                tmp3 = Avx2.GatherMaskVector256(
+                msg[2] = Avx2.GatherMaskVector256(
                     source: default,
                     baseAddress: m,
                     index3,
                     mask: ffMask,
                     scale: 8);
-                tmp4 = Avx2.GatherMaskVector256(
+                msg[3] = Avx2.GatherMaskVector256(
                     source: default,
                     baseAddress: m,
                     index4,
