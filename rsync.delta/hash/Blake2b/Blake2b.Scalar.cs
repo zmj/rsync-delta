@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Rsync.Delta.Hash.Blake2b
 {
@@ -28,43 +29,49 @@ namespace Rsync.Delta.Hash.Blake2b
             Compress(hash, scratch);
         }
 
-        private static void Rounds(Span<ulong> v, ReadOnlySpan<ulong> m)
+        private static void Rounds(
+            Span<ulong> scratch,
+            ReadOnlySpan<ulong> msg)
         {
-            for (int r = 0; r < Constants.Rounds; ++r)
+            for (int r = 0; r < Constants.Rounds; r++)
             {
-                G(v, m, 0, 4, 8, 12, r, 0);
-                G(v, m, 1, 5, 9, 13, r, 1);
-                G(v, m, 2, 6, 10, 14, r, 2);
-                G(v, m, 3, 7, 11, 15, r, 3);
-                G(v, m, 3, 4, 9, 14, r, 11);
-                G(v, m, 2, 7, 8, 13, r, 10);
-                G(v, m, 0, 5, 10, 15, r, 8);
-                G(v, m, 1, 6, 11, 12, r, 9);
+                G(scratch, msg, 0, 4, 8, 12, r, 0);
+                G(scratch, msg, 1, 5, 9, 13, r, 1);
+                G(scratch, msg, 2, 6, 10, 14, r, 2);
+                G(scratch, msg, 3, 7, 11, 15, r, 3);
+
+                G(scratch, msg, 0, 5, 10, 15, r, 8);
+                G(scratch, msg, 1, 6, 11, 12, r, 9);
+                G(scratch, msg, 2, 7, 8, 13, r, 10);
+                G(scratch, msg, 3, 4, 9, 14, r, 11);
             }
         }
 
-        private static void Compress(Span<ulong> h, ReadOnlySpan<ulong> v)
+        private static void Compress(
+            Span<ulong> hash, 
+            ReadOnlySpan<ulong> scratch)
         {
             for (int i = 0; i < 8; ++i)
             {
-                h[i] ^= v[i] ^ v[i + 8];
+                hash[i] ^= scratch[i] ^ scratch[i + 8];
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void G(
-            Span<ulong> v,
-            ReadOnlySpan<ulong> m,
+            Span<ulong> scratch,
+            ReadOnlySpan<ulong> msg,
             int a, int b, int c, int d, int r, int i)
         {
             int p = (r << 4) + i;
-            v[a] += v[b] + m[Constants.MessagePermutation[p]];
-            v[d] = RotateRight(v[d] ^ v[a], 32);
-            v[c] += v[d];
-            v[b] = RotateRight(v[b] ^ v[c], 24);
-            v[a] += v[b] + m[Constants.MessagePermutation[p + 4]];
-            v[d] = RotateRight(v[d] ^ v[a], 16);
-            v[c] += v[d];
-            v[b] = RotateRight(v[b] ^ v[c], 63);
+            scratch[a] += scratch[b] + msg[Constants.MessagePermutation[p]];
+            scratch[d] = RotateRight(scratch[d] ^ scratch[a], 32);
+            scratch[c] += scratch[d];
+            scratch[b] = RotateRight(scratch[b] ^ scratch[c], 24);
+            scratch[a] += scratch[b] + msg[Constants.MessagePermutation[p + 4]];
+            scratch[d] = RotateRight(scratch[d] ^ scratch[a], 16);
+            scratch[c] += scratch[d];
+            scratch[b] = RotateRight(scratch[b] ^ scratch[c], 63);
 
             static ulong RotateRight(ulong value, int nBits) =>
                 (value >> nBits) | (value << (64 - nBits));

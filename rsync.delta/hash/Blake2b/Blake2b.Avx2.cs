@@ -1,6 +1,7 @@
 ﻿#if !NETSTANDARD2_0
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -21,20 +22,25 @@ namespace Rsync.Delta.Hash.Blake2b
             Debug.Assert(block.Length == 16);
             Debug.Assert(hash.Length == 8);
 
-            Init(hash, bytesHashed, bytesHashedOverflows, finalizationFlag,
-                out var row1, out var row2, out var row3, out var row4);
-            Vector256<ulong> ffMask = default;
-            ffMask = Avx2.CompareEqual(ffMask, ffMask);
-            Span<Vector256<ulong>> msg = stackalloc Vector256<ulong>[4];
-            for (int r = 0; r < Constants.Rounds; r++)
+            Span<Vector256<ulong>> rows = stackalloc Vector256<ulong>[4];
+            Init(hash, bytesHashed, bytesHashedOverflows, finalizationFlag, rows);
+            var maskFF = MaskFF();
+            var mask16 = Mask16();
+
+            Span<Vector256<ulong>> permutedMsg = stackalloc Vector256<ulong>[4];
+            fixed (ulong* msg = block)
+            fixed (int* perm = Constants.MessagePermutation)
             {
-                LoadMessage(r, block, ffMask, msg);
-                G(msg[0], msg[1], ref row1, ref row2, ref row3, ref row4);
-                Diagonalize(ref row2, ref row3, ref row4);
-                G(msg[2], msg[3], ref row1, ref row2, ref row3, ref row4);
-                Undiagonalize(ref row2, ref row3, ref row4);
+                for (int r = 0; r < Constants.Rounds; r++)
+                {
+                    LoadMessage(r, msg, perm, maskFF, permutedMsg);
+                    G(permutedMsg[0], permutedMsg[1], mask16, rows);
+                    Diagonalize(rows);
+                    G(permutedMsg[2], permutedMsg[3], mask16, rows);
+                    Undiagonalize(rows);
+                }
             }
-            Compress(hash, row1, row2, row3, row4);
+            Compress(rows, hash);
         }
 
         private static void Init(
@@ -42,99 +48,88 @@ namespace Rsync.Delta.Hash.Blake2b
             ulong bytesHashed,
             ulong bytesHashedOverflows,
             ulong finalizationFlag,
-            out Vector256<ulong> row1,
-            out Vector256<ulong> row2,
-            out Vector256<ulong> row3,
-            out Vector256<ulong> row4)
+            Span<Vector256<ulong>> rows)
         {
+            Debug.Assert(rows.Length == 4);
             fixed (ulong* h = hash)
             fixed (ulong* iv = Constants.IV)
             fixed (ulong* tmp = stackalloc ulong[4])
             {
-                row1 = Avx.LoadVector256(h);
-                row2 = Avx.LoadVector256(h + Vector256<ulong>.Count);
-                row3 = Avx.LoadVector256(iv);
-                row4 = Avx.LoadVector256(iv + Vector256<ulong>.Count);
+                rows[0] = Avx.LoadVector256(h);
+                rows[1] = Avx.LoadVector256(h + Vector256<ulong>.Count);
+                rows[2] = Avx.LoadVector256(iv);
+                rows[3] = Avx.LoadVector256(iv + Vector256<ulong>.Count);
                 tmp[0] = bytesHashed;
                 tmp[1] = bytesHashedOverflows;
                 tmp[2] = finalizationFlag;
-                row4 = Avx2.Xor(row4, Avx.LoadVector256(tmp));
+                rows[3] = Avx2.Xor(rows[3], Avx.LoadVector256(tmp));
             }
         }
 
+        private static Vector256<ulong> MaskFF()
+        {
+            Vector256<ulong> mask = default;
+            return Avx2.CompareEqual(mask, mask);
+        }
+
+        private static Vector256<byte> Mask16()
+        {
+            fixed (byte* b = Constants.ShuffleMask16)
+            {
+                return Avx2.BroadcastVector128ToVector256(b);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void LoadMessage(
             int round,
-            ReadOnlySpan<ulong> block,
+            ulong* block,
+            int* permutations,
             Vector256<ulong> ffMask,
-            Span<Vector256<ulong>> msg)
+            Span<Vector256<ulong>> permutedMsg)
         {
-            Debug.Assert(msg.Length == 4);
-            fixed (int* sigma = Constants.MessagePermutation) // move up
-            fixed (ulong* m = block)
+            Debug.Assert(permutedMsg.Length == 4);
+            for (int i = 0; i < 4; i++)
             {
-                var index1 = Avx.LoadVector128(sigma + round * 16);
-                var index2 = Avx.LoadVector128(sigma + round * 16 + Vector128<int>.Count);
-                var index3 = Avx.LoadVector128(sigma + round * 16 + 2 * Vector128<int>.Count);
-                var index4 = Avx.LoadVector128(sigma + round * 16 + 3 * Vector128<int>.Count);
-
-                msg[0] = Avx2.GatherMaskVector256(
-                    source: default,
-                    baseAddress: m, 
-                    index1, 
-                    mask: ffMask,
-                    scale: 8);
-                msg[1] = Avx2.GatherMaskVector256(
-                    source: default,
-                    baseAddress: m,
-                    index2,
-                    mask: ffMask,
-                    scale: 8);
-                msg[2] = Avx2.GatherMaskVector256(
-                    source: default,
-                    baseAddress: m,
-                    index3,
-                    mask: ffMask,
-                    scale: 8);
-                msg[3] = Avx2.GatherMaskVector256(
-                    source: default,
-                    baseAddress: m,
-                    index4,
+                var offset = round * 16 + i * Vector128<int>.Count;
+                var permutation = Avx.LoadVector128(permutations + offset);
+                permutedMsg[i] = Avx2.GatherMaskVector256(
+                    source: default, // what does this do?
+                    baseAddress: block,
+                    index: permutation,
                     mask: ffMask,
                     scale: 8);
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void G(
-            Vector256<ulong> buf1,
-            Vector256<ulong> buf2,
-            ref Vector256<ulong> row1,
-            ref Vector256<ulong> row2,
-            ref Vector256<ulong> row3,
-            ref Vector256<ulong> row4)
+            Vector256<ulong> msg1,
+            Vector256<ulong> msg2,
+            Vector256<byte> mask16,
+            Span<Vector256<ulong>> rows)
         {
-            row1 = Avx2.Add(row1, buf1);
-            row1 = Avx2.Add(row1, row2);
-            row4 = Avx2.Xor(row4, row1);
-            row4 = Avx2.Shuffle(row4.AsUInt32(), 0b_10_11_00_01).AsUInt64();
+            Debug.Assert(rows.Length == 4);
+            rows[0] = Avx2.Add(rows[0], msg1);
+            rows[0] = Avx2.Add(rows[0], rows[1]);
+            rows[3] = Avx2.Xor(rows[3], rows[0]);
+            rows[3] = Avx2.Shuffle(rows[3].AsUInt32(), 0b_10_11_00_01).AsUInt64();
 
-            row3 = Avx2.Add(row3, row4);
-            row2 = Avx2.Xor(row2, row3);
-            row2 = RotateRight(row2, 24);
+            rows[2] = Avx2.Add(rows[2], rows[3]);
+            rows[1] = Avx2.Xor(rows[1], rows[2]);
+            rows[1] = RotateRight(rows[1], 24);
 
-            row1 = Avx2.Add(row1, buf2);
-            row1 = Avx2.Add(row1, row2);
-            row4 = Avx2.Xor(row4, row1);
+            rows[0] = Avx2.Add(rows[0], msg2);
+            rows[0] = Avx2.Add(rows[0], rows[1]);
+            rows[3] = Avx2.Xor(rows[3], rows[0]);
+            rows[3] = Avx2.Shuffle(rows[3].AsByte(), mask16).AsUInt64();
 
-            Vector256<byte> mask16; // move this up
-            fixed (byte* b = Constants.ShuffleMask16) { mask16 = Avx2.BroadcastVector128ToVector256(b); }
-            var zz = RotateRight(row4, 16);
-            row4 = Avx2.Shuffle(row4.AsByte(), mask16).AsUInt64();
-
-            row3 = Avx2.Add(row3, row4);
-            row2 = Avx2.Xor(row2, row3);
-            row2 = RotateRight(row2, 63);
+            rows[2] = Avx2.Add(rows[2], rows[3]);
+            rows[1] = Avx2.Xor(rows[1], rows[2]);
+            rows[1] = RotateRight(rows[1], 63);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector256<ulong> RotateRight(Vector256<ulong> v, byte n)
         {
             var tmp = Avx2.ShiftLeftLogical(v, (byte)(64 - n));
@@ -142,41 +137,38 @@ namespace Rsync.Delta.Hash.Blake2b
             return Avx2.Xor(v, tmp);
         }
 
-        private static void Diagonalize(
-            ref Vector256<ulong> row1,
-            ref Vector256<ulong> row2,
-            ref Vector256<ulong> row3)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Diagonalize(Span<Vector256<ulong>> rows)
         {
-            row1 = Avx2.Permute4x64(row1, 0b_00_11_10_01);
-            row2 = Avx2.Permute4x64(row2, 0b_01_00_11_10);
-            row3 = Avx2.Permute4x64(row3, 0b_10_01_00_11);
+            Debug.Assert(rows.Length == 4);
+            rows[1] = Avx2.Permute4x64(rows[1], 0b_00_11_10_01);
+            rows[2] = Avx2.Permute4x64(rows[2], 0b_01_00_11_10);
+            rows[3] = Avx2.Permute4x64(rows[3], 0b_10_01_00_11);
         }
 
-        private static void Undiagonalize(
-            ref Vector256<ulong> row1,
-            ref Vector256<ulong> row2,
-            ref Vector256<ulong> row3)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Undiagonalize(Span<Vector256<ulong>> rows)
         {
-            row1 = Avx2.Permute4x64(row1, 0b_10_01_00_11);
-            row2 = Avx2.Permute4x64(row2, 0b_01_00_11_10);
-            row3 = Avx2.Permute4x64(row3, 0b_00_11_10_01);
+            Debug.Assert(rows.Length == 4);
+            rows[1] = Avx2.Permute4x64(rows[1], 0b_10_01_00_11);
+            rows[2] = Avx2.Permute4x64(rows[2], 0b_01_00_11_10);
+            rows[3] = Avx2.Permute4x64(rows[3], 0b_00_11_10_01);
         }
 
         private static void Compress(
-            Span<ulong> hash,
-            Vector256<ulong> row1,
-            Vector256<ulong> row2,
-            Vector256<ulong> row3,
-            Vector256<ulong> row4)
+            Span<Vector256<ulong>> rows,
+            Span<ulong> hash)
         {
+            Debug.Assert(rows.Length == 4);
+            Debug.Assert(hash.Length == 8);
             fixed (ulong* h = hash)
             {
                 var h1 = Avx.LoadVector256(h);
                 var h2 = Avx.LoadVector256(h + Vector256<ulong>.Count);
-                h1 = Avx2.Xor(h1, row1);
-                h2 = Avx2.Xor(h2, row2);
-                h1 = Avx2.Xor(h1, row3);
-                h2 = Avx2.Xor(h2, row4);
+                h1 = Avx2.Xor(h1, rows[0]);
+                h2 = Avx2.Xor(h2, rows[1]);
+                h1 = Avx2.Xor(h1, rows[2]);
+                h2 = Avx2.Xor(h2, rows[3]);
                 Avx.Store(h, h1);
                 Avx.Store(h + Vector256<ulong>.Count, h2);
             }
