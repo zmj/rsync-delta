@@ -181,28 +181,6 @@ namespace Rsync.Delta.Hash.Blake2b
                 Avx.Store(h + Vector256<ulong>.Count, h2);
             }
         }
-
-        static string Dbg(ReadOnlySpan<ulong> z) =>
-            BitConverter.ToString(
-                MemoryMarshal.Cast<ulong, byte>(z)
-                .ToArray());
-
-        static unsafe string Dbg(ulong* z, int len) =>
-            Dbg(new Span<ulong>(z, len));
-
-        static unsafe string Dbg(Vector256<ulong> z)
-        {
-            ulong* zz = stackalloc ulong[Vector256<ulong>.Count];
-            Avx.Store(zz, z);
-            return Dbg(zz, Vector256<ulong>.Count);
-        }
-
-        static unsafe string Dbg(ulong z)
-        {
-            Span<ulong> zz = stackalloc ulong[1];
-            zz[0] = z;
-            return Dbg(zz);
-        }
     }
 }
 #endif

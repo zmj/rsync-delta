@@ -16,8 +16,9 @@ namespace Rsync.Delta.Hash.Blake2b
 	 */
     internal ref partial struct Blake2bCore
     {
-        public const int ScratchSize = 320;
-        private const int _blockLength = 128;
+        public const int ScratchSize = BlockLength + MaxHashSize + 128; // todo: don't allocate scratch for simd
+        public const int BlockLength = 128;
+        public const int MaxHashSize = 64;
 
         private readonly Span<byte> _blockBuffer;
         private ReadOnlySpan<byte> _incompleteBlock;
@@ -32,7 +33,7 @@ namespace Rsync.Delta.Hash.Blake2b
         public Blake2bCore(Span<byte> scratch)
         {
             Debug.Assert(scratch.Length >= ScratchSize);
-            _blockBuffer = scratch.Slice(0, _blockLength);
+            _blockBuffer = scratch.Slice(0, BlockLength);
             _v = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(128, 128));
             _h = MemoryMarshal.Cast<byte, ulong>(scratch.Slice(256, 64));
 
@@ -47,10 +48,10 @@ namespace Rsync.Delta.Hash.Blake2b
         public void HashCore(ReadOnlySpan<byte> data)
         {
             data = FinishIncompleteBlock(data);
-            while (data.Length > _blockLength)
+            while (data.Length > BlockLength)
             {
                 HashNonFinalBlock(data);
-                data = data.Slice(_blockLength);
+                data = data.Slice(BlockLength);
             }
             SaveIncompleteBlock(data);
         }
@@ -87,8 +88,8 @@ namespace Rsync.Delta.Hash.Blake2b
 
         private void HashNonFinalBlock(ReadOnlySpan<byte> block)
         {
-            Debug.Assert(block.Length >= _blockLength);
-            _bytesHashed += _blockLength;
+            Debug.Assert(block.Length >= BlockLength);
+            _bytesHashed += BlockLength;
             if (_bytesHashed == 0)
             {
                 _bytesHashedOverflows++;
@@ -131,8 +132,8 @@ namespace Rsync.Delta.Hash.Blake2b
 
         private void HashBlock(ReadOnlySpan<byte> block, ulong finalizationFlag)
         {
-            Debug.Assert(block.Length >= _blockLength);
-            var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, _blockLength));
+            Debug.Assert(block.Length >= BlockLength);
+            var m = MemoryMarshal.Cast<byte, ulong>(block.Slice(0, BlockLength));
 
 #if !NETSTANDARD2_0
             if (Avx2.IsSupported)
