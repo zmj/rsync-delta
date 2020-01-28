@@ -32,9 +32,9 @@ namespace Rsync.Delta.Delta
             try
             {
                 _writtenAfterFlush += _writer.Write(new DeltaHeader());
-                await WriteCommands(ct);
+                await WriteCommands(ct).ConfigureAwait(false);
                 _writer.Write(new EndCommand());
-                await _writer.FlushAsync(ct);
+                await _writer.FlushAsync(ct).ConfigureAwait(false);
                 _reader.Complete();
                 _writer.Complete();
             }
@@ -51,18 +51,18 @@ namespace Rsync.Delta.Delta
             FlushResult flushResult = default;
             while (!flushResult.IsCompleted)
             {
-                var buffer = await BufferBlock(ct);
+                var buffer = await BufferBlock(ct).ConfigureAwait(false);
                 if (buffer.CurrentBlock.IsEmpty)
                 {
                     WritePendingCopy();
-                    flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct);
+                    flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct).ConfigureAwait(false);
                     return;
                 }
 
                 LongRange? matched = _blocks.MatchBlock(buffer);
                 if (matched.HasValue)
                 {
-                    flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct);
+                    flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct).ConfigureAwait(false);
                     if (!AppendToPendingCopy(matched.Value))
                     {
                         WritePendingCopy();
@@ -75,7 +75,7 @@ namespace Rsync.Delta.Delta
                     WritePendingCopy();
                     if (_pendingLiteralLength == 1 << 15)
                     {
-                        flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct);
+                        flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct).ConfigureAwait(false);
                     }
                     else
                     {
@@ -88,7 +88,7 @@ namespace Rsync.Delta.Delta
 
                 if (_writtenAfterFlush >= _flushThreshhold)
                 {
-                    flushResult = await _writer.FlushAsync(ct);
+                    flushResult = await _writer.FlushAsync(ct).ConfigureAwait(false);
                     _writtenAfterFlush = 0;
                 }
             }
@@ -144,7 +144,7 @@ namespace Rsync.Delta.Delta
                     .CopyTo(buffer.Slice(0, copyLen).Span);
                 pendingLiteral = pendingLiteral.Slice(copyLen);
                 _writer.Advance(copyLen);
-                flushResult = await _writer.FlushAsync(ct);
+                flushResult = await _writer.FlushAsync(ct).ConfigureAwait(false);
             } while (!pendingLiteral.IsEmpty && !flushResult.IsCompleted);
             _pendingLiteralLength = 0;
             _writtenAfterFlush = 0;
@@ -155,7 +155,7 @@ namespace Rsync.Delta.Delta
         private async ValueTask<BufferedBlock> BufferBlock(CancellationToken ct)
         {
             int len = _blocks.Options.BlockLength + _pendingLiteralLength;
-            var readResult = await _reader.Buffer(len, ct);
+            var readResult = await _reader.Buffer(len, ct).ConfigureAwait(false);
             var pendingLiteral = readResult.Buffer.Slice(0, _pendingLiteralLength);
             var currentBlock = readResult.Buffer.Slice(_pendingLiteralLength);
             return new BufferedBlock(pendingLiteral, currentBlock);

@@ -43,7 +43,7 @@ namespace Rsync.Delta.Pipes
             int writtenSinceFlush = 0;
             while (count > 0 && !flushResult.IsCompleted)
             {
-                var readResult = await reader.ReadAsync(ct);
+                var readResult = await reader.ReadAsync(ct).ConfigureAwait(false);
                 if (readResult.Buffer.IsEmpty)
                 {
                     break;
@@ -60,14 +60,14 @@ namespace Rsync.Delta.Pipes
                 writtenSinceFlush += readBuffer.Length;
                 if (writtenSinceFlush > 1 << 12)
                 {
-                    flushResult = await writer.FlushAsync(ct);
+                    flushResult = await writer.FlushAsync(ct).ConfigureAwait(false);
                     writtenSinceFlush = 0;
                 }
                 count -= readBuffer.Length;
             }
             if (writtenSinceFlush > 0)
             {
-                flushResult = await writer.FlushAsync(ct);
+                flushResult = await writer.FlushAsync(ct).ConfigureAwait(false);
             }
             return flushResult;
         }
@@ -79,7 +79,7 @@ namespace Rsync.Delta.Pipes
             CancellationToken ct)
         {
             var reader = PipeReader.Create(readStream); // don't do this
-            return await writer.CopyFrom(reader, count, ct);
+            return await writer.CopyFrom(reader, count, ct).ConfigureAwait(false);
         }
     }
 }

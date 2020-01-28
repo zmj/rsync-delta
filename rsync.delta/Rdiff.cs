@@ -43,7 +43,7 @@ namespace Rsync.Delta
                     signature,
                     options ?? default,
                     _memoryPool);
-                await writer.Write(ct);
+                await writer.Write(ct).ConfigureAwait(false);
             }
         }
 
@@ -103,9 +103,9 @@ namespace Rsync.Delta
             async Task DeltaAsync()
             {
                 var reader = new Delta.SignatureReader(signature, _memoryPool);
-                using var matcher = await reader.Read(ct);
+                using var matcher = await reader.Read(ct).ConfigureAwait(false);
                 var writer = new Delta.DeltaWriter(matcher, newFile, delta);
-                await writer.Write(ct);
+                await writer.Write(ct).ConfigureAwait(false);
             }
         }
 
@@ -210,7 +210,7 @@ namespace Rsync.Delta
             {
                 var copier = new Patch.Copier(oldFile, newFile, _readerOptions);
                 var patcher = new Patch.Patcher(delta, newFile, copier);
-                await patcher.Patch(ct);
+                await patcher.Patch(ct).ConfigureAwait(false);
             }
         }
 

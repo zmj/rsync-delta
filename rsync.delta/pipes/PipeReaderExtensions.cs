@@ -1,4 +1,4 @@
-using System.IO.Pipelines;
+﻿using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using Rsync.Delta.Models;
@@ -13,7 +13,7 @@ namespace Rsync.Delta.Pipes
             where T : struct, IReadable<T>
         {
             T t = default;
-            var readResult = await reader.Buffer(t.MaxSize, ct);
+            var readResult = await reader.Buffer(t.MaxSize, ct).ConfigureAwait(false);
             var buffer = readResult.Buffer;
             if (buffer.IsEmpty)
             {
@@ -32,7 +32,7 @@ namespace Rsync.Delta.Pipes
             where T : struct, IReadable<T, Options>
         {
             T t = default;
-            var readResult = await reader.Buffer(t.MaxSize(options), ct);
+            var readResult = await reader.Buffer(t.MaxSize(options), ct).ConfigureAwait(false);
             var buffer = readResult.Buffer;
             if (buffer.IsEmpty)
             {
@@ -63,7 +63,7 @@ namespace Rsync.Delta.Pipes
         {
             while (true)
             {
-                var readResult = await reader.ReadAsync(ct);
+                var readResult = await reader.ReadAsync(ct).ConfigureAwait(false);
                 if (readResult.Buffered(count))
                 {
                     return readResult;

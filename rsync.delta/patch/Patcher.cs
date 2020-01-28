@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,9 +24,9 @@ namespace Rsync.Delta.Patch
         {
             try
             {
-                await ReadHeader(ct);
-                await ExecuteCommands(ct);
-                await _writer.FlushAsync(ct);
+                await ReadHeader(ct).ConfigureAwait(false);
+                await ExecuteCommands(ct).ConfigureAwait(false);
+                await _writer.FlushAsync(ct).ConfigureAwait(false);
                 _reader.Complete();
                 _writer.Complete();
             }
@@ -40,7 +40,7 @@ namespace Rsync.Delta.Patch
 
         private async ValueTask ReadHeader(CancellationToken ct)
         {
-            var header = await _reader.Read<DeltaHeader>(ct);
+            var header = await _reader.Read<DeltaHeader>(ct).ConfigureAwait(false);
             if (!header.HasValue)
             {
                 throw new FormatException("failed to read delta header");
@@ -52,33 +52,33 @@ namespace Rsync.Delta.Patch
             FlushResult flushResult = default;
             while (!flushResult.IsCompleted)
             {
-                CopyCommand? copy = await _reader.Read<CopyCommand>(ct);
+                CopyCommand? copy = await _reader.Read<CopyCommand>(ct).ConfigureAwait(false);
                 if (copy.HasValue)
                 {
-                    flushResult = await _copier.WriteCopy(copy.Value.Range, ct);
+                    flushResult = await _copier.WriteCopy(copy.Value.Range, ct).ConfigureAwait(false);
                     continue;
                 }
-                LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct);
+                LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct).ConfigureAwait(false);
                 if (literal.HasValue)
                 {
                     flushResult = await _writer.CopyFrom(
                         _reader,
                         (long)literal.Value.LiteralLength,
-                        ct);
+                        ct).ConfigureAwait(false);
                     continue;
                 }
-                EndCommand? end = await _reader.Read<EndCommand>(ct);
+                EndCommand? end = await _reader.Read<EndCommand>(ct).ConfigureAwait(false);
                 if (end.HasValue)
                 {
                     return;
                 }
-                await ThrowUnknownCommand(ct);
+                await ThrowUnknownCommand(ct).ConfigureAwait(false);
             }
         }
 
         private async ValueTask ThrowUnknownCommand(CancellationToken ct)
         {
-            var readResult = await _reader.Buffer(1, ct);
+            var readResult = await _reader.Buffer(1, ct).ConfigureAwait(false);
             string msg = readResult.Buffer.IsEmpty ?
                 "expected a command; got EOF" :
                 $"unknown command: {readResult.Buffer.FirstByte()}";

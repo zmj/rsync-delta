@@ -32,7 +32,7 @@ namespace Rsync.Delta.Patch
         {
             SeekTo(range.Start);
             long count = checked((long)range.Length);
-            return await _writer.CopyFrom(_stream, count, ct);
+            return await _writer.CopyFrom(_stream, count, ct).ConfigureAwait(false);
         }
 
         private void SeekTo(ulong position)

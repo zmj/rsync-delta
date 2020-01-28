@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
@@ -24,9 +24,9 @@ namespace Rsync.Delta.Delta
             BlockMatcher? matcher = null;
             try
             {
-                var header = await ReadHeader(ct);
+                var header = await ReadHeader(ct).ConfigureAwait(false);
                 matcher = new BlockMatcher(header.Options, _memoryPool);
-                await ReadBlockSignatures(matcher.Value, ct);
+                await ReadBlockSignatures(matcher.Value, ct).ConfigureAwait(false);
                 _reader.Complete();
                 return matcher.Value;
             }
@@ -39,7 +39,7 @@ namespace Rsync.Delta.Delta
         }
 
         private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct) =>
-            await _reader.Read<SignatureHeader>(ct) ??
+            await _reader.Read<SignatureHeader>(ct).ConfigureAwait(false) ??
             throw new FormatException("failed to read signature header");
 
         private async ValueTask ReadBlockSignatures(
@@ -50,7 +50,7 @@ namespace Rsync.Delta.Delta
             for (int i = 0; i < maxSignatures; i++)
             {
                 var sig = await _reader.Read<BlockSignature, SignatureOptions>(
-                    matcher.Options, ct);
+                    matcher.Options, ct).ConfigureAwait(false);
                 if (!sig.HasValue)
                 {
                     return;
