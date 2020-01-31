@@ -4,18 +4,21 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
 {
     public class Rdiff : IRdiff
     {
         private readonly MemoryPool<byte> _memoryPool;
+        private readonly PipeOptions _pipeOptions;
         private readonly StreamPipeReaderOptions _readerOptions;
         private readonly StreamPipeWriterOptions _writerOptions;
 
         public Rdiff(MemoryPool<byte>? memoryPool = null)
         {
             _memoryPool = memoryPool ?? MemoryPool<byte>.Shared;
+            _pipeOptions = new PipeOptions(_memoryPool);
             _readerOptions = new StreamPipeReaderOptions(_memoryPool, leaveOpen: true);
             _writerOptions = new StreamPipeWriterOptions(_memoryPool, leaveOpen: true);
         }
@@ -26,59 +29,77 @@ namespace Rsync.Delta
             SignatureOptions? options,
             CancellationToken ct)
         {
-            if (oldFile == null)
-            {
-                throw new ArgumentNullException(nameof(oldFile));
-            }
-            if (signature == null)
-            {
-                throw new ArgumentNullException(nameof(signature));
-            }
-            return SignatureAsync();
-
-            async Task SignatureAsync()
-            {
-                using var writer = new Signature.SignatureWriter(
-                    oldFile,
-                    signature,
-                    options ?? default,
-                    _memoryPool);
-                await writer.Write(ct).ConfigureAwait(false);
-            }
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            return InternalSignature(
+                (oldFile, Task.CompletedTask),
+                (signature, Task.CompletedTask),
+                options,
+                ct);
         }
 
         public Task Signature(
             Stream oldFile,
             PipeWriter signature,
             SignatureOptions? options,
-            CancellationToken ct) =>
-            Signature(
-                PipeReader.Create(oldFile, _readerOptions),
-                signature,
+            CancellationToken ct)
+        {
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            return InternalSignature(
+                oldFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                (signature, Task.CompletedTask),
                 options,
                 ct);
+        }
 
         public Task Signature(
             PipeReader oldFile,
             Stream signature,
             SignatureOptions? options,
-            CancellationToken ct) =>
-            Signature(
-                oldFile,
-                PipeWriter.Create(signature, _writerOptions),
+            CancellationToken ct)
+        {
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            return InternalSignature(
+                (oldFile, Task.CompletedTask),
+                signature.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 options,
                 ct);
+        }
 
         public Task Signature(
             Stream oldFile,
             Stream signature,
             SignatureOptions? options,
-            CancellationToken ct) =>
-            Signature(
-                PipeReader.Create(oldFile, _readerOptions),
-                PipeWriter.Create(signature, _writerOptions),
+            CancellationToken ct)
+        {
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            return InternalSignature(
+                oldFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                signature.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 options,
                 ct);
+        }
+
+        private async Task InternalSignature(
+            (PipeReader reader, Task task) oldFile,
+            (PipeWriter writer, Task task) signature,
+            SignatureOptions? options,
+            CancellationToken ct)
+        {
+            using var writer = new Signature.SignatureWriter(
+                oldFile.reader,
+                signature.writer,
+                options ?? default,
+                _memoryPool);
+            await Task.WhenAll(
+                oldFile.task,
+                signature.task,
+                writer.Write(ct).AsTask())
+                .ConfigureAwait(false);
+        }
 
         public Task Delta(
             PipeReader signature,

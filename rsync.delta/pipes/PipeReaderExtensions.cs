@@ -48,10 +48,15 @@ namespace Rsync.Delta.Pipes
             int count,
             CancellationToken ct)
         {
-            if (reader.TryRead(out var readResult) &&
-                readResult.Buffered(count))
+            if (reader.TryRead(out var readResult))
             {
-                return new ValueTask<ReadResult>(readResult);
+                if (readResult.Buffered(count))
+                {
+                    return new ValueTask<ReadResult>(readResult);
+                }
+                reader.AdvanceTo(
+                    consumed: readResult.Buffer.Start,
+                    examined: readResult.Buffer.End);
             }
             return BufferAsync(reader, count, ct);
         }
