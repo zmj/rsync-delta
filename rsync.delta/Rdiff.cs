@@ -244,11 +244,8 @@ namespace Rsync.Delta
             }
             catch
             {
-#if !NETSTANDARD2_0
-                if (readTask.IsCompletedSuccessfully)
-#else
-                if (readTask.IsCompleted && !(readTask.IsFaulted || readTask.IsCanceled))
-#endif
+                if (readTask.IsCompleted && 
+                    !(readTask.IsFaulted || readTask.IsCanceled))
                 {
                     readTask.Result.Dispose();
                 }
@@ -269,59 +266,83 @@ namespace Rsync.Delta
             PipeWriter newFile,
             CancellationToken ct)
         {
-            if (oldFile == null)
-            {
-                throw new ArgumentNullException(nameof(oldFile));
-            }
-            if (delta == null)
-            {
-                throw new ArgumentNullException(nameof(delta));
-            }
-            if (newFile == null)
-            {
-                throw new ArgumentNullException(nameof(newFile));
-            }
-            return PatchAsync();
-
-            async Task PatchAsync()
-            {
-                var copier = new Patch.Copier(oldFile, newFile, _readerOptions);
-                var patcher = new Patch.Patcher(delta, newFile, copier);
-                await patcher.Patch(ct).ConfigureAwait(false);
-            }
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            return PatchAsync(
+                oldFile,
+                (delta, Task.CompletedTask),
+                (newFile, Task.CompletedTask),
+                ct);
         }
 
         public Task Patch(
             Stream oldFile,
             Stream delta,
             PipeWriter newFile,
-            CancellationToken ct) =>
-            Patch(
+            CancellationToken ct)
+        {
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            return PatchAsync(
                 oldFile,
-                PipeReader.Create(delta, _readerOptions),
-                newFile,
+                delta.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                (newFile, Task.CompletedTask),
                 ct);
+        }
 
         public Task Patch(
             Stream oldFile,
-            PipeReader deltaReader,
+            PipeReader delta,
             Stream newFile,
-            CancellationToken ct = default) =>
-            Patch(
+            CancellationToken ct = default)
+        {
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            return PatchAsync(
                 oldFile,
-                deltaReader,
-                PipeWriter.Create(newFile, _writerOptions),
+                (delta, Task.CompletedTask),
+                newFile.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 ct);
+        }
 
         public Task Patch(
             Stream oldFile,
             Stream delta,
             Stream newFile,
-            CancellationToken ct = default) =>
-            Patch(
+            CancellationToken ct = default)
+        {
+            _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            return PatchAsync(
                 oldFile,
-                PipeReader.Create(delta, _readerOptions),
-                PipeWriter.Create(newFile, _writerOptions),
+                delta.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                newFile.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 ct);
+        }
+
+        private async Task PatchAsync(
+            Stream oldFile,
+            (PipeReader reader, Task task) delta,
+            (PipeWriter writer, Task task) newFile,
+            CancellationToken ct)
+        {
+            var copier = new Patch.Copier(
+                oldFile,
+                newFile.writer,
+                _readerOptions);
+            var patcher = new Patch.Patcher(
+                delta.reader,
+                newFile.writer,
+                copier);
+            await Task.WhenAll(
+                delta.task,
+                newFile.task,
+                patcher.Patch(ct).AsTask())
+                .ConfigureAwait(false);
+        }
     }
 }
