@@ -3,11 +3,44 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Rsync.Delta.Models;
 
 namespace Rsync.Delta.Pipes
 {
     internal static class SequenceExtensions
     {
+        public static T? TryRead<T>(this in ReadOnlySequence<byte> sequence)
+            where T : struct, IReadable2<T>
+        {
+            T t = default;
+            if (sequence.Length < t.MinSize)
+            {
+                return null;
+            }
+            int maxSize = t.MaxSize;
+            return sequence.TryGetSpan(maxSize, out var span) ?
+                t.TryReadFrom(span) :
+                t.TryReadFrom(sequence.CopyTo(stackalloc byte[maxSize]));
+        }
+
+        public static T? TryRead<T, Options>(
+            this in ReadOnlySequence<byte> sequence,
+            Options options)
+            where T : struct, IReadable2<T, Options>
+        {
+            T t = default;
+            if (sequence.Length < t.MinSize(options))
+            {
+                return null;
+            }
+            int maxSize = t.MaxSize(options);
+            return sequence.TryGetSpan(maxSize, out var span) ?
+                t.TryReadFrom(span, options) :
+                t.TryReadFrom(
+                    sequence.CopyTo(stackalloc byte[maxSize]),
+                    options);
+        }
+
         public static byte ReadByte(this ref ReadOnlySequence<byte> sequence)
         {
             byte value = sequence.FirstByte();

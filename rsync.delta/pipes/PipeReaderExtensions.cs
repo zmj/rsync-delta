@@ -1,4 +1,6 @@
-﻿using System.IO.Pipelines;
+﻿using System;
+using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using Rsync.Delta.Models;
@@ -7,6 +9,49 @@ namespace Rsync.Delta.Pipes
 {
     internal static class PipeReaderExtensions
     {
+        public static async ValueTask<T?> Read2<T>(
+            this PipeReader reader,
+            CancellationToken ct)
+            where T : struct, IReadable2<T>
+        {
+            var maxSize = default(T).MaxSize;
+            var readResult = await reader.Buffer(maxSize, ct).ConfigureAwait(false);
+            if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+            {
+                return null;
+            }
+            T? result = readResult.Buffer.TryRead<T>();
+            if (!result.HasValue)
+            {
+                throw new FormatException($"expected a {typeof(T).Name}");
+            }
+            var consumed = readResult.Buffer.GetPosition(result.Value.Size);
+            reader.AdvanceTo(consumed);
+            return result.Value;
+        }
+
+        public static async ValueTask<T?> Read2<T, Options>(
+            this PipeReader reader,
+            Options options,
+            CancellationToken ct)
+            where T : struct, IReadable2<T, Options>
+        {
+            var maxSize = default(T).MaxSize(options);
+            var readResult = await reader.Buffer(maxSize, ct).ConfigureAwait(false);
+            if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+            {
+                return null;
+            }
+            T? result = readResult.Buffer.TryRead<T, Options>(options);
+            if (!result.HasValue)
+            {
+                throw new FormatException($"expected a {typeof(T).Name}");
+            }
+            var consumed = readResult.Buffer.GetPosition(result.Value.Size(options));
+            reader.AdvanceTo(consumed);
+            return result.Value;
+        }
+
         public static async ValueTask<T?> Read<T>(
             this PipeReader reader,
             CancellationToken ct)
@@ -41,6 +86,7 @@ namespace Rsync.Delta.Pipes
             int count,
             CancellationToken ct)
         {
+            Debug.Assert(count > 0);
             if (reader.TryRead(out var readResult))
             {
                 if (readResult.Buffered(count))

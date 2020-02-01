@@ -9,7 +9,8 @@ namespace Rsync.Delta.Models
     internal readonly struct BlockSignature :
         IEquatable<BlockSignature>,
         IWritable<SignatureOptions>,
-        IReadable<BlockSignature, SignatureOptions>
+        IReadable<BlockSignature, SignatureOptions>,
+        IReadable2<BlockSignature, SignatureOptions>
     {
         private readonly int _rollingHash;
         private readonly long _eagerStrongHash0;
@@ -18,11 +19,11 @@ namespace Rsync.Delta.Models
         private readonly long _eagerStrongHash3;
         private readonly Delta.LazyBlockSignature? _lazySignature;
 
-        public BlockSignature(int rollingHash, ReadOnlyMemory<byte> strongHash)
+        public BlockSignature(int rollingHash, ReadOnlySpan<byte> strongHash)
         {
             _rollingHash = rollingHash;
             SplitStrongHash(
-                strongHash.Span,
+                strongHash,
                 out _eagerStrongHash0,
                 out _eagerStrongHash1,
                 out _eagerStrongHash2,
@@ -117,6 +118,16 @@ namespace Rsync.Delta.Models
             SignatureOptions options)
         {
             return new BlockSignature(ref data, options.StrongHashLength);
+        }
+
+        public BlockSignature? TryReadFrom(
+            ReadOnlySpan<byte> span,
+            SignatureOptions options)
+        {
+            Debug.Assert(span.Length >= Size(options));
+            var rollingHash = BinaryPrimitives.ReadInt32BigEndian(span);
+            var strongHash = span.Slice(4, options.StrongHashLength);
+            return new BlockSignature(rollingHash, strongHash);
         }
 
         public bool Equals(BlockSignature other)

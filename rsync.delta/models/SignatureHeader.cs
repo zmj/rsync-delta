@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
     internal readonly struct SignatureHeader :
-        IWritable, IReadable<SignatureHeader>
+        IWritable, IReadable<SignatureHeader>, IReadable2<SignatureHeader>
     {
         private const int _magicBase = 0x72730100;
 
-        public int Size => 12;
-        public int MaxSize => Size;
-        public int MinSize => Size;
+        private const int _size = 12;
+        public int Size => _size;
+        public int MaxSize => _size;
+        public int MinSize => _size;
 
         public readonly SignatureOptions Options;
 
@@ -43,6 +45,22 @@ namespace Rsync.Delta.Models
         public SignatureHeader? ReadFrom(ref ReadOnlySequence<byte> data)
         {
             return new SignatureHeader(ref data);
+        }
+
+        public SignatureHeader? TryReadFrom(ReadOnlySpan<byte> span)
+        {
+            Debug.Assert(span.Length >= _size);
+            int magic = BinaryPrimitives.ReadInt32BigEndian(span);
+            if ((magic & 0xFFFFFF00) != _magicBase)
+            {
+                throw new FormatException($"unknown magic: {magic}");
+            }
+            return new SignatureHeader(new SignatureOptions(
+                blockLength: BinaryPrimitives.ReadInt32BigEndian(span.Slice(4)),
+                strongHashLength: BinaryPrimitives.ReadInt32BigEndian(span.Slice(8)),
+                rollingHash: (RollingHashAlgorithm)(magic & 0xF0),
+                strongHash: (StrongHashAlgorithm)(magic & 0xF)));
+
         }
     }
 }
