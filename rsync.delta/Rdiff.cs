@@ -26,12 +26,12 @@ namespace Rsync.Delta
         public Task Signature(
             PipeReader oldFile,
             PipeWriter signature,
-            SignatureOptions? options,
-            CancellationToken ct)
+            SignatureOptions? options = null,
+            CancellationToken ct = default)
         {
             _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
-            return InternalSignature(
+            return SignatureAsync(
                 (oldFile, Task.CompletedTask),
                 (signature, Task.CompletedTask),
                 options,
@@ -41,12 +41,12 @@ namespace Rsync.Delta
         public Task Signature(
             Stream oldFile,
             PipeWriter signature,
-            SignatureOptions? options,
-            CancellationToken ct)
+            SignatureOptions? options = null,
+            CancellationToken ct = default)
         {
             _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
-            return InternalSignature(
+            return SignatureAsync(
                 oldFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
                 (signature, Task.CompletedTask),
                 options,
@@ -56,12 +56,12 @@ namespace Rsync.Delta
         public Task Signature(
             PipeReader oldFile,
             Stream signature,
-            SignatureOptions? options,
-            CancellationToken ct)
+            SignatureOptions? options = null,
+            CancellationToken ct = default)
         {
             _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
-            return InternalSignature(
+            return SignatureAsync(
                 (oldFile, Task.CompletedTask),
                 signature.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 options,
@@ -71,19 +71,19 @@ namespace Rsync.Delta
         public Task Signature(
             Stream oldFile,
             Stream signature,
-            SignatureOptions? options,
-            CancellationToken ct)
+            SignatureOptions? options = null,
+            CancellationToken ct = default)
         {
             _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
-            return InternalSignature(
+            return SignatureAsync(
                 oldFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
                 signature.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 options,
                 ct);
         }
 
-        private async Task InternalSignature(
+        private async Task SignatureAsync(
             (PipeReader reader, Task task) oldFile,
             (PipeWriter writer, Task task) signature,
             SignatureOptions? options,
@@ -92,7 +92,7 @@ namespace Rsync.Delta
             using var writer = new Signature.SignatureWriter(
                 oldFile.reader,
                 signature.writer,
-                options ?? default,
+                options ?? SignatureOptions.Default,
                 _memoryPool);
             await Task.WhenAll(
                 oldFile.task,
@@ -107,105 +107,161 @@ namespace Rsync.Delta
             PipeWriter delta,
             CancellationToken ct)
         {
-            if (signature == null)
-            {
-                throw new ArgumentNullException(nameof(signature));
-            }
-            if (newFile == null)
-            {
-                throw new ArgumentNullException(nameof(newFile));
-            }
-            if (delta == null)
-            {
-                throw new ArgumentNullException(nameof(delta));
-            }
-            return DeltaAsync();
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                (signature, Task.CompletedTask),
+                (newFile, Task.CompletedTask),
+                (delta, Task.CompletedTask),
+                ct);
 
-            async Task DeltaAsync()
-            {
-                var reader = new Delta.SignatureReader(signature, _memoryPool);
-                using var matcher = await reader.Read(ct).ConfigureAwait(false);
-                var writer = new Delta.DeltaWriter(matcher, newFile, delta);
-                await writer.Write(ct).ConfigureAwait(false);
-            }
         }
 
         public Task Delta(
             Stream signature,
             PipeReader newFile,
             PipeWriter delta,
-            CancellationToken ct) =>
-            Delta(
-                PipeReader.Create(signature, _readerOptions),
-                newFile,
-                delta,
+            CancellationToken ct = default)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                (newFile, Task.CompletedTask),
+                (delta, Task.CompletedTask),
                 ct);
+        }
 
         public Task Delta(
             PipeReader signature,
             Stream newFile,
             PipeWriter delta,
-            CancellationToken ct) =>
-            Delta(
-                signature,
-                PipeReader.Create(newFile, _readerOptions),
-                delta,
+            CancellationToken ct)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                (signature, Task.CompletedTask),
+                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                (delta, Task.CompletedTask),
                 ct);
+        }
 
         public Task Delta(
             PipeReader signature,
             PipeReader newFile,
             Stream delta,
-            CancellationToken ct) =>
-            Delta(
-                signature,
-                newFile,
-                PipeWriter.Create(delta, _writerOptions),
+            CancellationToken ct)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                (signature, Task.CompletedTask),
+                (newFile, Task.CompletedTask),
+                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 ct);
+        }
 
         public Task Delta(
             Stream signature,
             Stream newFile,
             PipeWriter delta,
-            CancellationToken ct) =>
-            Delta(
-                PipeReader.Create(signature, _readerOptions),
-                PipeReader.Create(newFile, _readerOptions),
-                delta,
+            CancellationToken ct)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                (delta, Task.CompletedTask),
                 ct);
+        }
 
         public Task Delta(
             Stream signature,
             PipeReader newFile,
             Stream delta,
-            CancellationToken ct) =>
-            Delta(
-                PipeReader.Create(signature, _readerOptions),
-                newFile,
-                PipeWriter.Create(delta, _writerOptions),
+            CancellationToken ct)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                (newFile, Task.CompletedTask),
+                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 ct);
+        }
 
         public Task Delta(
             PipeReader signature,
             Stream newFile,
             Stream delta,
-            CancellationToken ct) =>
-            Delta(
-                signature,
-                PipeReader.Create(newFile, _readerOptions),
-                PipeWriter.Create(delta, _writerOptions),
+            CancellationToken ct)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                (signature, Task.CompletedTask),
+                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 ct);
+        }
 
         public Task Delta(
             Stream signature,
             Stream newFile,
             Stream delta,
-            CancellationToken ct) =>
-            Delta(
-                PipeReader.Create(signature, _readerOptions),
-                PipeReader.Create(newFile, _readerOptions),
-                PipeWriter.Create(delta, _writerOptions),
+            CancellationToken ct)
+        {
+            _ = signature ?? throw new ArgumentNullException(nameof(signature));
+            _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
+            _ = delta ?? throw new ArgumentNullException(nameof(delta));
+            return DeltaAsync(
+                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
                 ct);
+        }
+
+        private async Task DeltaAsync(
+            (PipeReader reader, Task task) signature,
+            (PipeReader reader, Task task) newFile,
+            (PipeWriter writer, Task task) delta,
+            CancellationToken ct)
+        {
+            var reader = new Delta.SignatureReader(signature.reader, _memoryPool);
+            var readTask = reader.Read(ct).AsTask();
+            try
+            {
+                await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
+            }
+            catch
+            {
+#if !NETSTANDARD2_0
+                if (readTask.IsCompletedSuccessfully)
+#else
+                if (readTask.IsCompleted && !(readTask.IsFaulted || readTask.IsCanceled))
+#endif
+                {
+                    readTask.Result.Dispose();
+                }
+                throw;
+            }
+            using var matcher = await readTask.ConfigureAwait(false);
+            var writer = new Delta.DeltaWriter(matcher, newFile.reader, delta.writer);
+            await Task.WhenAll(
+                newFile.task,
+                delta.task,
+                writer.Write(ct).AsTask())
+                .ConfigureAwait(false);
+        }
 
         public Task Patch(
             Stream oldFile,

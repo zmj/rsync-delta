@@ -55,7 +55,8 @@ namespace Rsync.Delta.Delta
                 if (buffer.CurrentBlock.IsEmpty)
                 {
                     WritePendingCopy();
-                    flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct).ConfigureAwait(false);
+                    await FlushPendingLiteral(buffer.PendingLiteral, ct).ConfigureAwait(false);
+                    _reader.AdvanceTo(buffer.PendingLiteral.End);
                     return;
                 }
 
@@ -76,6 +77,9 @@ namespace Rsync.Delta.Delta
                     if (_pendingLiteralLength == 1 << 15)
                     {
                         flushResult = await FlushPendingLiteral(buffer.PendingLiteral, ct).ConfigureAwait(false);
+                        _reader.AdvanceTo(
+                            consumed: buffer.PendingLiteral.End,
+                            examined: buffer.CurrentBlock.End);
                     }
                     else
                     {
@@ -148,7 +152,6 @@ namespace Rsync.Delta.Delta
             } while (!pendingLiteral.IsEmpty && !flushResult.IsCompleted);
             _pendingLiteralLength = 0;
             _writtenAfterFlush = 0;
-            _reader.AdvanceTo(consumed: pendingLiteral.End);
             return flushResult;
         }
 

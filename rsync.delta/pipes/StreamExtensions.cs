@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
@@ -19,7 +19,7 @@ namespace Rsync.Delta.Pipes
             var task = Task.Run(async () => 
             {
                 try
-                {
+                {                    
                     int read;
                     FlushResult flushResult;
                     do

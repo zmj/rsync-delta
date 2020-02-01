@@ -59,6 +59,13 @@ namespace Rsync.Delta
             }
         }
 
+        public static SignatureOptions Default =>
+            new SignatureOptions(
+                _defaultBlockLength,
+                _defaultStrongHashLength,
+                _defaultRollingHash,
+                _defaultStrongHash);
+
         public bool Equals(SignatureOptions other) =>
             BlockLength == other.BlockLength &&
             StrongHashLength == other.StrongHashLength;
