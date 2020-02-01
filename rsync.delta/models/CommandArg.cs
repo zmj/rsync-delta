@@ -13,6 +13,7 @@ namespace Rsync.Delta.Models
         public readonly CommandModifier Modifier;
 
         public const int MaxSize = 8;
+        public const int MinSize = 1;
 
         public CommandArg(ulong value)
         {

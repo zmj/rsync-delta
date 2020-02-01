@@ -15,12 +15,8 @@ namespace Rsync.Delta.Pipes
             T t = default;
             var readResult = await reader.Buffer(t.MaxSize, ct).ConfigureAwait(false);
             var buffer = readResult.Buffer;
-            if (buffer.IsEmpty)
-            {
-                return null;
-            }
-            // check MinSize
-            T? result = t.ReadFrom(ref buffer);
+            T? result = buffer.Length >= t.MinSize ?
+                t.ReadFrom(ref buffer) : null;
             reader.AdvanceTo(buffer.Start);
             return result;
         }
@@ -34,11 +30,8 @@ namespace Rsync.Delta.Pipes
             T t = default;
             var readResult = await reader.Buffer(t.MaxSize(options), ct).ConfigureAwait(false);
             var buffer = readResult.Buffer;
-            if (buffer.IsEmpty)
-            {
-                return null;
-            }
-            T? result = t.ReadFrom(ref buffer, options);
+            T? result = buffer.Length >= t.MinSize(options) ?
+                t.ReadFrom(ref buffer, options) : null;
             reader.AdvanceTo(buffer.Start);
             return result;
         }

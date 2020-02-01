@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using Rsync.Delta.Pipes;
@@ -11,7 +11,8 @@ namespace Rsync.Delta.Models
         private const int _magicBase = 0x72730100;
 
         public int Size => 12;
-        public int MaxSize => 12;
+        public int MaxSize => Size;
+        public int MinSize => Size;
 
         public readonly SignatureOptions Options;
 

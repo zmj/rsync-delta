@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers;
 using Rsync.Delta.Pipes;
 
@@ -7,7 +7,8 @@ namespace Rsync.Delta.Models
     internal readonly struct EndCommand : IWritable, IReadable<EndCommand>
     {
         public int Size => 1;
-        public int MaxSize => 1;
+        public int MaxSize => Size;
+        public int MinSize => Size;
 
         public void WriteTo(Span<byte> buffer) => buffer[0] = 0;
 

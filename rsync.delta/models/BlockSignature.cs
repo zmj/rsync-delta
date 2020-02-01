@@ -110,6 +110,8 @@ namespace Rsync.Delta.Models
 
         public int MaxSize(SignatureOptions options) => Size(options);
 
+        public int MinSize(SignatureOptions options) => Size(options);
+
         public BlockSignature? ReadFrom(
             ref ReadOnlySequence<byte> data,
             SignatureOptions options)

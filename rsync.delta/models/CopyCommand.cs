@@ -33,6 +33,8 @@ namespace Rsync.Delta.Models
 
         public int MaxSize => 1 + 2 * CommandArg.MaxSize;
 
+        public int MinSize => 1 + 2 * CommandArg.MinSize;
+
         public void WriteTo(Span<byte> buffer)
         {
             Debug.Assert(buffer.Length >= Size);
