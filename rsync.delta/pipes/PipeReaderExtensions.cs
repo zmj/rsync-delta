@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
@@ -9,7 +10,98 @@ namespace Rsync.Delta.Pipes
 {
     internal static class PipeReaderExtensions
     {
-        public static async ValueTask<T?> Read2<T>(
+        public static async ValueTask<T?> Read3<T>(
+            this PipeReader reader,
+            CancellationToken ct)
+            where T: struct, IReadable2<T>
+        {
+            T t = default;
+            int toBuffer = t.MinSize;
+            while (true)
+            {
+                var readResult = await reader.Buffer(toBuffer, ct).ConfigureAwait(false);
+                if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+                {
+                    return null;
+                }
+                var opStatus = readResult.Buffer.Read<T>(out var value);
+                if (opStatus == OperationStatus.Done)
+                {
+                    var consumed = readResult.Buffer.GetPosition(value.Size);
+                    reader.AdvanceTo(consumed);
+                    return value;
+                }
+                else if (opStatus == OperationStatus.NeedMoreData)
+                {
+                    if (readResult.Buffer.Length >= t.MaxSize)
+                    {
+                        throw new InvalidOperationException($"expected a {typeof(T).Name}");
+                    }
+                    reader.AdvanceTo(
+                        consumed: readResult.Buffer.Start,
+                        examined: readResult.Buffer.End);
+                    toBuffer = (int)readResult.Buffer.Length + 1;
+                    continue;
+                }
+                else if (opStatus == OperationStatus.InvalidData)
+                {
+                    throw new FormatException($"expected a {typeof(T).Name}");
+                }
+                else
+                {
+                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                }
+            }
+        }
+
+        public static async ValueTask<T?> Read3<T, Options>(
+            this PipeReader reader,
+            Options options,
+            CancellationToken ct)
+            where T : struct, IReadable2<T, Options>
+        {
+            T t = default;
+            int toBuffer = t.MinSize(options);
+            while (true)
+            {
+                var readResult = await reader.Buffer(toBuffer, ct).ConfigureAwait(false);
+                if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+                {
+                    return null;
+                }
+                var opStatus = readResult.Buffer.Read<T, Options>(
+                    options, 
+                    out var value);
+                if (opStatus == OperationStatus.Done)
+                {
+                    var consumed = readResult.Buffer.GetPosition(value.Size(options));
+                    reader.AdvanceTo(consumed);
+                    return value;
+                }
+                else if (opStatus == OperationStatus.NeedMoreData)
+                {
+                    if (readResult.Buffer.Length >= t.MaxSize(options))
+                    {
+                        throw new InvalidOperationException($"expected a {typeof(T).Name}");
+                    }
+                    reader.AdvanceTo(
+                        consumed: readResult.Buffer.Start,
+                        examined: readResult.Buffer.End);
+                    toBuffer = (int)readResult.Buffer.Length + 1;
+                    continue;
+                }
+                else if (opStatus == OperationStatus.InvalidData)
+                {
+                    throw new FormatException($"expected a {typeof(T).Name}");
+                }
+                else
+                {
+                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                }
+            }
+        }
+
+        /*public static async ValueTask<T?> Read2<T>(
             this PipeReader reader,
             CancellationToken ct)
             where T : struct, IReadable2<T>
@@ -50,7 +142,7 @@ namespace Rsync.Delta.Pipes
             var consumed = readResult.Buffer.GetPosition(result.Value.Size(options));
             reader.AdvanceTo(consumed);
             return result.Value;
-        }
+        }*/
 
         public static async ValueTask<T?> Read<T>(
             this PipeReader reader,

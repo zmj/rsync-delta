@@ -15,7 +15,7 @@ namespace Rsync.Delta.Models
         int Size { get; }
         int MaxSize { get; }
         int MinSize { get; }
-        T? TryReadFrom(ReadOnlySpan<byte> span);
+        OperationStatus ReadFrom(ReadOnlySpan<byte> span, out T value);
     }
 
     internal interface IReadable2<T, Options> where T : struct
@@ -23,7 +23,7 @@ namespace Rsync.Delta.Models
         int Size(Options options);
         int MaxSize(Options options);
         int MinSize(Options options);
-        T? TryReadFrom(ReadOnlySpan<byte> span, Options options);
+        OperationStatus ReadFrom(ReadOnlySpan<byte> span, Options options, out T value);
     }
 
     internal interface IReadable<T, Options> where T : struct

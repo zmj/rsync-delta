@@ -45,9 +45,11 @@ namespace Rsync.Delta.Models
 
         public int Size => 1 + _lengthArg.Size;
 
-        public int MaxSize => 1 + CommandArg.MaxSize;
+        private const int _maxSize = 1 + CommandArg.MaxSize;
+        public int MaxSize => _maxSize;
 
-        public int MinSize => 1;
+        private const int _minSize = 1;
+        public int MinSize => _minSize;
 
         public void WriteTo(Span<byte> buffer)
         {
@@ -83,21 +85,40 @@ namespace Rsync.Delta.Models
             return new LiteralCommand(ref data, argModifier, shortLiteralLength);
         }
 
-        public LiteralCommand? TryReadFrom(ReadOnlySpan<byte> span)
+        public OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span, 
+            out LiteralCommand literal)
         {
-            Debug.Assert(span.Length >= MinSize);
+            if (span.Length < _minSize)
+            {
+                literal = default;
+                return OperationStatus.NeedMoreData;
+            }
             byte command = span[0];
             const byte maxCommand = _baseCommand + (byte)CommandModifier.EightBytes;
             if (command == 0 || command > maxCommand)
             {
-                return null;
+                literal = default;
+                return OperationStatus.InvalidData;
             }
             else if (command < _baseCommand)
             {
-                return new LiteralCommand(length: command);
+                literal = new LiteralCommand(length: command);
+                return OperationStatus.Done;
             }
+
             var argModifier = (CommandModifier)(command - _baseCommand);
-            return new LiteralCommand(new CommandArg(argModifier, span.Slice(1)));
+            var opStatus = CommandArg.ReadFrom(
+                span.Slice(1), 
+                argModifier, 
+                out var arg);
+            if (opStatus != OperationStatus.Done)
+            {
+                literal = default;
+                return opStatus;
+            }
+            literal = new LiteralCommand(arg);
+            return OperationStatus.Done;
         }
 
         public override string ToString() => $"LITERAL: length:{LiteralLength}";

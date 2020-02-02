@@ -120,14 +120,20 @@ namespace Rsync.Delta.Models
             return new BlockSignature(ref data, options.StrongHashLength);
         }
 
-        public BlockSignature? TryReadFrom(
+        public OperationStatus ReadFrom(
             ReadOnlySpan<byte> span,
-            SignatureOptions options)
+            SignatureOptions options,
+            out BlockSignature sig)
         {
-            Debug.Assert(span.Length >= Size(options));
+            if (span.Length < Size(options))
+            {
+                sig = default;
+                return OperationStatus.NeedMoreData;
+            }
             var rollingHash = BinaryPrimitives.ReadInt32BigEndian(span);
             var strongHash = span.Slice(4, options.StrongHashLength);
-            return new BlockSignature(rollingHash, strongHash);
+            sig = new BlockSignature(rollingHash, strongHash);
+            return OperationStatus.Done;
         }
 
         public bool Equals(BlockSignature other)

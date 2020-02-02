@@ -104,6 +104,59 @@ namespace Rsync.Delta.Models
             }
         }
 
+        private CommandArg(ulong value, int size, CommandModifier modifier)
+        {
+            Value = value;
+            Size = size;
+            Modifier = modifier;
+        }
+
+        public static OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            CommandModifier modifier,
+            out CommandArg arg)
+        {
+            bool ok;
+            ulong value;
+            int size;
+            switch (modifier)
+            {
+                case CommandModifier.ZeroBytes:
+                    size = 0;
+                    ok = true;
+                    value = 0;
+                    break;
+                case CommandModifier.OneByte:
+                    size = 1;
+                    ok = span.Length >= 1;
+                    value = ok ? span[0] : 0UL;
+                    break;
+                case CommandModifier.TwoBytes:
+                    size = 2;
+                    ok = BinaryPrimitives.TryReadUInt16BigEndian(span, out var valShort);
+                    value = valShort;
+                    break;
+                case CommandModifier.FourBytes:
+                    size = 4;
+                    ok = BinaryPrimitives.TryReadUInt32BigEndian(span, out var valInt);
+                    value = valInt;
+                    break;
+                case CommandModifier.EightBytes:
+                    size = 8;
+                    ok = BinaryPrimitives.TryReadUInt64BigEndian(span, out value);
+                    break;
+                default:
+                    throw new ArgumentException($"{nameof(CommandModifier)}.{modifier}");
+            }
+            if (!ok)
+            {
+                arg = default;
+                return OperationStatus.NeedMoreData;
+            }
+            arg = new CommandArg(value, size, modifier);
+            return OperationStatus.Done;
+        }
+
         public void WriteTo(Span<byte> buffer)
         {
             Debug.Assert(buffer.Length >= Size);

@@ -39,7 +39,7 @@ namespace Rsync.Delta.Delta
         }
 
         private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct) =>
-            await _reader.Read2<SignatureHeader>(ct).ConfigureAwait(false) ??
+            await _reader.Read3<SignatureHeader>(ct).ConfigureAwait(false) ??
             throw new FormatException($"expected {nameof(SignatureHeader)}; got EOF");
 
         private async ValueTask ReadBlockSignatures(
@@ -49,7 +49,7 @@ namespace Rsync.Delta.Delta
             const int maxSignatures = 1 << 22;
             for (int i = 0; i < maxSignatures; i++)
             {
-                var sig = await _reader.Read2<BlockSignature, SignatureOptions>(
+                var sig = await _reader.Read3<BlockSignature, SignatureOptions>(
                     matcher.Options, ct).ConfigureAwait(false);
                 if (!sig.HasValue)
                 {

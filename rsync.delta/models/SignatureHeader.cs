@@ -47,20 +47,26 @@ namespace Rsync.Delta.Models
             return new SignatureHeader(ref data);
         }
 
-        public SignatureHeader? TryReadFrom(ReadOnlySpan<byte> span)
+        public OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            out SignatureHeader header)
         {
-            Debug.Assert(span.Length >= _size);
+            if (span.Length < _size)
+            {
+                header = default;
+                return OperationStatus.NeedMoreData;
+            }
             int magic = BinaryPrimitives.ReadInt32BigEndian(span);
             if ((magic & 0xFFFFFF00) != _magicBase)
             {
                 throw new FormatException($"unknown magic: {magic}");
             }
-            return new SignatureHeader(new SignatureOptions(
+            header = new SignatureHeader(new SignatureOptions(
                 blockLength: BinaryPrimitives.ReadInt32BigEndian(span.Slice(4)),
                 strongHashLength: BinaryPrimitives.ReadInt32BigEndian(span.Slice(8)),
                 rollingHash: (RollingHashAlgorithm)(magic & 0xF0),
                 strongHash: (StrongHashAlgorithm)(magic & 0xF)));
-
+            return OperationStatus.Done;
         }
     }
 }

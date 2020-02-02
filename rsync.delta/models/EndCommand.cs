@@ -24,10 +24,22 @@ namespace Rsync.Delta.Models
             return new EndCommand();
         }
 
-        public EndCommand? TryReadFrom(ReadOnlySpan<byte> span)
+        public OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            out EndCommand end)
         {
-            Debug.Assert(span.Length >= _size);
-            return span[0] == 0 ? new EndCommand() : (EndCommand?)null;
+            if (span.Length < _size)
+            {
+                end = default;
+                return OperationStatus.NeedMoreData;
+            }
+            if (span[0] == 0)
+            {
+                end = new EndCommand();
+                return OperationStatus.Done;
+            }
+            end = default;
+            return OperationStatus.InvalidData;
         }
 
         public override string ToString() => "END";

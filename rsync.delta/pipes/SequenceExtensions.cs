@@ -9,40 +9,46 @@ namespace Rsync.Delta.Pipes
 {
     internal static class SequenceExtensions
     {
-        public static T? TryRead<T>(this in ReadOnlySequence<byte> sequence)
+        public static OperationStatus Read<T>(
+            this in ReadOnlySequence<byte> sequence,
+            out T value)
             where T : struct, IReadable2<T>
         {
             T t = default;
             long seqLen = sequence.Length;
             if (seqLen < t.MinSize)
             {
-                return null;
+                value = default;
+                return OperationStatus.NeedMoreData;
             }
             int maxSize = t.MaxSize;
             int len = seqLen > maxSize ? maxSize : (int)seqLen;
             return sequence.TryGetSpan(len, out var span) ?
-                t.TryReadFrom(span) :
-                t.TryReadFrom(sequence.CopyTo(stackalloc byte[len]));
+                t.ReadFrom(span, out value) :
+                t.ReadFrom(sequence.CopyTo(stackalloc byte[len]), out value);
         }
 
-        public static T? TryRead<T, Options>(
+        public static OperationStatus Read<T, Options>(
             this in ReadOnlySequence<byte> sequence,
-            Options options)
+            Options options,
+            out T value)
             where T : struct, IReadable2<T, Options>
         {
             T t = default;
             long seqLen = sequence.Length;
             if (seqLen < t.MinSize(options))
             {
-                return null;
+                value = default;
+                return OperationStatus.NeedMoreData;
             }
             int maxSize = t.MaxSize(options);
             int len = seqLen > maxSize ? maxSize : (int)seqLen;
             return sequence.TryGetSpan(len, out var span) ?
-                t.TryReadFrom(span, options) :
-                t.TryReadFrom(
+                t.ReadFrom(span, options, out value) :
+                t.ReadFrom(
                     sequence.CopyTo(stackalloc byte[len]),
-                    options);
+                    options,
+                    out value);
         }
 
         public static byte ReadByte(this ref ReadOnlySequence<byte> sequence)
