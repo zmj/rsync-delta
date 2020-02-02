@@ -13,14 +13,16 @@ namespace Rsync.Delta.Pipes
             where T : struct, IReadable2<T>
         {
             T t = default;
-            if (sequence.Length < t.MinSize)
+            long seqLen = sequence.Length;
+            if (seqLen < t.MinSize)
             {
                 return null;
             }
             int maxSize = t.MaxSize;
-            return sequence.TryGetSpan(maxSize, out var span) ?
+            int len = seqLen > maxSize ? maxSize : (int)seqLen;
+            return sequence.TryGetSpan(len, out var span) ?
                 t.TryReadFrom(span) :
-                t.TryReadFrom(sequence.CopyTo(stackalloc byte[maxSize]));
+                t.TryReadFrom(sequence.CopyTo(stackalloc byte[len]));
         }
 
         public static T? TryRead<T, Options>(
@@ -29,15 +31,17 @@ namespace Rsync.Delta.Pipes
             where T : struct, IReadable2<T, Options>
         {
             T t = default;
-            if (sequence.Length < t.MinSize(options))
+            long seqLen = sequence.Length;
+            if (seqLen < t.MinSize(options))
             {
                 return null;
             }
             int maxSize = t.MaxSize(options);
-            return sequence.TryGetSpan(maxSize, out var span) ?
+            int len = seqLen > maxSize ? maxSize : (int)seqLen;
+            return sequence.TryGetSpan(len, out var span) ?
                 t.TryReadFrom(span, options) :
                 t.TryReadFrom(
-                    sequence.CopyTo(stackalloc byte[maxSize]),
+                    sequence.CopyTo(stackalloc byte[len]),
                     options);
         }
 

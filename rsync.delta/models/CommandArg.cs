@@ -41,6 +41,38 @@ namespace Rsync.Delta.Models
         }
 
         public CommandArg(
+            CommandModifier modifier,
+            ReadOnlySpan<byte> span)
+        {
+            Modifier = modifier;
+            switch (modifier)
+            {
+                case CommandModifier.ZeroBytes:
+                    Value = 0;
+                    Size = 0;
+                    break;
+                case CommandModifier.OneByte:
+                    Value = span[0];
+                    Size = 1;
+                    break;
+                case CommandModifier.TwoBytes:
+                    Value = BinaryPrimitives.ReadUInt16BigEndian(span);
+                    Size = 2;
+                    break;
+                case CommandModifier.FourBytes:
+                    Value = BinaryPrimitives.ReadUInt32BigEndian(span);
+                    Size = 4;
+                    break;
+                case CommandModifier.EightBytes:
+                    Value = BinaryPrimitives.ReadUInt64BigEndian(span);
+                    Size = 8;
+                    break;
+                default:
+                    throw new ArgumentException(nameof(CommandModifier));
+            }
+        }
+
+        public CommandArg(
             ref ReadOnlySequence<byte> buffer,
             CommandModifier modifier)
         {

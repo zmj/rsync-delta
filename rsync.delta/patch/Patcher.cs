@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +26,7 @@ namespace Rsync.Delta.Patch
             try
             {
                 await ReadHeader(ct).ConfigureAwait(false);
-                await ExecuteCommands(ct).ConfigureAwait(false);
+                await ExecuteCommands2(ct).ConfigureAwait(false);
                 await _writer.FlushAsync(ct).ConfigureAwait(false);
                 _reader.Complete();
                 _writer.Complete();
@@ -73,6 +74,40 @@ namespace Rsync.Delta.Patch
                     return;
                 }
                 await ThrowUnknownCommand(ct).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask ExecuteCommands2(CancellationToken ct)
+        {
+            int maxCommandSize = default(CopyCommand).MaxSize;
+            FlushResult flushResult = default;
+            while (!flushResult.IsCompleted)
+            {
+                var readResult = await _reader.Buffer(maxCommandSize, ct).ConfigureAwait(false);
+                if (readResult.Buffer.TryRead<CopyCommand>() is CopyCommand copy)
+                {
+                    _reader.AdvanceTo(readResult.Buffer.GetPosition(copy.Size));
+                    flushResult = await _copier.WriteCopy(copy.Range, ct).ConfigureAwait(false);
+                }
+                else if (readResult.Buffer.TryRead<LiteralCommand>() is LiteralCommand literal)
+                {
+                    _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
+                    flushResult = await _writer.CopyFrom(
+                        _reader,
+                        (long)literal.LiteralLength,
+                        ct).ConfigureAwait(false);
+                }
+                else if (readResult.Buffer.TryRead<EndCommand>() is EndCommand)
+                {
+                    return;
+                }
+                else
+                {
+                    string msg = readResult.Buffer.IsEmpty ?
+                        "expected a command; got EOF" :
+                        $"unknown command: {readResult.Buffer.FirstByte()}";
+                    throw new FormatException(msg);
+                }
             }
         }
 

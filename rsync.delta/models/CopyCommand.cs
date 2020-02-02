@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct CopyCommand : IWritable, IReadable<CopyCommand>
+    internal readonly struct CopyCommand : IWritable, IReadable<CopyCommand>, IReadable2<CopyCommand>
     {
         private const byte _baseCommand = 0x40;
 
@@ -18,6 +18,12 @@ namespace Rsync.Delta.Models
         {
             _start = new CommandArg(range.Start);
             _length = new CommandArg(range.Length);
+        }
+
+        private CopyCommand(CommandArg startArg, CommandArg lengthArg)
+        {
+            _start = startArg;
+            _length = lengthArg;
         }
 
         private CopyCommand(
@@ -67,6 +73,30 @@ namespace Rsync.Delta.Models
                 ref data,
                 (CommandModifier)startModifier,
                 (CommandModifier)lengthModifier);
+        }
+
+        public CopyCommand? TryReadFrom(ReadOnlySpan<byte> span)
+        {
+            Debug.Assert(span.Length >= MinSize);
+            byte command = span[0];
+            const byte minCommand = _baseCommand +
+                4 * (byte)CommandModifier.OneByte +
+                (byte)CommandModifier.OneByte;
+            const byte maxCommand = _baseCommand +
+                4 * (byte)CommandModifier.EightBytes +
+                (byte)CommandModifier.EightBytes;
+            if (command < minCommand || command > maxCommand)
+            {
+                return null;
+            }
+            command -= _baseCommand;
+            var startModifier = (CommandModifier)(command >> 2);
+            var startArg = new CommandArg(startModifier, span.Slice(1));
+            var lengthModifier = (CommandModifier)(command & 0x03);
+            var lengthArg = new CommandArg(
+                lengthModifier,
+                span.Slice(1 + startArg.Size));
+            return new CopyCommand(startArg, lengthArg);
         }
 
         public override string ToString() => $"COPY: start:{_start} length:{_length}";

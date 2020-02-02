@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct LiteralCommand : IWritable, IReadable<LiteralCommand>
+    internal readonly struct LiteralCommand : IWritable, IReadable<LiteralCommand>, IReadable2<LiteralCommand>
     {
         private const byte _baseCommand = 0x40;
 
@@ -14,7 +14,7 @@ namespace Rsync.Delta.Models
 
         public LiteralCommand(ulong length)
         {
-            if (length <= 64)
+            if (length <= _baseCommand)
             {
                 _shortLiteralLength = (byte)length;
                 _lengthArg = default;
@@ -24,6 +24,12 @@ namespace Rsync.Delta.Models
                 _lengthArg = new CommandArg(length);
                 _shortLiteralLength = 0;
             }
+        }
+
+        private LiteralCommand(CommandArg arg)
+        {
+            _lengthArg = arg;
+            _shortLiteralLength = 0;
         }
 
         private LiteralCommand(
@@ -75,6 +81,23 @@ namespace Rsync.Delta.Models
             }
             data = data.Slice(1);
             return new LiteralCommand(ref data, argModifier, shortLiteralLength);
+        }
+
+        public LiteralCommand? TryReadFrom(ReadOnlySpan<byte> span)
+        {
+            Debug.Assert(span.Length >= MinSize);
+            byte command = span[0];
+            const byte maxCommand = _baseCommand + (byte)CommandModifier.EightBytes;
+            if (command == 0 || command > maxCommand)
+            {
+                return null;
+            }
+            else if (command < _baseCommand)
+            {
+                return new LiteralCommand(length: command);
+            }
+            var argModifier = (CommandModifier)(command - _baseCommand);
+            return new LiteralCommand(new CommandArg(argModifier, span.Slice(1)));
         }
 
         public override string ToString() => $"LITERAL: length:{LiteralLength}";

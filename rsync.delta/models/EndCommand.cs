@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Buffers;
+using System.Diagnostics;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct EndCommand : IWritable, IReadable<EndCommand>
+    internal readonly struct EndCommand : IWritable, IReadable<EndCommand>, IReadable2<EndCommand>
     {
-        public int Size => 1;
-        public int MaxSize => Size;
-        public int MinSize => Size;
+        private const int _size = 1;
+        public int Size => _size;
+        public int MaxSize => _size;
+        public int MinSize => _size;
 
         public void WriteTo(Span<byte> buffer) => buffer[0] = 0;
 
@@ -20,6 +22,12 @@ namespace Rsync.Delta.Models
             }
             data = data.Slice(Size);
             return new EndCommand();
+        }
+
+        public EndCommand? TryReadFrom(ReadOnlySpan<byte> span)
+        {
+            Debug.Assert(span.Length >= _size);
+            return span[0] == 0 ? new EndCommand() : (EndCommand?)null;
         }
 
         public override string ToString() => "END";
