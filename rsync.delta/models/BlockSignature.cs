@@ -2,7 +2,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
@@ -18,25 +17,9 @@ namespace Rsync.Delta.Models
         private readonly long _eagerStrongHash3;
         private readonly Delta.LazyBlockSignature? _lazySignature;
 
-        public BlockSignature(int rollingHash, ReadOnlyMemory<byte> strongHash)
+        public BlockSignature(int rollingHash, ReadOnlySpan<byte> strongHash)
         {
             _rollingHash = rollingHash;
-            SplitStrongHash(
-                strongHash.Span,
-                out _eagerStrongHash0,
-                out _eagerStrongHash1,
-                out _eagerStrongHash2,
-                out _eagerStrongHash3);
-            _lazySignature = null;
-        }
-
-        public BlockSignature(ref ReadOnlySequence<byte> sequence, int strongHashLength)
-        {
-            _rollingHash = sequence.ReadIntBigEndian();
-            var strongHash = sequence.TryGetSpan(strongHashLength, out var span) ?
-                span :
-                sequence.CopyTo(stackalloc byte[strongHashLength]);
-            sequence = sequence.Slice(strongHashLength);
             SplitStrongHash(
                 strongHash,
                 out _eagerStrongHash0,
@@ -97,6 +80,7 @@ namespace Rsync.Delta.Models
         public void WriteTo(Span<byte> buffer, SignatureOptions options)
         {
             Debug.Assert(_lazySignature == null);
+            Debug.Assert(buffer.Length >= Size(options));
             BinaryPrimitives.WriteInt32BigEndian(buffer, _rollingHash);
             Span<byte> strongHash = stackalloc byte[options.StrongHashLength];
             CombineStrongHash(
@@ -110,11 +94,22 @@ namespace Rsync.Delta.Models
 
         public int MaxSize(SignatureOptions options) => Size(options);
 
-        public BlockSignature? ReadFrom(
-            ref ReadOnlySequence<byte> data,
-            SignatureOptions options)
+        public int MinSize(SignatureOptions options) => Size(options);
+
+        public OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            SignatureOptions options,
+            out BlockSignature sig)
         {
-            return new BlockSignature(ref data, options.StrongHashLength);
+            if (span.Length < Size(options))
+            {
+                sig = default;
+                return OperationStatus.NeedMoreData;
+            }
+            var rollingHash = BinaryPrimitives.ReadInt32BigEndian(span);
+            var strongHash = span.Slice(4, options.StrongHashLength);
+            sig = new BlockSignature(rollingHash, strongHash);
+            return OperationStatus.Done;
         }
 
         public bool Equals(BlockSignature other)

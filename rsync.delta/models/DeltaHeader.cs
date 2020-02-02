@@ -1,31 +1,41 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Buffers.Binary;
-using Rsync.Delta.Pipes;
+using System.Diagnostics;
 
 namespace Rsync.Delta.Models
 {
     internal readonly struct DeltaHeader : IWritable, IReadable<DeltaHeader>
     {
-        public int Size => 4;
-        public int MaxSize => 4;
+        private const int _size = 4;
+        public int Size => _size;
+        public int MaxSize => _size;
+        public int MinSize => _size;
 
-        public const DeltaFormat Format = DeltaFormat.Librsync;
+        private const DeltaFormat _format = DeltaFormat.Librsync;
 
-        public DeltaHeader(ref ReadOnlySequence<byte> buffer)
+        public void WriteTo(Span<byte> buffer)
         {
-            var format = (DeltaFormat)buffer.ReadUIntBigEndian();
-            if (format != DeltaFormat.Librsync)
-            {
-                throw new FormatException(nameof(DeltaHeader));
-            }
+            Debug.Assert(buffer.Length >= _size);
+            BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)_format);
         }
 
-        public void WriteTo(Span<byte> buffer) =>
-            BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)Format);
-
-        public DeltaHeader? ReadFrom(ref ReadOnlySequence<byte> data) =>
-            new DeltaHeader(ref data);
+        public OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            out DeltaHeader value)
+        {
+            if (span.Length < _size)
+            {
+                value = default;
+                return OperationStatus.NeedMoreData;
+            }
+            var format = (DeltaFormat)BinaryPrimitives.ReadUInt32BigEndian(span);
+            if (format != DeltaFormat.Librsync)
+            {
+                return OperationStatus.InvalidData;
+            }
+            return OperationStatus.Done;
+        }
     }
 
     internal enum DeltaFormat : uint

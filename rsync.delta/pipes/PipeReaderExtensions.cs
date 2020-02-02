@@ -1,4 +1,7 @@
-﻿using System.IO.Pipelines;
+﻿using System;
+using System.Buffers;
+using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using Rsync.Delta.Models;
@@ -12,17 +15,39 @@ namespace Rsync.Delta.Pipes
             CancellationToken ct)
             where T : struct, IReadable<T>
         {
-            T t = default;
-            var readResult = await reader.Buffer(t.MaxSize, ct).ConfigureAwait(false);
-            var buffer = readResult.Buffer;
-            if (buffer.IsEmpty)
+            while (true)
             {
-                return null;
+                var readResult = await reader.ReadAsync(ct).ConfigureAwait(false);
+                if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+                {
+                    return null;
+                }
+                var opStatus = readResult.Buffer.Read(out T value);
+                if (opStatus == OperationStatus.Done)
+                {
+                    var consumed = readResult.Buffer.GetPosition(value.Size);
+                    reader.AdvanceTo(consumed);
+                    return value;
+                }
+                else if (opStatus == OperationStatus.NeedMoreData)
+                {
+                    if (readResult.IsCompleted)
+                    {
+                        throw new FormatException($"expected a {typeof(T).Name}; got EOF");
+                    }
+                    reader.AdvanceTo(
+                        consumed: readResult.Buffer.Start,
+                        examined: readResult.Buffer.End);
+                }
+                else if (opStatus == OperationStatus.InvalidData)
+                {
+                    throw new FormatException($"expected a {typeof(T).Name}");
+                }
+                else
+                {
+                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                }
             }
-            // check MinSize
-            T? result = t.ReadFrom(ref buffer);
-            reader.AdvanceTo(buffer.Start);
-            return result;
         }
 
         public static async ValueTask<T?> Read<T, Options>(
@@ -31,16 +56,39 @@ namespace Rsync.Delta.Pipes
             CancellationToken ct)
             where T : struct, IReadable<T, Options>
         {
-            T t = default;
-            var readResult = await reader.Buffer(t.MaxSize(options), ct).ConfigureAwait(false);
-            var buffer = readResult.Buffer;
-            if (buffer.IsEmpty)
+            while (true)
             {
-                return null;
+                var readResult = await reader.ReadAsync(ct).ConfigureAwait(false);
+                if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+                {
+                    return null;
+                }
+                var opStatus = readResult.Buffer.Read(options, out T value);
+                if (opStatus == OperationStatus.Done)
+                {
+                    var consumed = readResult.Buffer.GetPosition(value.Size(options));
+                    reader.AdvanceTo(consumed);
+                    return value;
+                }
+                else if (opStatus == OperationStatus.NeedMoreData)
+                {
+                    if (readResult.IsCompleted)
+                    {
+                        throw new FormatException($"expected a {typeof(T).Name}; got EOF");
+                    }
+                    reader.AdvanceTo(
+                        consumed: readResult.Buffer.Start,
+                        examined: readResult.Buffer.End);
+                }
+                else if (opStatus == OperationStatus.InvalidData)
+                {
+                    throw new FormatException($"expected a {typeof(T).Name}");
+                }
+                else
+                {
+                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                }
             }
-            T? result = t.ReadFrom(ref buffer, options);
-            reader.AdvanceTo(buffer.Start);
-            return result;
         }
 
         public static ValueTask<ReadResult> Buffer(
@@ -48,10 +96,16 @@ namespace Rsync.Delta.Pipes
             int count,
             CancellationToken ct)
         {
-            if (reader.TryRead(out var readResult) &&
-                readResult.Buffered(count))
+            Debug.Assert(count > 0);
+            if (reader.TryRead(out var readResult))
             {
-                return new ValueTask<ReadResult>(readResult);
+                if (readResult.Buffered(count))
+                {
+                    return new ValueTask<ReadResult>(readResult);
+                }
+                reader.AdvanceTo(
+                    consumed: readResult.Buffer.Start,
+                    examined: readResult.Buffer.End);
             }
             return BufferAsync(reader, count, ct);
         }
@@ -78,7 +132,7 @@ namespace Rsync.Delta.Pipes
         {
             if (result.Buffer.Length < count)
             {
-                return result.IsCompleted || result.IsCanceled;
+                return result.IsCompleted;
             }
             result = new ReadResult(
                 result.Buffer.Slice(0, count),

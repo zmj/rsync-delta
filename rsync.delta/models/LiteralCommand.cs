@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
 using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
@@ -14,7 +13,7 @@ namespace Rsync.Delta.Models
 
         public LiteralCommand(ulong length)
         {
-            if (length <= 64)
+            if (length <= _baseCommand)
             {
                 _shortLiteralLength = (byte)length;
                 _lengthArg = default;
@@ -26,20 +25,21 @@ namespace Rsync.Delta.Models
             }
         }
 
-        private LiteralCommand(
-            ref ReadOnlySequence<byte> buffer,
-            CommandModifier argModifier,
-            byte shortLiteralLength)
+        private LiteralCommand(CommandArg arg)
         {
-            _lengthArg = new CommandArg(ref buffer, argModifier);
-            _shortLiteralLength = shortLiteralLength;
+            _lengthArg = arg;
+            _shortLiteralLength = 0;
         }
 
         public ulong LiteralLength => _shortLiteralLength + _lengthArg.Value;
 
         public int Size => 1 + _lengthArg.Size;
 
-        public int MaxSize => 1 + CommandArg.MaxSize;
+        private const int _maxSize = 1 + CommandArg.MaxSize;
+        public int MaxSize => _maxSize;
+
+        private const int _minSize = 1;
+        public int MinSize => _minSize;
 
         public void WriteTo(Span<byte> buffer)
         {
@@ -51,28 +51,40 @@ namespace Rsync.Delta.Models
             _lengthArg.WriteTo(buffer.Slice(1));
         }
 
-        public LiteralCommand? ReadFrom(ref ReadOnlySequence<byte> data)
+        public OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            out LiteralCommand literal)
         {
-            byte command = data.FirstByte();
+            if (span.Length < _minSize)
+            {
+                literal = default;
+                return OperationStatus.NeedMoreData;
+            }
+            byte command = span[0];
             const byte maxCommand = _baseCommand + (byte)CommandModifier.EightBytes;
             if (command == 0 || command > maxCommand)
             {
-                return null;
+                literal = default;
+                return OperationStatus.InvalidData;
             }
-            CommandModifier argModifier;
-            byte shortLiteralLength;
-            if (command <= _baseCommand)
+            else if (command < _baseCommand)
             {
-                argModifier = CommandModifier.ZeroBytes;
-                shortLiteralLength = command;
+                literal = new LiteralCommand(length: command);
+                return OperationStatus.Done;
             }
-            else
+
+            var argModifier = (CommandModifier)(command - _baseCommand);
+            var opStatus = CommandArg.ReadFrom(
+                span.Slice(1),
+                argModifier,
+                out var arg);
+            if (opStatus != OperationStatus.Done)
             {
-                argModifier = (CommandModifier)(command - _baseCommand);
-                shortLiteralLength = 0;
+                literal = default;
+                return opStatus;
             }
-            data = data.Slice(1);
-            return new LiteralCommand(ref data, argModifier, shortLiteralLength);
+            literal = new LiteralCommand(arg);
+            return OperationStatus.Done;
         }
 
         public override string ToString() => $"LITERAL: length:{LiteralLength}";

@@ -2,7 +2,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
@@ -13,6 +12,7 @@ namespace Rsync.Delta.Models
         public readonly CommandModifier Modifier;
 
         public const int MaxSize = 8;
+        public const int MinSize = 1;
 
         public CommandArg(ulong value)
         {
@@ -39,36 +39,57 @@ namespace Rsync.Delta.Models
             }
         }
 
-        public CommandArg(
-            ref ReadOnlySequence<byte> buffer,
-            CommandModifier modifier)
+        private CommandArg(ulong value, int size, CommandModifier modifier)
         {
+            Value = value;
+            Size = size;
             Modifier = modifier;
+        }
+
+        public static OperationStatus ReadFrom(
+            ReadOnlySpan<byte> span,
+            CommandModifier modifier,
+            out CommandArg arg)
+        {
+            bool ok;
+            ulong value;
+            int size;
             switch (modifier)
             {
                 case CommandModifier.ZeroBytes:
-                    Value = 0;
-                    Size = 0;
+                    size = 0;
+                    ok = true;
+                    value = 0;
                     break;
                 case CommandModifier.OneByte:
-                    Value = buffer.ReadByte();
-                    Size = 1;
+                    size = 1;
+                    ok = span.Length >= 1;
+                    value = ok ? span[0] : 0UL;
                     break;
                 case CommandModifier.TwoBytes:
-                    Value = buffer.ReadUShortBigEndian();
-                    Size = 2;
+                    size = 2;
+                    ok = BinaryPrimitives.TryReadUInt16BigEndian(span, out var valShort);
+                    value = valShort;
                     break;
                 case CommandModifier.FourBytes:
-                    Value = buffer.ReadUIntBigEndian();
-                    Size = 4;
+                    size = 4;
+                    ok = BinaryPrimitives.TryReadUInt32BigEndian(span, out var valInt);
+                    value = valInt;
                     break;
                 case CommandModifier.EightBytes:
-                    Value = buffer.ReadULongBigEndian();
-                    Size = 8;
+                    size = 8;
+                    ok = BinaryPrimitives.TryReadUInt64BigEndian(span, out value);
                     break;
                 default:
-                    throw new ArgumentException(nameof(CommandModifier));
+                    throw new ArgumentException($"{nameof(CommandModifier)}.{modifier}");
             }
+            if (!ok)
+            {
+                arg = default;
+                return OperationStatus.NeedMoreData;
+            }
+            arg = new CommandArg(value, size, modifier);
+            return OperationStatus.Done;
         }
 
         public void WriteTo(Span<byte> buffer)

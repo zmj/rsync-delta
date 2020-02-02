@@ -48,7 +48,7 @@ namespace Rsync.Delta.Hash.Blake2b
         }
 
         private static void Compress(
-            Span<ulong> hash, 
+            Span<ulong> hash,
             ReadOnlySpan<ulong> scratch)
         {
             for (int i = 0; i < 8; ++i)

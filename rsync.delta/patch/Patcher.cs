@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,37 +53,88 @@ namespace Rsync.Delta.Patch
             FlushResult flushResult = default;
             while (!flushResult.IsCompleted)
             {
-                CopyCommand? copy = await _reader.Read<CopyCommand>(ct).ConfigureAwait(false);
-                if (copy.HasValue)
+                var readResult = await _reader.ReadAsync(ct).ConfigureAwait(false);
+                var opStatus = ReadCommand(
+                    readResult.Buffer,
+                    out var copyCommand,
+                    out var literalCommand,
+                    out var endCommand);
+                if (opStatus == OperationStatus.Done)
                 {
-                    flushResult = await _copier.WriteCopy(copy.Value.Range, ct).ConfigureAwait(false);
-                    continue;
+                    if (copyCommand is CopyCommand copy)
+                    {
+                        _reader.AdvanceTo(readResult.Buffer.GetPosition(copy.Size));
+                        flushResult = await _copier.WriteCopy(copy.Range, ct).ConfigureAwait(false);
+                    }
+                    else if (literalCommand is LiteralCommand literal)
+                    {
+                        _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
+                        flushResult = await _writer.CopyFrom(
+                            _reader,
+                            (long)literal.LiteralLength,
+                            ct).ConfigureAwait(false);
+                    }
+                    else if (endCommand is EndCommand end)
+                    {
+                        _reader.AdvanceTo(readResult.Buffer.GetPosition(end.Size));
+                        return;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException();
+                    }
                 }
-                LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct).ConfigureAwait(false);
-                if (literal.HasValue)
+                else if (opStatus == OperationStatus.NeedMoreData)
                 {
-                    flushResult = await _writer.CopyFrom(
-                        _reader,
-                        (long)literal.Value.LiteralLength,
-                        ct).ConfigureAwait(false);
-                    continue;
+                    if (readResult.IsCompleted)
+                    {
+                        throw new FormatException("unexpected EOF");
+                    }
+                    _reader.AdvanceTo(
+                        consumed: readResult.Buffer.Start,
+                        examined: readResult.Buffer.End);
                 }
-                EndCommand? end = await _reader.Read<EndCommand>(ct).ConfigureAwait(false);
-                if (end.HasValue)
+                else if (opStatus == OperationStatus.InvalidData)
                 {
-                    return;
+                    throw new FormatException($"unknown command: {readResult.Buffer.FirstByte()}");
                 }
-                await ThrowUnknownCommand(ct).ConfigureAwait(false);
+                else
+                {
+                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                }
             }
         }
 
-        private async ValueTask ThrowUnknownCommand(CancellationToken ct)
+        private static OperationStatus ReadCommand(
+            in ReadOnlySequence<byte> sequence,
+            out CopyCommand? copyCommand,
+            out LiteralCommand? literalCommand,
+            out EndCommand? endCommand)
         {
-            var readResult = await _reader.Buffer(1, ct).ConfigureAwait(false);
-            string msg = readResult.Buffer.IsEmpty ?
-                "expected a command; got EOF" :
-                $"unknown command: {readResult.Buffer.FirstByte()}";
-            throw new FormatException(msg);
+            copyCommand = null;
+            literalCommand = null;
+            endCommand = null;
+            var copyStatus = sequence.Read(out CopyCommand copy);
+            if (copyStatus == OperationStatus.Done)
+            {
+                copyCommand = copy;
+                return OperationStatus.Done;
+            }
+            var literalStatus = sequence.Read(out LiteralCommand literal);
+            if (literalStatus == OperationStatus.Done)
+            {
+                literalCommand = literal;
+                return OperationStatus.Done;
+            }
+            var endStatus = sequence.Read(out EndCommand end);
+            if (endStatus == OperationStatus.Done)
+            {
+                endCommand = end;
+                return OperationStatus.Done;
+            }
+            return copyStatus < literalStatus ?
+                copyStatus < endStatus ? copyStatus : endStatus :
+                literalStatus < endStatus ? literalStatus : endStatus;
         }
     }
 }

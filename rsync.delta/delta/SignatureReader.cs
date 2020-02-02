@@ -40,7 +40,7 @@ namespace Rsync.Delta.Delta
 
         private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct) =>
             await _reader.Read<SignatureHeader>(ct).ConfigureAwait(false) ??
-            throw new FormatException("failed to read signature header");
+            throw new FormatException($"expected {nameof(SignatureHeader)}; got EOF");
 
         private async ValueTask ReadBlockSignatures(
             BlockMatcher matcher,

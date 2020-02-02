@@ -1,62 +1,53 @@
 ﻿using System;
 using System.Buffers;
-using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Rsync.Delta.Models;
 
 namespace Rsync.Delta.Pipes
 {
     internal static class SequenceExtensions
     {
-        public static byte ReadByte(this ref ReadOnlySequence<byte> sequence)
+        public static OperationStatus Read<T>(
+            this in ReadOnlySequence<byte> sequence,
+            out T value)
+            where T : struct, IReadable<T>
         {
-            byte value = sequence.FirstByte();
-            sequence = sequence.Slice(1);
-            return value;
+            T t = default;
+            long seqLen = sequence.Length;
+            if (seqLen < t.MinSize)
+            {
+                value = default;
+                return OperationStatus.NeedMoreData;
+            }
+            int maxSize = t.MaxSize;
+            int len = seqLen > maxSize ? maxSize : (int)seqLen;
+            return sequence.TryGetSpan(len, out var span) ?
+                t.ReadFrom(span, out value) :
+                t.ReadFrom(sequence.CopyTo(stackalloc byte[len]), out value);
         }
 
-        public static ushort ReadUShortBigEndian(
-            this ref ReadOnlySequence<byte> sequence)
+        public static OperationStatus Read<T, Options>(
+            this in ReadOnlySequence<byte> sequence,
+            Options options,
+            out T value)
+            where T : struct, IReadable<T, Options>
         {
-            const int length = 2;
-            ushort value = sequence.TryGetSpan(length, out var span) ?
-                BinaryPrimitives.ReadUInt16BigEndian(span) :
-                BinaryPrimitives.ReadUInt16BigEndian(sequence.CopyTo(stackalloc byte[length]));
-            sequence = sequence.Slice(length);
-            return value;
-        }
-
-        public static int ReadIntBigEndian(
-            this ref ReadOnlySequence<byte> sequence)
-        {
-            const int length = 4;
-            int value = sequence.TryGetSpan(length, out var span) ?
-                BinaryPrimitives.ReadInt32BigEndian(span) :
-                BinaryPrimitives.ReadInt32BigEndian(sequence.CopyTo(stackalloc byte[length]));
-            sequence = sequence.Slice(length);
-            return value;
-        }
-
-        public static uint ReadUIntBigEndian(
-            this ref ReadOnlySequence<byte> sequence)
-        {
-            const int length = 4;
-            uint value = sequence.TryGetSpan(length, out var span) ?
-                BinaryPrimitives.ReadUInt32BigEndian(span) :
-                BinaryPrimitives.ReadUInt32BigEndian(sequence.CopyTo(stackalloc byte[length]));
-            sequence = sequence.Slice(length);
-            return value;
-        }
-
-        public static ulong ReadULongBigEndian(
-            this ref ReadOnlySequence<byte> sequence)
-        {
-            const int length = 8;
-            ulong value = sequence.TryGetSpan(length, out var span) ?
-                BinaryPrimitives.ReadUInt64BigEndian(span) :
-                BinaryPrimitives.ReadUInt64BigEndian(sequence.CopyTo(stackalloc byte[length]));
-            sequence = sequence.Slice(length);
-            return value;
+            T t = default;
+            long seqLen = sequence.Length;
+            if (seqLen < t.MinSize(options))
+            {
+                value = default;
+                return OperationStatus.NeedMoreData;
+            }
+            int maxSize = t.MaxSize(options);
+            int len = seqLen > maxSize ? maxSize : (int)seqLen;
+            return sequence.TryGetSpan(len, out var span) ?
+                t.ReadFrom(span, options, out value) :
+                t.ReadFrom(
+                    sequence.CopyTo(stackalloc byte[len]),
+                    options,
+                    out value);
         }
 
         public static bool TryGetSpan(
