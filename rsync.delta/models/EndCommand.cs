@@ -5,23 +5,17 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct EndCommand : IWritable, IReadable<EndCommand>, IReadable2<EndCommand>
+    internal readonly struct EndCommand : IWritable, IReadable<EndCommand>
     {
         private const int _size = 1;
         public int Size => _size;
         public int MaxSize => _size;
         public int MinSize => _size;
 
-        public void WriteTo(Span<byte> buffer) => buffer[0] = 0;
-
-        public EndCommand? ReadFrom(ref ReadOnlySequence<byte> data)
+        public void WriteTo(Span<byte> buffer)
         {
-            if (data.FirstByte() != 0)
-            {
-                return null;
-            }
-            data = data.Slice(Size);
-            return new EndCommand();
+            Debug.Assert(buffer.Length >= _size);
+            buffer[0] = 0;
         }
 
         public OperationStatus ReadFrom(

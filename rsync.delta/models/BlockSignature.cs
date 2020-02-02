@@ -9,8 +9,7 @@ namespace Rsync.Delta.Models
     internal readonly struct BlockSignature :
         IEquatable<BlockSignature>,
         IWritable<SignatureOptions>,
-        IReadable<BlockSignature, SignatureOptions>,
-        IReadable2<BlockSignature, SignatureOptions>
+        IReadable<BlockSignature, SignatureOptions>
     {
         private readonly int _rollingHash;
         private readonly long _eagerStrongHash0;
@@ -22,22 +21,6 @@ namespace Rsync.Delta.Models
         public BlockSignature(int rollingHash, ReadOnlySpan<byte> strongHash)
         {
             _rollingHash = rollingHash;
-            SplitStrongHash(
-                strongHash,
-                out _eagerStrongHash0,
-                out _eagerStrongHash1,
-                out _eagerStrongHash2,
-                out _eagerStrongHash3);
-            _lazySignature = null;
-        }
-
-        public BlockSignature(ref ReadOnlySequence<byte> sequence, int strongHashLength)
-        {
-            _rollingHash = sequence.ReadIntBigEndian();
-            var strongHash = sequence.TryGetSpan(strongHashLength, out var span) ?
-                span :
-                sequence.CopyTo(stackalloc byte[strongHashLength]);
-            sequence = sequence.Slice(strongHashLength);
             SplitStrongHash(
                 strongHash,
                 out _eagerStrongHash0,
@@ -98,6 +81,7 @@ namespace Rsync.Delta.Models
         public void WriteTo(Span<byte> buffer, SignatureOptions options)
         {
             Debug.Assert(_lazySignature == null);
+            Debug.Assert(buffer.Length >= Size(options));
             BinaryPrimitives.WriteInt32BigEndian(buffer, _rollingHash);
             Span<byte> strongHash = stackalloc byte[options.StrongHashLength];
             CombineStrongHash(
@@ -112,13 +96,6 @@ namespace Rsync.Delta.Models
         public int MaxSize(SignatureOptions options) => Size(options);
 
         public int MinSize(SignatureOptions options) => Size(options);
-
-        public BlockSignature? ReadFrom(
-            ref ReadOnlySequence<byte> data,
-            SignatureOptions options)
-        {
-            return new BlockSignature(ref data, options.StrongHashLength);
-        }
 
         public OperationStatus ReadFrom(
             ReadOnlySpan<byte> span,

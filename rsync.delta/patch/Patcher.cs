@@ -48,69 +48,6 @@ namespace Rsync.Delta.Patch
             }
         }
 
-        private async ValueTask ExecuteCommands(CancellationToken ct)
-        {
-            FlushResult flushResult = default;
-            while (!flushResult.IsCompleted)
-            {
-                CopyCommand? copy = await _reader.Read<CopyCommand>(ct).ConfigureAwait(false);
-                if (copy.HasValue)
-                {
-                    flushResult = await _copier.WriteCopy(copy.Value.Range, ct).ConfigureAwait(false);
-                    continue;
-                }
-                LiteralCommand? literal = await _reader.Read<LiteralCommand>(ct).ConfigureAwait(false);
-                if (literal.HasValue)
-                {
-                    flushResult = await _writer.CopyFrom(
-                        _reader,
-                        (long)literal.Value.LiteralLength,
-                        ct).ConfigureAwait(false);
-                    continue;
-                }
-                EndCommand? end = await _reader.Read<EndCommand>(ct).ConfigureAwait(false);
-                if (end.HasValue)
-                {
-                    return;
-                }
-                await ThrowUnknownCommand(ct).ConfigureAwait(false);
-            }
-        }
-
-        /*private async ValueTask ExecuteCommands2(CancellationToken ct)
-        {
-            int maxCommandSize = default(CopyCommand).MaxSize;
-            FlushResult flushResult = default;
-            while (!flushResult.IsCompleted)
-            {
-                var readResult = await _reader.Buffer(maxCommandSize, ct).ConfigureAwait(false);
-                if (readResult.Buffer.TryRead<CopyCommand>() is CopyCommand copy)
-                {
-                    _reader.AdvanceTo(readResult.Buffer.GetPosition(copy.Size));
-                    flushResult = await _copier.WriteCopy(copy.Range, ct).ConfigureAwait(false);
-                }
-                else if (readResult.Buffer.TryRead<LiteralCommand>() is LiteralCommand literal)
-                {
-                    _reader.AdvanceTo(readResult.Buffer.GetPosition(literal.Size));
-                    flushResult = await _writer.CopyFrom(
-                        _reader,
-                        (long)literal.LiteralLength,
-                        ct).ConfigureAwait(false);
-                }
-                else if (readResult.Buffer.TryRead<EndCommand>() is EndCommand)
-                {
-                    return;
-                }
-                else
-                {
-                    string msg = readResult.Buffer.IsEmpty ?
-                        "expected a command; got EOF" :
-                        $"unknown command: {readResult.Buffer.FirstByte()}";
-                    throw new FormatException(msg);
-                }
-            }
-        }*/
-
         private async ValueTask ExecuteCommands3(CancellationToken ct)
         {
             FlushResult flushResult = default;
@@ -137,8 +74,9 @@ namespace Rsync.Delta.Patch
                             (long)literal.LiteralLength,
                             ct).ConfigureAwait(false);
                     }
-                    else if (endCommand is EndCommand)
+                    else if (endCommand is EndCommand end)
                     {
+                        _reader.AdvanceTo(readResult.Buffer.GetPosition(end.Size));
                         return;
                     }
                     else
