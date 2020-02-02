@@ -12,15 +12,11 @@ namespace Rsync.Delta
     {
         private readonly MemoryPool<byte> _memoryPool;
         private readonly PipeOptions _pipeOptions;
-        private readonly StreamPipeReaderOptions _readerOptions;
-        private readonly StreamPipeWriterOptions _writerOptions;
 
         public Rdiff(MemoryPool<byte>? memoryPool = null)
         {
             _memoryPool = memoryPool ?? MemoryPool<byte>.Shared;
             _pipeOptions = new PipeOptions(_memoryPool);
-            _readerOptions = new StreamPipeReaderOptions(_memoryPool, leaveOpen: true);
-            _writerOptions = new StreamPipeWriterOptions(_memoryPool, leaveOpen: true);
         }
 
         public Task Signature(
@@ -47,7 +43,7 @@ namespace Rsync.Delta
             _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
             return SignatureAsync(
-                oldFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                oldFile.ToPipeReader(_pipeOptions, ct),
                 (signature, Task.CompletedTask),
                 options,
                 ct);
@@ -63,7 +59,7 @@ namespace Rsync.Delta
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
             return SignatureAsync(
                 (oldFile, Task.CompletedTask),
-                signature.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                signature.ToPipeWriter(_pipeOptions, ct),
                 options,
                 ct);
         }
@@ -77,8 +73,8 @@ namespace Rsync.Delta
             _ = oldFile ?? throw new ArgumentNullException(nameof(oldFile));
             _ = signature ?? throw new ArgumentNullException(nameof(signature));
             return SignatureAsync(
-                oldFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
-                signature.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                oldFile.ToPipeReader(_pipeOptions, ct),
+                signature.ToPipeWriter(_pipeOptions, ct),
                 options,
                 ct);
         }
@@ -128,7 +124,7 @@ namespace Rsync.Delta
             _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
             _ = delta ?? throw new ArgumentNullException(nameof(delta));
             return DeltaAsync(
-                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                signature.ToPipeReader(_pipeOptions, ct),
                 (newFile, Task.CompletedTask),
                 (delta, Task.CompletedTask),
                 ct);
@@ -145,7 +141,7 @@ namespace Rsync.Delta
             _ = delta ?? throw new ArgumentNullException(nameof(delta));
             return DeltaAsync(
                 (signature, Task.CompletedTask),
-                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                newFile.ToPipeReader(_pipeOptions, ct),
                 (delta, Task.CompletedTask),
                 ct);
         }
@@ -162,7 +158,7 @@ namespace Rsync.Delta
             return DeltaAsync(
                 (signature, Task.CompletedTask),
                 (newFile, Task.CompletedTask),
-                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                delta.ToPipeWriter(_pipeOptions, ct),
                 ct);
         }
 
@@ -176,8 +172,8 @@ namespace Rsync.Delta
             _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
             _ = delta ?? throw new ArgumentNullException(nameof(delta));
             return DeltaAsync(
-                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
-                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                signature.ToPipeReader(_pipeOptions, ct),
+                newFile.ToPipeReader(_pipeOptions, ct),
                 (delta, Task.CompletedTask),
                 ct);
         }
@@ -192,9 +188,9 @@ namespace Rsync.Delta
             _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
             _ = delta ?? throw new ArgumentNullException(nameof(delta));
             return DeltaAsync(
-                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                signature.ToPipeReader(_pipeOptions, ct),
                 (newFile, Task.CompletedTask),
-                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                delta.ToPipeWriter(_pipeOptions, ct),
                 ct);
         }
 
@@ -209,8 +205,8 @@ namespace Rsync.Delta
             _ = delta ?? throw new ArgumentNullException(nameof(delta));
             return DeltaAsync(
                 (signature, Task.CompletedTask),
-                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
-                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                newFile.ToPipeReader(_pipeOptions, ct),
+                delta.ToPipeWriter(_pipeOptions, ct),
                 ct);
         }
 
@@ -224,9 +220,9 @@ namespace Rsync.Delta
             _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
             _ = delta ?? throw new ArgumentNullException(nameof(delta));
             return DeltaAsync(
-                signature.ToPipeReader(_pipeOptions, _readerOptions, ct),
-                newFile.ToPipeReader(_pipeOptions, _readerOptions, ct),
-                delta.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                signature.ToPipeReader(_pipeOptions, ct),
+                newFile.ToPipeReader(_pipeOptions, ct),
+                delta.ToPipeWriter(_pipeOptions, ct),
                 ct);
         }
 
@@ -287,7 +283,7 @@ namespace Rsync.Delta
             _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
             return PatchAsync(
                 oldFile,
-                delta.ToPipeReader(_pipeOptions, _readerOptions, ct),
+                delta.ToPipeReader(_pipeOptions, ct),
                 (newFile, Task.CompletedTask),
                 ct);
         }
@@ -304,7 +300,7 @@ namespace Rsync.Delta
             return PatchAsync(
                 oldFile,
                 (delta, Task.CompletedTask),
-                newFile.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                newFile.ToPipeWriter(_pipeOptions, ct),
                 ct);
         }
 
@@ -319,8 +315,8 @@ namespace Rsync.Delta
             _ = newFile ?? throw new ArgumentNullException(nameof(newFile));
             return PatchAsync(
                 oldFile,
-                delta.ToPipeReader(_pipeOptions, _readerOptions, ct),
-                newFile.ToPipeWriter(_pipeOptions, _writerOptions, ct),
+                delta.ToPipeReader(_pipeOptions, ct),
+                newFile.ToPipeWriter(_pipeOptions, ct),
                 ct);
         }
 
@@ -332,8 +328,7 @@ namespace Rsync.Delta
         {
             var copier = new Patch.Copier(
                 oldFile,
-                newFile.writer,
-                _readerOptions);
+                newFile.writer);
             var patcher = new Patch.Patcher(
                 delta.reader,
                 newFile.writer,

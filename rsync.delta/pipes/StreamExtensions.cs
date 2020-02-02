@@ -11,27 +11,14 @@ namespace Rsync.Delta.Pipes
         public static (PipeReader, Task) ToPipeReader(
             this Stream stream,
             PipeOptions pipeOptions,
-            StreamPipeReaderOptions streamOptions,
             CancellationToken ct)
         {
-#if !NETSTANDARD2_0
             var pipe = new Pipe(pipeOptions);
-            var task = Task.Run(async () => 
+            var task = Task.Run(async () =>
             {
                 try
-                {                    
-                    int read;
-                    FlushResult flushResult;
-                    do
-                    {
-                        var memory = pipe.Writer.GetMemory(streamOptions.BufferSize);
-                        read = await stream.ReadAsync(memory, ct).ConfigureAwait(false);
-                        pipe.Writer.Advance(read);
-                        flushResult = await pipe.Writer.FlushAsync(ct).ConfigureAwait(false);
-                    } while (
-                        read > 0 && 
-                        !flushResult.IsCompleted &&
-                        !ct.IsCancellationRequested);
+                {
+                    await stream.CopyToAsync(pipe.Writer, ct).ConfigureAwait(false);
                     pipe.Writer.Complete();
                 }
                 catch (Exception ex)
@@ -39,37 +26,21 @@ namespace Rsync.Delta.Pipes
                     pipe.Writer.Complete(ex);
                     throw;
                 }
-            }); // no ct to ensure the pipe is completed
+            });
             return (pipe.Reader, task);
-#else
-            return (PipeReader.Create(stream, streamOptions), Task.CompletedTask);
-#endif
         }
 
         public static (PipeWriter, Task) ToPipeWriter(
             this Stream stream,
             PipeOptions pipeOptions,
-            StreamPipeWriterOptions streamOptions,
             CancellationToken ct)
         {
-#if !NETSTANDARD2_0
             var pipe = new Pipe(pipeOptions);
             var task = Task.Run(async () =>
             {
                 try
                 {
-                    ReadResult readResult;
-                    do
-                    {
-                        readResult = await pipe.Reader.ReadAsync(ct).ConfigureAwait(false);
-                        foreach (var memory in readResult.Buffer)
-                        {
-                            await stream.WriteAsync(memory, ct).ConfigureAwait(false);
-                        }
-                        pipe.Reader.AdvanceTo(readResult.Buffer.End);
-                    } while (
-                        !readResult.IsCompleted &&
-                        !ct.IsCancellationRequested);
+                    await pipe.Reader.CopyToAsync(stream, ct).ConfigureAwait(false);
                     pipe.Reader.Complete();
                 }
                 catch (Exception ex)
@@ -77,11 +48,8 @@ namespace Rsync.Delta.Pipes
                     pipe.Reader.Complete(ex);
                     throw;
                 }
-            }); // no ct to ensure the pipe is completed
+            });
             return (pipe.Writer, task);
-#else
-            return (PipeWriter.Create(stream, streamOptions), Task.CompletedTask);
-#endif
         }
     }
 }

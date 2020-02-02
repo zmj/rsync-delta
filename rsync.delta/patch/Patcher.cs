@@ -136,14 +136,5 @@ namespace Rsync.Delta.Patch
                 copyStatus < endStatus ? copyStatus : endStatus :
                 literalStatus < endStatus ? literalStatus : endStatus;
         }
-
-        private async ValueTask ThrowUnknownCommand(CancellationToken ct)
-        {
-            var readResult = await _reader.Buffer(1, ct).ConfigureAwait(false);
-            string msg = readResult.Buffer.IsEmpty ?
-                "expected a command; got EOF" :
-                $"unknown command: {readResult.Buffer.FirstByte()}";
-            throw new FormatException(msg);
-        }
     }
 }

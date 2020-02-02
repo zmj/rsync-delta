@@ -12,12 +12,10 @@ namespace Rsync.Delta.Patch
     {
         private readonly Stream _stream;
         private readonly PipeWriter _writer;
-        private readonly StreamPipeReaderOptions _readerOptions;
 
         public Copier(
             Stream stream,
-            PipeWriter writer,
-            StreamPipeReaderOptions readerOptions)
+            PipeWriter writer)
         {
             if (!stream.CanSeek)
             {
@@ -25,7 +23,6 @@ namespace Rsync.Delta.Patch
             }
             _stream = stream;
             _writer = writer;
-            _readerOptions = readerOptions;
         }
 
         public async ValueTask<FlushResult> WriteCopy(LongRange range, CancellationToken ct)
