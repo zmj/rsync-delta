@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
 using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {

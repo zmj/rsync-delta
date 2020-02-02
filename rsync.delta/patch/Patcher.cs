@@ -26,7 +26,7 @@ namespace Rsync.Delta.Patch
             try
             {
                 await ReadHeader(ct).ConfigureAwait(false);
-                await ExecuteCommands3(ct).ConfigureAwait(false);
+                await ExecuteCommands(ct).ConfigureAwait(false);
                 await _writer.FlushAsync(ct).ConfigureAwait(false);
                 _reader.Complete();
                 _writer.Complete();
@@ -48,7 +48,7 @@ namespace Rsync.Delta.Patch
             }
         }
 
-        private async ValueTask ExecuteCommands3(CancellationToken ct)
+        private async ValueTask ExecuteCommands(CancellationToken ct)
         {
             FlushResult flushResult = default;
             while (!flushResult.IsCompleted)

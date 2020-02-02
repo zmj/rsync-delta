@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-#if !NETSTANDARD2_0
+﻿#if !NETSTANDARD2_0
 using System.Runtime.Intrinsics.X86;
 #endif
 

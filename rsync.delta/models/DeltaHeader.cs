@@ -2,7 +2,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
@@ -19,7 +18,7 @@ namespace Rsync.Delta.Models
         {
             Debug.Assert(buffer.Length >= _size);
             BinaryPrimitives.WriteUInt32BigEndian(buffer, (uint)_format);
-        }            
+        }
 
         public OperationStatus ReadFrom(
             ReadOnlySpan<byte> span,

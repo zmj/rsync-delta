@@ -13,7 +13,7 @@ namespace Rsync.Delta.Pipes
         public static async ValueTask<T?> Read<T>(
             this PipeReader reader,
             CancellationToken ct)
-            where T: struct, IReadable<T>
+            where T : struct, IReadable<T>
         {
             T t = default;
             int toBuffer = t.MinSize;
@@ -70,7 +70,7 @@ namespace Rsync.Delta.Pipes
                     return null;
                 }
                 var opStatus = readResult.Buffer.Read<T, Options>(
-                    options, 
+                    options,
                     out var value);
                 if (opStatus == OperationStatus.Done)
                 {

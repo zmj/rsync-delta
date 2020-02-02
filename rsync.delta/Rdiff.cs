@@ -240,7 +240,7 @@ namespace Rsync.Delta
             }
             catch
             {
-                if (readTask.IsCompleted && 
+                if (readTask.IsCompleted &&
                     !(readTask.IsFaulted || readTask.IsCanceled))
                 {
                     readTask.Result.Dispose();

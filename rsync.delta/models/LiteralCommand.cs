@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
 using System.Diagnostics;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Models
 {
@@ -53,7 +52,7 @@ namespace Rsync.Delta.Models
         }
 
         public OperationStatus ReadFrom(
-            ReadOnlySpan<byte> span, 
+            ReadOnlySpan<byte> span,
             out LiteralCommand literal)
         {
             if (span.Length < _minSize)
@@ -76,8 +75,8 @@ namespace Rsync.Delta.Models
 
             var argModifier = (CommandModifier)(command - _baseCommand);
             var opStatus = CommandArg.ReadFrom(
-                span.Slice(1), 
-                argModifier, 
+                span.Slice(1),
+                argModifier,
                 out var arg);
             if (opStatus != OperationStatus.Done)
             {
