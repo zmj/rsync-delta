@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -62,12 +62,12 @@ namespace Rsync.Delta.UnitTests
                 RollingHashAlgorithm.Adler, 
                 StrongHashAlgorithm.Blake2b,
             };
-            /*yield return new object[] 
+            yield return new object[] 
             {
                 RollingHashAlgorithm.RabinKarp, 
                 StrongHashAlgorithm.Blake2b,
             };
-            yield return new object[]
+            /*yield return new object[]
             {
                 RollingHashAlgorithm.Adler,
                 StrongHashAlgorithm.Md4,
@@ -180,7 +180,8 @@ namespace Rsync.Delta.UnitTests
                         324d cf02 7dd4 a30a 932c 441f 365a 25e8
                         6b",
             sigRabinKarp: @"7273 0147 0000 0800 0000 0011 c918 3e85
-                            324d cf02 7dd4 a30a 932c 441f 365a 25e8",
+                            324d cf02 7dd4 a30a 932c 441f 365a 25e8
+                            6b",
             delta: "7273 0236 0768 656c 6c6f 6f6f 00",
             strongHashLength: 17);
 

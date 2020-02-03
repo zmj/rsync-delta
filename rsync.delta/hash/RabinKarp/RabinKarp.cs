@@ -1,46 +1,47 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Generic;
+using System.Text;
 using Rsync.Delta.Pipes;
 
-namespace Rsync.Delta.Hash.Adler
+namespace Rsync.Delta.Hash.RabinKarp
 {
-    internal class Adler32 : IRollingHashAlgorithm
+    internal class RabinKarp : IRollingHashAlgorithm
     {
-        private const byte _magic = 31;
+        private const int _magic = 0x08104225;
+        private const int _inverseMagic = unchecked((int)0x98F009AD);
+        private const int _adjustment = 0x08104224;
 
-        public int Value => (_b << 16) | _a;
+        public int Value { get; private set; }
 
-        private ushort _a;
-        private ushort _b;
-        private uint _count;
+        private int _multiplier;
 
-        public Adler32() => Init();
+        public RabinKarp() => Init();
 
         private void Init()
         {
-            _a = 0;
-            _b = 0;
-            _count = 0;
+            Value = 1;
+            _multiplier = 1;
         }
 
         public void Rotate(byte remove, byte add)
         {
-            _a += (ushort)(add - remove);
-            _b += (ushort)(_a - _count * (remove + _magic));
+            Value = 
+                Value * _magic +
+                add -
+                _multiplier * (remove + _adjustment);
         }
 
         private void RotateIn(byte add)
         {
-            _a += (ushort)(add + _magic);
-            _b += _a;
-            _count++;
+            _multiplier *= _magic;
+            Value = Value * _magic + add;
         }
 
         public void RotateOut(byte remove)
         {
-            _a -= (ushort)(remove + _magic);
-            _b -= (ushort)(_count * (remove + _magic));
-            _count--;
+            _multiplier *= _inverseMagic;
+            Value -= _multiplier * (remove + _adjustment);
         }
 
         private void RotateIn(ReadOnlySpan<byte> buffer)

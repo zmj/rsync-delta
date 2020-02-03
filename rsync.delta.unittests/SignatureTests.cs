@@ -65,8 +65,10 @@ namespace Rsync.Delta.UnitTests
                 oldFile: new MemoryStream(tc.Version1),
                 signature: output,
                 new SignatureOptions(
-                    blockLength: tc.BlockLength,
-                    strongHashLength: tc.StrongHashLength),
+                    tc.BlockLength,
+                    tc.StrongHashLength,
+                    rollingHash,
+                    strongHash),
                 System.Threading.CancellationToken.None);
 
             var expected = tc.Sig(rollingHash, strongHash);

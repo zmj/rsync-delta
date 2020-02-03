@@ -9,7 +9,7 @@ namespace Rsync.Delta.Hash
             RollingHashAlgorithm alg) =>
             alg switch
             {
-                RollingHashAlgorithm.RabinKarp => throw new NotImplementedException(),
+                RollingHashAlgorithm.RabinKarp => new RabinKarp.RabinKarp(),
                 RollingHashAlgorithm.Adler => new Adler.Adler32(),
                 _ => throw new ArgumentException($"unknown {nameof(RollingHashAlgorithm)}.{alg}")
             };
