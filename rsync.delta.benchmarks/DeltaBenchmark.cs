@@ -9,15 +9,18 @@ using Rsync.Delta;
 namespace Rsync.Delta.Benchmarks
 {
     [MemoryDiagnoser]
-    public class DeltaBenchmarks
+    public class DeltaBenchmark
     {
         private IRdiff _rdiff;
         private byte[] _v1;
         private byte[] _v2;
         private byte[] _signature;
 
-        [Params(1 << 20)]
+        [Params(1 << 26)]
         public long Length;
+
+        [Params(true, false)]
+        public bool ChangeAll;
 
         [GlobalSetup]
         public async Task Setup()
@@ -34,7 +37,12 @@ namespace Rsync.Delta.Benchmarks
         }
 
         [Benchmark]
-        public async Task NoChange()
+        public async Task Delta()
+        {
+            await (ChangeAll ? AllChange() : NoChange());
+        }
+
+        private async Task NoChange()
         {
             await _rdiff.Delta(
                 new MemoryStream(_signature),
@@ -42,8 +50,7 @@ namespace Rsync.Delta.Benchmarks
                 new NullStream());
         }
 
-        [Benchmark]
-        public async Task AllChange()
+        private async Task AllChange()
         {
             await _rdiff.Delta(
                 new MemoryStream(_signature),

@@ -4,8 +4,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Rsync.Delta.Hash.Adler;
-using Rsync.Delta.Hash.Blake2b;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
@@ -16,8 +15,9 @@ namespace Rsync.Delta.Signature
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly SignatureOptions _options;
-        private readonly Blake2b _blake2b;
-        private readonly IMemoryOwner<byte> _strongHash;
+        private readonly IRollingHashAlgorithm _rollingHash;
+        private readonly IStrongHashAlgorithm _strongHash;
+        private readonly IMemoryOwner<byte> _strongHashBuffer;
         private const uint _flushThreshhold = 1 << 12;
 
         public SignatureWriter(
@@ -30,14 +30,15 @@ namespace Rsync.Delta.Signature
             _writer = writer;
             _options = options;
 
-            _blake2b = new Blake2b(memoryPool);
-            _strongHash = memoryPool.Rent(_options.StrongHashLength);
+            _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
+            _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
+            _strongHashBuffer = memoryPool.Rent(_options.StrongHashLength);
         }
 
         public void Dispose()
         {
+            _strongHashBuffer.Dispose();
             _strongHash.Dispose();
-            _blake2b.Dispose();
         }
 
         public async ValueTask Write(CancellationToken ct)
@@ -83,16 +84,15 @@ namespace Rsync.Delta.Signature
         private BlockSignature ComputeSignature(in ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
-            var rollingHash = new RollingHash();
-            rollingHash.RotateIn(block);
+            _rollingHash.Initialize(block);
 
-            var strongHash = _strongHash.Memory
+            var strongHash = _strongHashBuffer.Memory
                 .Slice(0, _options.StrongHashLength)
                 .Span;
-            _blake2b.Hash(block, strongHash);
+            _strongHash.Hash(block, strongHash);
 
             return new BlockSignature(
-                rollingHash.Value,
+                _rollingHash.Value,
                 strongHash);
         }
     }

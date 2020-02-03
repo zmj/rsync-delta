@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash.Blake2b
 {
-    internal readonly struct Blake2b : IDisposable
+    internal readonly struct Blake2b : IStrongHashAlgorithm
     {
         private readonly IMemoryOwner<byte> _scratch;
 

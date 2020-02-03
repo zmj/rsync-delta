@@ -68,13 +68,19 @@ namespace Rsync.Delta
 
         public bool Equals(SignatureOptions other) =>
             BlockLength == other.BlockLength &&
-            StrongHashLength == other.StrongHashLength;
+            StrongHashLength == other.StrongHashLength &&
+            RollingHash == other.RollingHash &&
+            StrongHash == other.StrongHash;
 
         public override bool Equals(object? obj) =>
             obj is SignatureOptions other ? Equals(other) : false;
 
         public override int GetHashCode() =>
-            HashCode.Combine(StrongHashLength, BlockLength);
+            HashCode.Combine(
+                StrongHashLength,
+                BlockLength,
+                RollingHash,
+                StrongHash);
 
         public static bool operator ==(
             SignatureOptions left,

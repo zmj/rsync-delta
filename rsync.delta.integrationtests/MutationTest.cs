@@ -8,48 +8,16 @@ using Xunit;
 
 namespace Rsync.Delta.IntegrationTests
 {
-    public class MutationTests
+    public static class MutationTest
     {
-        private readonly IRdiff _rdiff = new Rsync.Delta.Rdiff();
+        private static readonly IRdiff _rdiff = new Rsync.Delta.Rdiff();
 
-        [Theory]
-        [MemberData(nameof(TestCases))]
-        public async Task FirstBlock(BlockSequence blocks, Mutation mutation)
-        {
-            using var files = new TestDirectory(nameof(FirstBlock), blocks, mutation);
-            await Test(files, blocks, mutation, blockToMutate: 0);
-        }
-
-        [Theory]
-        [MemberData(nameof(TestCases))]
-        public async Task AllBlocks(BlockSequence blocks, Mutation mutation)
-        {
-            using var files = new TestDirectory(nameof(AllBlocks), blocks, mutation);
-            await Test(files, blocks, mutation);
-        }
-
-        [Theory]
-        [MemberData(nameof(TestCases))]
-        public async Task LastBlock(BlockSequence blocks, Mutation mutation)
-        {
-            using var files = new TestDirectory(nameof(LastBlock), blocks, mutation);
-            await Test(files, blocks, mutation, blockToMutate: blocks.Count - 1);
-        }
-
-        [Theory]
-        [MemberData(nameof(TestCases))]
-        public async Task MiddleBlock(BlockSequence blocks, Mutation mutation)
-        {
-            using var files = new TestDirectory(nameof(MiddleBlock), blocks, mutation);
-            await Test(files, blocks, mutation, blockToMutate: blocks.Count / 2);
-        }
-
-        private async Task Test(
+        public static async Task Test(
             TestDirectory files,
             BlockSequence blockSequence,
             Mutation mutation,
-            int? blockToMutate = null,
-            SignatureOptions? options = null)
+            SignatureOptions options,
+            int? blockToMutate = null)
         {
             var rdiff = new Rdiff(files);
             var timings = new List<(TestFile, TimeSpan)>();
@@ -63,13 +31,13 @@ namespace Rsync.Delta.IntegrationTests
             using (var v1 = files.Read(TestFile.v1))
             using (var sig = files.Write(TestFile.sig))
             {
-                await _rdiff.Signature(v1, sig);
+                await _rdiff.Signature(v1, sig, options);
             }
 
             timings.Add((TestFile.sig, timer.Elapsed));
             timer.Restart();
 
-            rdiff.Signature(TestFile.v1, TestFile.rs_sig);
+            rdiff.Signature(TestFile.v1, TestFile.rs_sig, options);
 
             timings.Add((TestFile.rs_sig, timer.Elapsed));
             await AssertEqual(files, TestFile.rs_sig, TestFile.sig);
@@ -166,9 +134,18 @@ namespace Rsync.Delta.IntegrationTests
             {
                 foreach (var mutation in Mutation.All())
                 {
-                    yield return new object[] { blocks, mutation };
+                    foreach (var options in SignatureOptions())
+                    {
+                        yield return new object[] { blocks, mutation, options };
+                    }
                 }
             }
+        }
+
+        private static IEnumerable<SignatureOptions> SignatureOptions()
+        {
+            yield return new SignatureOptions(rollingHash: RollingHashAlgorithm.RabinKarp);
+            yield return new SignatureOptions(rollingHash: RollingHashAlgorithm.Adler);
         }
     }
 }
