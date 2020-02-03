@@ -9,19 +9,23 @@ namespace Rsync.Delta.Delta
     internal class LazyBlockSignature : IDisposable
     {
         private readonly SignatureOptions _options;
-        private readonly Blake2b _blake2b;
+        private readonly Adler32 _rollingHash;
+        private readonly Blake2b _strongHash;
         private readonly IMemoryOwner<byte> _strongHashBuffer;
 
         private BufferedBlock _block;
-        private RollingHash _rollingHash;
         private bool _recalculateStrongHash;
 
-        public LazyBlockSignature(SignatureOptions options, MemoryPool<byte> pool)
+        public LazyBlockSignature(
+            SignatureOptions options, 
+            MemoryPool<byte> pool)
         {
             _options = options;
+            _rollingHash = new Adler32();
+            _strongHash = new Blake2b(pool);
             _strongHashBuffer = pool.Rent(options.StrongHashLength);
-            _blake2b = new Blake2b(pool);
         }
+
         public int RollingHash => _rollingHash.Value;
 
         public ReadOnlyMemory<byte> StrongHash
@@ -30,7 +34,7 @@ namespace Rsync.Delta.Delta
             {
                 if (_recalculateStrongHash)
                 {
-                    _blake2b.Hash(
+                    _strongHash.Hash(
                         _block.CurrentBlock,
                         _strongHashBuffer.Memory.Span);
                     _recalculateStrongHash = false;
@@ -54,8 +58,7 @@ namespace Rsync.Delta.Delta
         {
             if (_block.PendingLiteral.IsEmpty)
             {
-                _rollingHash = new RollingHash();
-                _rollingHash.RotateIn(_block.CurrentBlock);
+                _rollingHash.Initialize(_block.CurrentBlock);
             }
             else if (_block.CurrentBlock.Length == _options.BlockLength)
             {
@@ -72,7 +75,7 @@ namespace Rsync.Delta.Delta
         public void Dispose()
         {
             _strongHashBuffer.Dispose();
-            _blake2b.Dispose();
+            _strongHash.Dispose();
         }
     }
 }

@@ -4,11 +4,11 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash.Adler
 {
-    internal struct RollingHash
+    internal class Adler32
     {
         private const byte _magic = 31;
 
-        public readonly int Value => (_b << 16) | _a;
+        public int Value => (_b << 16) | _a;
 
         private ushort _a;
         private ushort _b;
@@ -34,7 +34,7 @@ namespace Rsync.Delta.Hash.Adler
             _count--;
         }
 
-        private void RotateIn(in ReadOnlySpan<byte> buffer)
+        private void RotateIn(ReadOnlySpan<byte> buffer)
         {
             for (int i = 0; i < buffer.Length; i++)
             {
@@ -42,8 +42,12 @@ namespace Rsync.Delta.Hash.Adler
             }
         }
 
-        public void RotateIn(in ReadOnlySequence<byte> sequence)
+        public void Initialize(in ReadOnlySequence<byte> sequence)
         {
+            _a = 0;
+            _b = 0;
+            _count = 0;
+
             if (sequence.IsSingleSegment)
             {
                 RotateIn(sequence.FirstSpan());

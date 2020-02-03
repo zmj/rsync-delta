@@ -1,6 +1,8 @@
-using System;
+﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
+using Rsync.Delta.Hash.Adler;
+using Rsync.Delta.Hash.Blake2b;
 using Rsync.Delta.Models;
 
 namespace Rsync.Delta.Delta
