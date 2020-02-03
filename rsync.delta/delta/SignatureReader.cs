@@ -3,8 +3,6 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Rsync.Delta.Hash.Adler;
-using Rsync.Delta.Hash.Blake2b;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 

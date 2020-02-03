@@ -7,7 +7,7 @@ namespace Rsync.Delta.Benchmarks
     {
         static void Main(string[] args)
         {
-            var summary = BenchmarkRunner.Run<SignatureBenchmark>();
+            var summary = BenchmarkRunner.Run<DeltaBenchmark>();
             Console.WriteLine(summary);
         }
     }

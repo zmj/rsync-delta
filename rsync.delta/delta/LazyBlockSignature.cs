@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
-using Rsync.Delta.Hash.Adler;
-using Rsync.Delta.Hash.Blake2b;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
@@ -9,21 +8,21 @@ namespace Rsync.Delta.Delta
     internal class LazyBlockSignature : IDisposable
     {
         private readonly SignatureOptions _options;
-        private readonly Adler32 _rollingHash;
-        private readonly Blake2b _strongHash;
+        private readonly IRollingHashAlgorithm _rollingHash;
+        private readonly IStrongHashAlgorithm _strongHash;
         private readonly IMemoryOwner<byte> _strongHashBuffer;
 
         private BufferedBlock _block;
         private bool _recalculateStrongHash;
 
         public LazyBlockSignature(
-            SignatureOptions options, 
-            MemoryPool<byte> pool)
+            SignatureOptions options,
+            MemoryPool<byte> memoryPool)
         {
             _options = options;
-            _rollingHash = new Adler32();
-            _strongHash = new Blake2b(pool);
-            _strongHashBuffer = pool.Rent(options.StrongHashLength);
+            _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
+            _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
+            _strongHashBuffer = memoryPool.Rent(options.StrongHashLength);
         }
 
         public int RollingHash => _rollingHash.Value;

@@ -4,8 +4,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
-using Rsync.Delta.Hash.Adler;
-using Rsync.Delta.Hash.Blake2b;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
@@ -16,8 +15,8 @@ namespace Rsync.Delta.Signature
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly SignatureOptions _options;
-        private readonly Adler32 _rollingHash;
-        private readonly Blake2b _strongHash;
+        private readonly IRollingHashAlgorithm _rollingHash;
+        private readonly IStrongHashAlgorithm _strongHash;
         private readonly IMemoryOwner<byte> _strongHashBuffer;
         private const uint _flushThreshhold = 1 << 12;
 
@@ -31,8 +30,8 @@ namespace Rsync.Delta.Signature
             _writer = writer;
             _options = options;
 
-            _rollingHash = new Adler32();
-            _strongHash = new Blake2b(memoryPool);
+            _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
+            _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
             _strongHashBuffer = memoryPool.Rent(_options.StrongHashLength);
         }
 

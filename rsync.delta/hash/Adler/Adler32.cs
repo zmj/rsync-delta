@@ -4,7 +4,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash.Adler
 {
-    internal class Adler32
+    internal class Adler32 : IRollingHashAlgorithm
     {
         private const byte _magic = 31;
 
