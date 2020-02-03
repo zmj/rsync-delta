@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
@@ -51,5 +52,25 @@ namespace Rsync.Delta.Pipes
             });
             return (pipe.Writer, task);
         }
+
+#if NETSTANDARD2_0
+        public static async ValueTask<int> ReadAsync(
+            this Stream stream,
+            Memory<byte> memory,
+            CancellationToken ct)
+        {
+            var array = ArrayPool<byte>.Shared.Rent(memory.Length);
+            try
+            {
+                int read = await stream.ReadAsync(array, 0, memory.Length, ct).ConfigureAwait(false);
+                array.AsSpan().Slice(0, read).CopyTo(memory.Span);
+                return read;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(array);
+            }
+        }
+#endif
     }
 }

@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Buffers;
+using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,7 +48,7 @@ namespace Rsync.Delta.Pipes
                 var readResult = await reader.ReadAsync(ct).ConfigureAwait(false);
                 if (readResult.Buffer.IsEmpty)
                 {
-                    break;
+                    throw new InvalidOperationException("unexpected EOF");
                 }
                 var readBuffer = readResult.Buffer.First;
                 if (readBuffer.Length > count)
@@ -78,8 +80,34 @@ namespace Rsync.Delta.Pipes
             long count,
             CancellationToken ct)
         {
-            var reader = PipeReader.Create(readStream); // don't do this
-            return await writer.CopyFrom(reader, count, ct).ConfigureAwait(false);
+            FlushResult flushResult = default;
+            int writtenSinceFlush = 0;
+            while (count > 0 && !flushResult.IsCompleted)
+            {
+                var memory = writer.GetMemory();
+                if (memory.Length > count)
+                {
+                    memory = memory.Slice(0, (int)count);
+                }
+                int read = await readStream.ReadAsync(memory, ct).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    throw new InvalidOperationException("unexpected EOF");
+                }
+                writer.Advance(read);
+                writtenSinceFlush += read;
+                if (writtenSinceFlush > 1 << 12)
+                {
+                    flushResult = await writer.FlushAsync(ct).ConfigureAwait(false);
+                    writtenSinceFlush = 0;
+                }
+                count -= read;
+            }
+            if (writtenSinceFlush > 0)
+            {
+                flushResult = await writer.FlushAsync(ct).ConfigureAwait(false);
+            }
+            return flushResult;
         }
     }
 }
