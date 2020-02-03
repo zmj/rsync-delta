@@ -1,3 +1,4 @@
+﻿using System;
 using System.Diagnostics;
 
 namespace Rsync.Delta.IntegrationTests
@@ -11,26 +12,33 @@ namespace Rsync.Delta.IntegrationTests
         public void Signature(
             TestFile v1,
             TestFile sig,
-            int? blockLength = null,
-            int? strongHashLength = null)
+            SignatureOptions options)
         {
             var cmd = new ProcessStartInfo("rdiff");
             cmd.ArgumentList.Add("--force");
             cmd.ArgumentList.Add("signature");
+
             cmd.ArgumentList.Add("-R"); 
-            cmd.ArgumentList.Add("rollsum"); // take sigoptions input
+            cmd.ArgumentList.Add(options.RollingHash switch
+            { 
+                RollingHashAlgorithm.RabinKarp => "rabinkarp",
+                RollingHashAlgorithm.Adler => "rollsum",
+                _ => throw new NotImplementedException(options.RollingHash.ToString())
+            });
+
             cmd.ArgumentList.Add("-H");
-            cmd.ArgumentList.Add("blake2");
-            if (blockLength != null)
+            cmd.ArgumentList.Add(options.StrongHash switch
             {
-                cmd.ArgumentList.Add("-b");
-                cmd.ArgumentList.Add(blockLength.ToString());
-            }
-            if (strongHashLength != null)
-            {
-                cmd.ArgumentList.Add("-S");
-                cmd.ArgumentList.Add(strongHashLength.ToString());
-            }
+                StrongHashAlgorithm.Blake2b => "blake2",
+                _ => throw new NotImplementedException(options.StrongHash.ToString())
+            });
+
+            cmd.ArgumentList.Add("-b");
+            cmd.ArgumentList.Add(options.BlockLength.ToString());
+
+            cmd.ArgumentList.Add("-S");
+            cmd.ArgumentList.Add(options.StrongHashLength.ToString());
+
             cmd.ArgumentList.Add(_dir.Path(v1));
             cmd.ArgumentList.Add(_dir.Path(sig));
             cmd.Execute();

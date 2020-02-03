@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.IO;
 
 namespace Rsync.Delta.IntegrationTests
 {
-    internal class TestDirectory : IDisposable
+    public class TestDirectory : IDisposable
     {
         private readonly string _path;
 
