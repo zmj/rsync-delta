@@ -9,7 +9,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
-    internal class DeltaWriter
+    internal sealed class DeltaWriter
     {
         private readonly BlockMatcher _blocks;
         private readonly PipeReader _reader;

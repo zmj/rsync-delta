@@ -6,7 +6,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash.RabinKarp
 {
-    internal class RabinKarp : IRollingHashAlgorithm
+    internal sealed class RabinKarp : IRollingHashAlgorithm
     {
         private const int _magic = 0x08104225;
         private const int _inverseMagic = unchecked((int)0x98F009AD);

@@ -8,7 +8,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
 {
-    public class Rdiff : IRdiff
+    public sealed class Rdiff : IRdiff
     {
         private readonly MemoryPool<byte> _memoryPool;
         private readonly PipeOptions _pipeOptions;

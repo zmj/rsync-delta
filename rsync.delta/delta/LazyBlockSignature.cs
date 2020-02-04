@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
-    internal class LazyBlockSignature : IDisposable
+    internal sealed class LazyBlockSignature : IDisposable
     {
         private readonly SignatureOptions _options;
         private readonly IRollingHashAlgorithm _rollingHash;
