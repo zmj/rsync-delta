@@ -15,7 +15,7 @@ namespace Rsync.Delta.Models
         private readonly long _eagerStrongHash1;
         private readonly long _eagerStrongHash2;
         private readonly long _eagerStrongHash3;
-        private readonly Delta.LazyBlockSignature? _lazySignature;
+        private readonly Delta.LazyBlockSignature? _lazyBlock;
 
         public BlockSignature(int rollingHash, ReadOnlySpan<byte> strongHash)
         {
@@ -26,13 +26,13 @@ namespace Rsync.Delta.Models
                 out _eagerStrongHash1,
                 out _eagerStrongHash2,
                 out _eagerStrongHash3);
-            _lazySignature = null;
+            _lazyBlock = null;
         }
 
         public BlockSignature(Delta.LazyBlockSignature lazySig)
         {
             _rollingHash = lazySig.RollingHash;
-            _lazySignature = lazySig;
+            _lazyBlock = lazySig;
             _eagerStrongHash0 = default;
             _eagerStrongHash1 = default;
             _eagerStrongHash2 = default;
@@ -79,7 +79,7 @@ namespace Rsync.Delta.Models
 
         public void WriteTo(Span<byte> buffer, SignatureOptions options)
         {
-            Debug.Assert(_lazySignature == null);
+            Debug.Assert(_lazyBlock == null);
             Debug.Assert(buffer.Length >= Size(options));
             BinaryPrimitives.WriteInt32BigEndian(buffer, _rollingHash);
             Span<byte> strongHash = stackalloc byte[options.StrongHashLength];
@@ -114,31 +114,31 @@ namespace Rsync.Delta.Models
 
         public bool Equals(BlockSignature other)
         {
-            Debug.Assert(_lazySignature == null || other._lazySignature == null);
-            if (_lazySignature != null)
+            Debug.Assert(_lazyBlock == null || other._lazyBlock == null);
+            if (_rollingHash != other._rollingHash)
             {
-                return Equals(in other, _lazySignature);
+                return false;
             }
-            else if (other._lazySignature != null)
+
+            if (_lazyBlock != null)
             {
-                return Equals(in this, other._lazySignature);
+                return StrongHashEquals(in other, _lazyBlock);
             }
-            return _rollingHash == other._rollingHash &&
-                _eagerStrongHash0 == other._eagerStrongHash0 &&
+            else if (other._lazyBlock != null)
+            {
+                return StrongHashEquals(in this, other._lazyBlock);
+            }
+            return _eagerStrongHash0 == other._eagerStrongHash0 &&
                 _eagerStrongHash1 == other._eagerStrongHash1 &&
                 _eagerStrongHash2 == other._eagerStrongHash2 &&
                 _eagerStrongHash3 == other._eagerStrongHash3;
         }
 
-        private static bool Equals(
+        private static bool StrongHashEquals(
             in BlockSignature eager,
             Delta.LazyBlockSignature lazy)
         {
-            if (eager._rollingHash != lazy.RollingHash)
-            {
-                return false;
-            }
-            ReadOnlySpan<byte> lazyStrongHash = lazy.StrongHash.Span;
+            var lazyStrongHash = lazy.StrongHash.Span;
             Span<byte> eagerStrongHash = stackalloc byte[lazyStrongHash.Length];
             CombineStrongHash(
                 eagerStrongHash,
