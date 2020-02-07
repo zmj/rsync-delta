@@ -13,26 +13,15 @@ namespace Rsync.Delta.Delta
 
         public BlockMatcher(
             SignatureOptions options,
+            Dictionary<BlockSignature, ulong> signatures,
             MemoryPool<byte> memoryPool)
         {
             Options = options;
             _lazyBlockSig = new LazyBlockSignature(options, memoryPool);
-            _blocks = new Dictionary<BlockSignature, ulong>();
+            _blocks = signatures;
         }
 
         public void Dispose() => _lazyBlockSig.Dispose();
-
-        public void Add(in BlockSignature sig, ulong start)
-        {
-#if !NETSTANDARD2_0
-            _blocks.TryAdd(sig, start);
-#else
-            if (!_blocks.ContainsKey(sig))
-            {
-                _blocks.Add(sig, start);
-            }
-#endif
-        }
 
         public LongRange? MatchBlock(in BufferedBlock block)
         {
