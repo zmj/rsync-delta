@@ -30,6 +30,22 @@ namespace Rsync.Delta.Delta
             _blocks = signatures;
         }
 
+        public OperationStatus MatchBlock(
+            in ReadOnlySequence<byte> sequence,
+            bool isFinalBlock,
+            out LongRange? match)
+        {
+            // inner loop:
+            // sliding block byte-by-byte
+            // return NeedMoreData if !isFinalBlock and end of buffer (otherwise shrink)
+            // dict.tryget(new BlockSig(rollingHash, this))
+            // true: matched, return a Done + longrange
+            //  * what about a literal before the match?
+            // false: coninue
+            // max literal len: return Done + match:null
+            throw new NotImplementedException();   
+        }
+
         public LongRange? MatchBlock(in BufferedBlock block)
         {
             BufferedBlock = block;

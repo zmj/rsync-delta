@@ -29,24 +29,18 @@ namespace Rsync.Delta.Pipes
                     reader.AdvanceTo(consumed);
                     return value;
                 }
-                else if (opStatus == OperationStatus.NeedMoreData)
-                {
-                    if (readResult.IsCompleted)
-                    {
-                        throw new FormatException($"expected a {typeof(T).Name}; got EOF");
-                    }
-                    reader.AdvanceTo(
-                        consumed: readResult.Buffer.Start,
-                        examined: readResult.Buffer.End);
-                }
                 else if (opStatus == OperationStatus.InvalidData)
                 {
                     throw new FormatException($"expected a {typeof(T).Name}");
                 }
-                else
+                Debug.Assert(opStatus == OperationStatus.NeedMoreData);
+                if (readResult.IsCompleted)
                 {
-                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                    throw new FormatException($"expected a {typeof(T).Name}; got EOF");
                 }
+                reader.AdvanceTo(
+                    consumed: readResult.Buffer.Start,
+                    examined: readResult.Buffer.End);
             }
         }
 
@@ -70,24 +64,18 @@ namespace Rsync.Delta.Pipes
                     reader.AdvanceTo(consumed);
                     return value;
                 }
-                else if (opStatus == OperationStatus.NeedMoreData)
-                {
-                    if (readResult.IsCompleted)
-                    {
-                        throw new FormatException($"expected a {typeof(T).Name}; got EOF");
-                    }
-                    reader.AdvanceTo(
-                        consumed: readResult.Buffer.Start,
-                        examined: readResult.Buffer.End);
-                }
                 else if (opStatus == OperationStatus.InvalidData)
                 {
                     throw new FormatException($"expected a {typeof(T).Name}");
                 }
-                else
+                Debug.Assert(opStatus == OperationStatus.NeedMoreData);
+                if (readResult.IsCompleted)
                 {
-                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                    throw new FormatException($"expected a {typeof(T).Name}; got EOF");
                 }
+                reader.AdvanceTo(
+                    consumed: readResult.Buffer.Start,
+                    examined: readResult.Buffer.End);
             }
         }
 

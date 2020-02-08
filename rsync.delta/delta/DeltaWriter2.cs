@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Text;
 using System.Threading;
@@ -53,8 +55,24 @@ namespace Rsync.Delta.Delta
             while (!flushResult.IsCompleted)
             {
                 var readResult = await _reader.ReadAsync(ct).ConfigureAwait(false);
-                // loop calling _matcher.Match(rr.Buffer, isFinal: rr.IsCompleted)
-                // returns opStatus to control _reader.Advance calls
+                if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
+                {
+                    // write any pending stuff? or is that already done?
+                    _writtenAfterFlush += _writer.Write(new EndCommand());
+                    return;
+                }
+                OperationStatus opStatus;
+                SequencePosition consumed = readResult.Buffer.Start;
+                do
+                {
+                    opStatus = _matcher.MatchBlock(
+                        readResult.Buffer,
+                        readResult.IsCompleted,
+                        out LongRange? matched);
+                    // todo - how is consumed updated? int or pos?
+                } while (opStatus == OperationStatus.Done);
+                Debug.Assert(opStatus == OperationStatus.NeedMoreData);
+                _reader.AdvanceTo(consumed, readResult.Buffer.End);
             }
         }
     }

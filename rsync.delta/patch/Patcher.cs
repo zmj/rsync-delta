@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
@@ -100,7 +101,7 @@ namespace Rsync.Delta.Patch
                 }
                 else
                 {
-                    throw new ArgumentException($"unexpected {nameof(OperationStatus)}.{opStatus}");
+                    Debug.Assert(false, "unreachable");
                 }
             }
         }
