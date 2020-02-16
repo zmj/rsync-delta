@@ -61,17 +61,20 @@ namespace Rsync.Delta.Delta
                     _writtenAfterFlush += _writer.Write(new EndCommand());
                     return;
                 }
-                OperationStatus opStatus;
                 SequencePosition consumed = readResult.Buffer.Start;
-                do
+                while (true)
                 {
-                    opStatus = _matcher.MatchBlock(
+                    var opStatus = _matcher.MatchBlock(
                         readResult.Buffer,
                         readResult.IsCompleted,
-                        out LongRange? matched);
+                        out LongRange? matched,
+                        out long consumed2);
+                    if (opStatus == OperationStatus.NeedMoreData)
+                    {
+                        break;
+                    }
                     // todo - how is consumed updated? int or pos?
-                } while (opStatus == OperationStatus.Done);
-                Debug.Assert(opStatus == OperationStatus.NeedMoreData);
+                }
                 _reader.AdvanceTo(consumed, readResult.Buffer.End);
             }
         }

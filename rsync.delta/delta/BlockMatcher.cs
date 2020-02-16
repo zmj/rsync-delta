@@ -33,7 +33,8 @@ namespace Rsync.Delta.Delta
         public OperationStatus MatchBlock(
             in ReadOnlySequence<byte> sequence,
             bool isFinalBlock,
-            out LongRange? match)
+            out LongRange? match,
+            out long consumed)
         {
             // inner loop:
             // sliding block byte-by-byte
@@ -43,7 +44,32 @@ namespace Rsync.Delta.Delta
             //  * what about a literal before the match?
             // false: coninue
             // max literal len: return Done + match:null
-            throw new NotImplementedException();   
+            var enumerator = new BlockEnumerator(sequence, Options.BlockLength, isFinalBlock);
+            while (enumerator.MoveNext())
+            {
+                if (isFinalBlock && enumerator.EndOfSequence)
+                {
+                    _rollingHash.RotateOut(enumerator.Removed);
+                }
+                else
+                {
+                    _rollingHash.Rotate(enumerator.Removed, enumerator.Added);
+                }
+                // set up lazy strong hash calculation
+                // that means enumerator needs to be an instance var? no ref
+                // alternate: pass more args to BlockSig to use in lazy calc
+                // enumerator would track slice pos and seq pos (update seq pos only on slice change)
+                // set instance var ROS once on entry here, slice when strong hash needed
+
+                // todo: need an examined start arg to count up from for maxLiteralLength
+                // alternate: check that outside of this loop? 
+                // either after the break or in deltaWriter?
+                // tentative: in deltaWriter, after this call, before Advance
+                // this allows a pre-sliced ROS to be passed into here
+            }
+            match = null;
+            consumed = 0;
+            return OperationStatus.NeedMoreData;
         }
 
         public LongRange? MatchBlock(in BufferedBlock block)
