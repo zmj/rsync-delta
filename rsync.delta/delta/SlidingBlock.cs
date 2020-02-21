@@ -3,15 +3,17 @@ using System.Buffers;
 
 namespace Rsync.Delta.Delta
 {
-    internal ref struct BlockEnumerator
+    internal ref struct SlidingBlock
     {
-        // todo
-        public byte Removed;
-        public byte Added;
-        public bool EndOfSequence;
-        public ReadOnlySequence<byte> Block;
+        private ref struct Position
+        {
+            public ReadOnlySequence<byte>.Enumerator MemoryEnumerator;
+            public long SpanPositionInSequence;
+            public ReadOnlySpan<byte> Span;
+            public int PositionInSpan;
+        }
 
-        public BlockEnumerator(
+        public SlidingBlock(
             in ReadOnlySequence<byte> sequence,
             int blockLength,
             bool isFinalBlock)
@@ -19,7 +21,9 @@ namespace Rsync.Delta.Delta
             throw new NotImplementedException();
         }
 
-        public bool MoveNext()
+        public bool TryAdvance(
+            out long start, out long length, 
+            out byte removed, out byte added)
         {
             // two-tier enumeration
             // enumerate within current spans (inner loop)

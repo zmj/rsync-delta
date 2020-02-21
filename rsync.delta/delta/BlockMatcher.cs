@@ -11,11 +11,12 @@ namespace Rsync.Delta.Delta
     {
         public readonly SignatureOptions Options;
         private readonly Dictionary<BlockSignature, ulong> _blocks;
+        private readonly int _blockLength;
         private readonly IRollingHashAlgorithm _rollingHash;
         private readonly IStrongHashAlgorithm _strongHash;
         private readonly IMemoryOwner<byte> _strongHashBuffer;
 
-        private BufferedBlock _block;
+        private ReadOnlySequence<byte> _sequence;
         private bool _recalculateStrongHash;
 
         public BlockMatcher(
@@ -24,6 +25,7 @@ namespace Rsync.Delta.Delta
             MemoryPool<byte> memoryPool)
         {
             Options = options;
+            _blockLength = options.BlockLength;
             _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
             _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
             _strongHashBuffer = memoryPool.Rent(options.StrongHashLength);
@@ -36,6 +38,7 @@ namespace Rsync.Delta.Delta
             out LongRange? match,
             out long consumed)
         {
+            _sequence = sequence;
             // inner loop:
             // sliding block byte-by-byte
             // return NeedMoreData if !isFinalBlock and end of buffer (otherwise shrink)
@@ -44,22 +47,25 @@ namespace Rsync.Delta.Delta
             //  * what about a literal before the match?
             // false: coninue
             // max literal len: return Done + match:null
-            var enumerator = new BlockEnumerator(sequence, Options.BlockLength, isFinalBlock);
-            while (enumerator.MoveNext())
+            var block = new SlidingBlock(sequence, Options.BlockLength, isFinalBlock);
+            while (block.TryAdvance(
+                out long start, out long length,
+                out byte removed, out byte added))
             {
-                if (isFinalBlock && enumerator.EndOfSequence)
+                if (isFinalBlock && length < _blockLength)
                 {
-                    _rollingHash.RotateOut(enumerator.Removed);
+                    _rollingHash.RotateOut(removed);
                 }
                 else
                 {
-                    _rollingHash.Rotate(enumerator.Removed, enumerator.Added);
+                    _rollingHash.Rotate(removed, added);
                 }
-                // set up lazy strong hash calculation
-                // that means enumerator needs to be an instance var? no ref
-                // alternate: pass more args to BlockSig to use in lazy calc
-                // enumerator would track slice pos and seq pos (update seq pos only on slice change)
-                // set instance var ROS once on entry here, slice when strong hash needed
+                _recalculateStrongHash = true;
+                var sig = new BlockSignature(_rollingHash.Value, this, start, length);
+                if (_blocks.TryGetValue(sig, out ulong matchStart))
+                {
+                    throw new NotImplementedException();
+                }
 
                 // todo: need an examined start arg to count up from for maxLiteralLength
                 // alternate: check that outside of this loop? 
@@ -72,7 +78,20 @@ namespace Rsync.Delta.Delta
             return OperationStatus.NeedMoreData;
         }
 
-        public LongRange? MatchBlock(in BufferedBlock block)
+        public ReadOnlyMemory<byte> GetStrongHash(long start, long length)
+        {
+            var strongHash = _strongHashBuffer.Memory;
+            if (_recalculateStrongHash)
+            {
+                _strongHash.Hash(
+                    _sequence.Slice(start, length),
+                    strongHash.Span);
+                _recalculateStrongHash = false;
+            }
+            return strongHash;
+        }
+
+        /*public LongRange? MatchBlock(in BufferedBlock block)
         {
             BufferedBlock = block;
             var sig = new BlockSignature(this);
@@ -125,7 +144,7 @@ namespace Rsync.Delta.Delta
             {
                 _rollingHash.RotateOut(_block.PendingLiteral.LastByte());
             }
-        }
+        }*/
 
         public void Dispose()
         {

@@ -11,11 +11,15 @@ namespace Rsync.Delta.Models
         IReadable<BlockSignature, SignatureOptions>
     {
         private readonly int _rollingHash;
+
         private readonly long _eagerStrongHash0;
         private readonly long _eagerStrongHash1;
         private readonly long _eagerStrongHash2;
         private readonly long _eagerStrongHash3;
+
         private readonly Delta.BlockMatcher? _blockMatcher;
+        private readonly long _blockStart;
+        private readonly long _blockLength;
 
         public BlockSignature(int rollingHash, ReadOnlySpan<byte> strongHash)
         {
@@ -26,13 +30,23 @@ namespace Rsync.Delta.Models
                 out _eagerStrongHash1,
                 out _eagerStrongHash2,
                 out _eagerStrongHash3);
+
             _blockMatcher = null;
+            _blockStart = default;
+            _blockLength = default;
         }
 
-        public BlockSignature(Delta.BlockMatcher blockMatcher)
+        public BlockSignature(
+            int rollingHash,
+            Delta.BlockMatcher blockMatcher,
+            long blockStart,
+            long blockLength)
         {
-            _rollingHash = blockMatcher.RollingHash;
+            _rollingHash = rollingHash;
             _blockMatcher = blockMatcher;
+            _blockStart = blockStart;
+            _blockLength = blockLength;
+
             _eagerStrongHash0 = default;
             _eagerStrongHash1 = default;
             _eagerStrongHash2 = default;
@@ -122,11 +136,11 @@ namespace Rsync.Delta.Models
 
             if (_blockMatcher != null)
             {
-                return StrongHashEquals(in other, _blockMatcher);
+                return StrongHashEquals(eager: other, lazy: this);
             }
             else if (other._blockMatcher != null)
             {
-                return StrongHashEquals(in this, other._blockMatcher);
+                return StrongHashEquals(eager: this, lazy: other);
             }
             return _eagerStrongHash0 == other._eagerStrongHash0 &&
                 _eagerStrongHash1 == other._eagerStrongHash1 &&
@@ -136,9 +150,11 @@ namespace Rsync.Delta.Models
 
         private static bool StrongHashEquals(
             in BlockSignature eager,
-            Delta.BlockMatcher lazy)
+            in BlockSignature lazy)
         {
-            var lazyStrongHash = lazy.StrongHash.Span;
+            var lazyStrongHash = lazy._blockMatcher!
+                .GetStrongHash(lazy._blockStart, lazy._blockLength)
+                .Span;
             Span<byte> eagerStrongHash = stackalloc byte[lazyStrongHash.Length];
             CombineStrongHash(
                 eagerStrongHash,
