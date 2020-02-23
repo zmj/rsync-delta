@@ -1,11 +1,10 @@
-using System;
+﻿using System;
 using System.Buffers;
 
 namespace Rsync.Delta.Delta
 {
     internal ref struct SlidingBlock
     {
-        private readonly int _blockLength;
         private readonly bool _isFinalBlock;
 
         private Position _start;
@@ -16,7 +15,10 @@ namespace Rsync.Delta.Delta
             int blockLength,
             bool isFinalBlock)
         {
-            throw new NotImplementedException();
+            _isFinalBlock = isFinalBlock;
+            _start = new Position(sequence, sequencePosition: 0);
+            long endStart = sequence.Length < blockLength ? sequence.Length : blockLength;
+            _end = new Position(sequence.Slice(endStart), endStart);
         }
 
         private ref struct Position
@@ -25,16 +27,42 @@ namespace Rsync.Delta.Delta
             private long _seqPos;
             private ReadOnlySpan<byte> _span;
             private int _spanPos;
+            private byte _current;
+
+            public Position(
+                in ReadOnlySequence<byte> sequence, 
+                long sequencePosition)
+            {
+                _enumerator = sequence.GetEnumerator();
+                _seqPos = sequencePosition;
+                _span = ReadOnlySpan<byte>.Empty;
+                _spanPos = 0;
+                _current = default;
+            }
 
             public bool TryAdvance(
                 out long sequencePosition,
                 out byte previous, 
                 out byte current)
             {
-                // two-tier enumeration
-                // enumerate within current spans (inner loop)
-                // else advance to next span
-                throw new NotImplementedException();
+                while (_spanPos == _span.Length)
+                {
+                    _seqPos += _spanPos;
+                    if (!_enumerator.MoveNext())
+                    {
+                        sequencePosition = _seqPos;
+                        previous = default;
+                        current = default;
+                        return false;
+                    }
+                    _span = _enumerator.Current.Span;
+                    _spanPos = 0;
+                }
+                sequencePosition = _seqPos + _spanPos;
+                previous = _current;
+                current = _current = _span[_spanPos];
+                _spanPos++;
+                return true;
             }
         }
 

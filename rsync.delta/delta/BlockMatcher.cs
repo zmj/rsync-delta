@@ -9,7 +9,6 @@ namespace Rsync.Delta.Delta
 {
     internal sealed class BlockMatcher : IDisposable
     {
-        public readonly SignatureOptions Options;
         private readonly Dictionary<BlockSignature, ulong> _blocks;
         private readonly int _blockLength;
         private readonly IRollingHashAlgorithm _rollingHash;
@@ -24,7 +23,6 @@ namespace Rsync.Delta.Delta
             Dictionary<BlockSignature, ulong> signatures,
             MemoryPool<byte> memoryPool)
         {
-            Options = options;
             _blockLength = options.BlockLength;
             _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
             _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
@@ -39,15 +37,7 @@ namespace Rsync.Delta.Delta
             out long consumed)
         {
             _sequence = sequence;
-            // inner loop:
-            // sliding block byte-by-byte
-            // return NeedMoreData if !isFinalBlock and end of buffer (otherwise shrink)
-            // dict.tryget(new BlockSig(rollingHash, this))
-            // true: matched, return a Done + longrange
-            //  * what about a literal before the match?
-            // false: coninue
-            // max literal len: return Done + match:null
-            var block = new SlidingBlock(sequence, Options.BlockLength, isFinalBlock);
+            var block = new SlidingBlock(sequence, _blockLength, isFinalBlock);
             while (block.TryAdvance(
                 out long start, out long length,
                 out byte removed, out byte added))
@@ -64,14 +54,10 @@ namespace Rsync.Delta.Delta
                 var sig = new BlockSignature(_rollingHash.Value, this, start, length);
                 if (_blocks.TryGetValue(sig, out ulong matchStart))
                 {
-                    throw new NotImplementedException();
+                    match = new LongRange(matchStart, checked((ulong)length));
+                    consumed = start + length;
+                    return OperationStatus.Done;
                 }
-
-                // todo: need an examined start arg to count up from for maxLiteralLength
-                // alternate: check that outside of this loop? 
-                // either after the break or in deltaWriter?
-                // tentative: in deltaWriter, after this call, before Advance
-                // this allows a pre-sliced ROS to be passed into here
             }
             match = null;
             consumed = 0;

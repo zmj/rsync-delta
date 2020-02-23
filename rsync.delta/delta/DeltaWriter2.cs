@@ -74,6 +74,12 @@ namespace Rsync.Delta.Delta
                         break;
                     }
                     // todo - how is consumed updated? int or pos?
+
+                    // todo: need an examined start arg to count up from for maxLiteralLength
+                    // alternate: check that outside of this loop? 
+                    // either after the break or in deltaWriter?
+                    // tentative: in deltaWriter, after this call, before Advance
+                    // this allows a pre-sliced ROS to be passed into here
                 }
                 _reader.AdvanceTo(consumed, readResult.Buffer.End);
             }

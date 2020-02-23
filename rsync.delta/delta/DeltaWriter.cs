@@ -9,7 +9,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
-    internal sealed class DeltaWriter
+    /*internal sealed class DeltaWriter
     {
         private readonly BlockMatcher _blocks;
         private readonly PipeReader _reader;
@@ -163,5 +163,5 @@ namespace Rsync.Delta.Delta
             var currentBlock = readResult.Buffer.Slice(_pendingLiteralLength);
             return new BufferedBlock(pendingLiteral, currentBlock);
         }
-    }
+    }*/
 }
