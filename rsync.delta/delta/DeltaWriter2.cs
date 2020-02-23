@@ -61,28 +61,81 @@ namespace Rsync.Delta.Delta
                     _writtenAfterFlush += _writer.Write(new EndCommand());
                     return;
                 }
-                SequencePosition consumed = readResult.Buffer.Start;
+                long pendingLiteralLength = 0;
                 while (true)
                 {
-                    var opStatus = _matcher.MatchBlock(
-                        readResult.Buffer,
-                        readResult.IsCompleted,
-                        out LongRange? matched,
-                        out long consumed2);
-                    if (opStatus == OperationStatus.NeedMoreData)
-                    {
-                        break;
-                    }
-                    // todo - how is consumed updated? int or pos?
-
-                    // todo: need an examined start arg to count up from for maxLiteralLength
-                    // alternate: check that outside of this loop? 
-                    // either after the break or in deltaWriter?
+                    // where is ROS sliced past examined bytes?
                     // tentative: in deltaWriter, after this call, before Advance
                     // this allows a pre-sliced ROS to be passed into here
+                    var opStatus = _matcher.MatchBlock(
+                        readResult.Buffer.Slice(pendingLiteralLength),
+                        readResult.IsCompleted,
+                        out LongRange? matched,
+                        out long consumed);
+                    if (opStatus == OperationStatus.NeedMoreData)
+                    {
+                        _reader.AdvanceTo(
+                            consumed: readResult.Buffer.Start,
+                            examined: readResult.Buffer.End);
+                        break;
+                    }
+                    Debug.Assert(opStatus == OperationStatus.Done);
+                    // todo - how is consumed updated? int or pos?
+
+                    if (matched is LongRange match)
+                    {
+                        // flush any literal before the match
+                        if (!AppendToPendingCopy(match))
+                        {
+                            WritePendingCopy();
+                            _pendingCopyRange = match;
+                        }
+                        // consumed = block end
+                    }
+                    else // not matched
+                    {
+                        WritePendingCopy();
+                        // consumed = 0
+                        // need to set examined
+                    }
                 }
-                _reader.AdvanceTo(consumed, readResult.Buffer.End);
+                _reader.AdvanceTo(consumed, examined);
+
+                if (_writtenAfterFlush >= _flushThreshhold)
+                {
+                    flushResult = await _writer.FlushAsync(ct).ConfigureAwait(false);
+                    _writtenAfterFlush = 0;
+                }
             }
+        }
+        private bool AppendToPendingCopy(LongRange range)
+        {
+            if (_pendingCopyRange.Length == 0)
+            {
+                _pendingCopyRange = range;
+                return true;
+            }
+            checked
+            {
+                if (_pendingCopyRange.Start + _pendingCopyRange.Length == range.Start)
+                {
+                    _pendingCopyRange = new LongRange(
+                        start: _pendingCopyRange.Start,
+                        length: _pendingCopyRange.Length + range.Length);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void WritePendingCopy()
+        {
+            if (_pendingCopyRange.Length == 0)
+            {
+                return;
+            }
+            _writtenAfterFlush += _writer.Write(new CopyCommand(_pendingCopyRange));
+            _pendingCopyRange = default;
         }
     }
 }
