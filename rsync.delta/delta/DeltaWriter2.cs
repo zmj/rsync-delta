@@ -11,15 +11,12 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
-    internal sealed class DeltaWriter2
+    internal readonly struct DeltaWriter2
     {
         private readonly BlockMatcher _matcher;
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private const int _flushThreshhold = 1 << 12;
-
-        private LongRange _pendingCopyRange;
-        private int _writtenAfterFlush;
 
         public DeltaWriter2(
             BlockMatcher matcher,
@@ -35,7 +32,7 @@ namespace Rsync.Delta.Delta
         {
             try
             {
-                _writtenAfterFlush = _writer.Write(new DeltaHeader());
+                _writer.Write(new DeltaHeader());
                 await WriteCommands(ct).ConfigureAwait(false);
                 await _writer.FlushAsync(ct).ConfigureAwait(false);
                 _reader.Complete();
@@ -51,6 +48,9 @@ namespace Rsync.Delta.Delta
 
         private async ValueTask WriteCommands(CancellationToken ct)
         {
+            long pendingLiteral = 0;
+            LongRange pendingCopy = default;
+            int writtenAfterFlush = new DeltaHeader().Size;
             FlushResult flushResult = default;
             while (!flushResult.IsCompleted)
             {
@@ -58,84 +58,58 @@ namespace Rsync.Delta.Delta
                 if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
                 {
                     // write any pending stuff? or is that already done?
-                    _writtenAfterFlush += _writer.Write(new EndCommand());
+                    // write the final literal on !matched && isCompleted
+                    _writer.Write(new EndCommand());
                     return;
                 }
-                long pendingLiteralLength = 0;
                 while (true)
                 {
-                    // where is ROS sliced past examined bytes?
-                    // tentative: in deltaWriter, after this call, before Advance
-                    // this allows a pre-sliced ROS to be passed into here
-                    var opStatus = _matcher.MatchBlock(
-                        readResult.Buffer.Slice(pendingLiteralLength),
-                        readResult.IsCompleted,
-                        out LongRange? matched,
-                        out long consumed);
-                    if (opStatus == OperationStatus.NeedMoreData)
+                    if (_matcher.TryMatchBlock(
+                        readResult.Buffer.Slice(pendingLiteral),
+                        isFinalBlock: readResult.IsCompleted,
+                        out long matchStart,
+                        out LongRange match))
                     {
-                        _reader.AdvanceTo(
-                            consumed: readResult.Buffer.Start,
-                            examined: readResult.Buffer.End);
-                        break;
-                    }
-                    Debug.Assert(opStatus == OperationStatus.Done);
-                    // todo - how is consumed updated? int or pos?
-
-                    if (matched is LongRange match)
-                    {
-                        // flush any literal before the match
-                        if (!AppendToPendingCopy(match))
+                        // flush literal: PLL + matchStart
+                        if (pendingCopy.TryAppend(match, out var appended))
                         {
-                            WritePendingCopy();
-                            _pendingCopyRange = match;
+                            pendingCopy = appended;
                         }
-                        // consumed = block end
+                        else
+                        {
+                            writtenAfterFlush += WriteCopy(pendingCopy);
+                            pendingCopy = match;
+                        }
+                        var consumed = pendingLiteral + matchStart + match.Length;
+                        _reader.AdvanceTo(readResult.Buffer.GetPosition(consumed));
+                        continue;
                     }
-                    else // not matched
-                    {
-                        WritePendingCopy();
-                        // consumed = 0
-                        // need to set examined
-                    }
+                    // else not matched
+                    // if eof - write the final literal
                 }
                 _reader.AdvanceTo(consumed, examined);
 
-                if (_writtenAfterFlush >= _flushThreshhold)
+                if (writtenAfterFlush >= _flushThreshhold)
                 {
                     flushResult = await _writer.FlushAsync(ct).ConfigureAwait(false);
-                    _writtenAfterFlush = 0;
+                    writtenAfterFlush = 0;
                 }
             }
-        }
-        private bool AppendToPendingCopy(LongRange range)
-        {
-            if (_pendingCopyRange.Length == 0)
-            {
-                _pendingCopyRange = range;
-                return true;
-            }
-            checked
-            {
-                if (_pendingCopyRange.Start + _pendingCopyRange.Length == range.Start)
-                {
-                    _pendingCopyRange = new LongRange(
-                        start: _pendingCopyRange.Start,
-                        length: _pendingCopyRange.Length + range.Length);
-                    return true;
-                }
-            }
-            return false;
         }
 
-        private void WritePendingCopy()
+        private int WriteCopy(LongRange range)
         {
-            if (_pendingCopyRange.Length == 0)
+            if (range.Length == 0)
             {
-                return;
+                return 0;
             }
-            _writtenAfterFlush += _writer.Write(new CopyCommand(_pendingCopyRange));
-            _pendingCopyRange = default;
+            return _writer.Write(new CopyCommand(range));
+        }
+
+        private int WriteLiteral(in ReadOnlySequence<byte> sequence)
+        {
+            // write in loop
+            throw new NotImplementedException();
         }
     }
 }

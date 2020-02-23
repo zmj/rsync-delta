@@ -30,11 +30,11 @@ namespace Rsync.Delta.Delta
             _blocks = signatures;
         }
 
-        public OperationStatus MatchBlock(
+        public bool TryMatchBlock(
             in ReadOnlySequence<byte> sequence,
             bool isFinalBlock,
-            out LongRange? match,
-            out long consumed)
+            out long matchStart,
+            out LongRange match)
         {
             _sequence = sequence;
             var block = new SlidingBlock(sequence, _blockLength, isFinalBlock);
@@ -52,16 +52,16 @@ namespace Rsync.Delta.Delta
                 }
                 _recalculateStrongHash = true;
                 var sig = new BlockSignature(_rollingHash.Value, this, start, length);
-                if (_blocks.TryGetValue(sig, out ulong matchStart))
+                if (_blocks.TryGetValue(sig, out ulong matched))
                 {
-                    match = new LongRange(matchStart, checked((ulong)length));
-                    consumed = start + length;
-                    return OperationStatus.Done;
+                    matchStart = start;
+                    match = new LongRange(matched, checked((ulong)length));
+                    return true;
                 }
             }
-            match = null;
-            consumed = 0;
-            return OperationStatus.NeedMoreData;
+            matchStart = default;
+            match = default;
+            return false;
         }
 
         public ReadOnlyMemory<byte> GetStrongHash(long start, long length)
