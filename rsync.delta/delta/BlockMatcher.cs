@@ -3,7 +3,6 @@ using System.Buffers;
 using System.Collections.Generic;
 using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
-using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
@@ -37,21 +36,11 @@ namespace Rsync.Delta.Delta
             out LongRange match)
         {
             _sequence = sequence;
-            var block = new SlidingBlock(sequence, _blockLength, isFinalBlock);
-            while (block.TryAdvance(
-                out long start, out long length,
-                out byte removed, out byte added))
+            var block = new SlidingBlock(sequence, _blockLength, isFinalBlock, _rollingHash);
+            while (block.TryAdvance(out var start, out var length, out var rollingHash))
             {
-                if (isFinalBlock && length < _blockLength)
-                {
-                    _rollingHash.RotateOut(removed);
-                }
-                else
-                {
-                    _rollingHash.Rotate(removed, added);
-                }
                 _recalculateStrongHash = true;
-                var sig = new BlockSignature(_rollingHash.Value, this, start, length);
+                var sig = new BlockSignature(rollingHash, this, start, length);
                 if (_blocks.TryGetValue(sig, out ulong matched))
                 {
                     matchStart = start;

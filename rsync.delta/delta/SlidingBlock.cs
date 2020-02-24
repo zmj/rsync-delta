@@ -1,85 +1,128 @@
 ﻿using System;
 using System.Buffers;
+using System.Diagnostics;
+using Rsync.Delta.Hash;
 
 namespace Rsync.Delta.Delta
 {
     internal ref struct SlidingBlock
     {
+        private readonly IRollingHashAlgorithm _rollingHash;
+        private readonly int _blockLength;
         private readonly bool _isFinalBlock;
 
-        private Position _start;
-        private Position _end;
+        private State _state;
+        private SequenceIndex _start;
+        private SequenceIndex _end;
 
         public SlidingBlock(
             in ReadOnlySequence<byte> sequence,
             int blockLength,
-            bool isFinalBlock)
+            bool isFinalBlock,
+            IRollingHashAlgorithm rollingHash)
         {
+            _rollingHash = rollingHash;
+            _blockLength = blockLength;
             _isFinalBlock = isFinalBlock;
-            _start = new Position(sequence, sequencePosition: 0);
-            var endStart = Math.Min(sequence.Length, blockLength);
-            _end = new Position(sequence.Slice(endStart), endStart);
+            _state = State.Uninitialized;
+            _start = new SequenceIndex(sequence);
+            _end = new SequenceIndex(sequence);
         }
 
-        private ref struct Position
+        private enum State
         {
-            private ReadOnlySequence<byte>.Enumerator _enumerator;
-            private long _seqPos;
-            private ReadOnlySpan<byte> _span;
-            private int _spanPos;
-            private byte _current;
-
-            public Position(
-                in ReadOnlySequence<byte> sequence, 
-                long sequencePosition)
-            {
-                _enumerator = sequence.GetEnumerator();
-                _seqPos = sequencePosition;
-                _span = ReadOnlySpan<byte>.Empty;
-                _spanPos = 0;
-                _current = default;
-            }
-
-            public bool TryAdvance(
-                out long sequencePosition,
-                out byte previous, 
-                out byte current)
-            {
-                while (_spanPos == _span.Length)
-                {
-                    _seqPos += _spanPos;
-                    if (!_enumerator.MoveNext())
-                    {
-                        sequencePosition = _seqPos;
-                        previous = default;
-                        current = default;
-                        return false;
-                    }
-                    _span = _enumerator.Current.Span;
-                    _spanPos = 0;
-                }
-                sequencePosition = _seqPos + _spanPos;
-                previous = _current;
-                current = _current = _span[_spanPos];
-                _spanPos++;
-                return true;
-            }
+            Uninitialized = 0,
+            AdvancingStartAndEnd,
+            AdvancingStart,
+            Done,
         }
 
         public bool TryAdvance(
-            out long start, out long length, 
-            out byte removed, out byte added)
+            out long start, 
+            out long length, 
+            out int rollingHash)
         {
-            if ((_end.TryAdvance(out long end, out _, out added) || _isFinalBlock) &&
-                _start.TryAdvance(out start, out removed, out _))
+            switch (_state)
+            {
+                case State.Uninitialized:
+                    return TryInitialize(out start, out length, out rollingHash);
+                case State.AdvancingStartAndEnd:
+                    return TryAdvanceStartAndEnd(out start, out length, out rollingHash);
+                case State.AdvancingStart:
+                    return TryAdvanceStart(out start, out length, out rollingHash);
+                default:
+                    Debug.Assert(_state == State.Done);
+                    start = default;
+                    length = default;
+                    rollingHash = default;
+                    return false;
+            }
+        }
+
+        private bool TryInitialize(
+            out long start, 
+            out long length, 
+            out int rollingHash)
+        {
+            Debug.Assert(_state == State.Uninitialized);
+            _rollingHash.Reset();
+            length = _blockLength; // need to handle final block
+            for (int i=0; i < length; i++)
+            {
+                if (_end.TryAdvance(out length, out _, out byte added))
+                {
+                    rollingHash = _rollingHash.RotateIn(added);
+                }
+                else
+                {
+
+                }
+            }
+        }
+
+        private bool TryAdvanceStartAndEnd(
+            out long start, 
+            out long length, 
+            out int rollingHash)
+        {
+            Debug.Assert(_state == State.AdvancingStartAndEnd);
+            if (_end.TryAdvance(out var end, out _, out byte added) &&
+                _start.TryAdvance(out start, out byte removed, out _))
             {
                 length = end - start;
+                rollingHash = _rollingHash.Rotate(removed, added);
                 return true;
             }
+            else if (_isFinalBlock)
+            {
+                _state = State.AdvancingStart;
+                return TryAdvanceStart(out start, out length, out rollingHash);
+            }
+            _state = State.Done;
             start = default;
             length = default;
-            removed = default;
+            rollingHash = default;
             return false;
         }
+
+        private bool TryAdvanceStart(
+            out long start, 
+            out long length, 
+            out int rollingHash)
+        {
+            Debug.Assert(_state == State.AdvancingStart);
+            Debug.Assert(_isFinalBlock);
+            if (_start.TryAdvance(out _, out byte removed, out _))
+            {
+                rollingHash = _rollingHash.RotateOut(removed);
+                return true;
+            }
+            _state = State.Done;
+            start = default;
+            length = default;
+            rollingHash = default;
+            return false;
+        }
+
     }
 }
