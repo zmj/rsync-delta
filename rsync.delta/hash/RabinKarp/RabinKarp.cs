@@ -16,32 +16,35 @@ namespace Rsync.Delta.Hash.RabinKarp
 
         private int _multiplier;
 
-        public RabinKarp() => Init();
+        public RabinKarp() => Reset();
 
-        private void Init()
+        public void Reset()
         {
             Value = 1;
             _multiplier = 1;
         }
 
-        public void Rotate(byte remove, byte add)
+        public int Rotate(byte remove, byte add)
         {
             Value = 
                 Value * _magic +
                 add -
                 _multiplier * (remove + _adjustment);
+            return Value;
         }
 
-        private void RotateIn(byte add)
+        public int RotateIn(byte add)
         {
             _multiplier *= _magic;
             Value = Value * _magic + add;
+            return Value;
         }
 
-        public void RotateOut(byte remove)
+        public int RotateOut(byte remove)
         {
             _multiplier *= _inverseMagic;
             Value -= _multiplier * (remove + _adjustment);
+            return Value;
         }
 
         private void RotateIn(ReadOnlySpan<byte> buffer)
@@ -54,7 +57,7 @@ namespace Rsync.Delta.Hash.RabinKarp
 
         public void Initialize(in ReadOnlySequence<byte> sequence)
         {
-            Init();
+            Reset();
             if (sequence.IsSingleSegment)
             {
                 RotateIn(sequence.FirstSpan());
