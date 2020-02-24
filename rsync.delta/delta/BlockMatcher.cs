@@ -55,7 +55,7 @@ namespace Rsync.Delta.Delta
                 if (_blocks.TryGetValue(sig, out ulong matched))
                 {
                     matchStart = start;
-                    match = new LongRange(matched, checked((ulong)length));
+                    match = new LongRange((long)matched, length);
                     return true;
                 }
             }

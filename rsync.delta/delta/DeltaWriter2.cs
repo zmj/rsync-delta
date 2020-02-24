@@ -17,6 +17,7 @@ namespace Rsync.Delta.Delta
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private const int _flushThreshhold = 1 << 12;
+        private const int _maxLiteralLength = 1 << 15;
 
         public DeltaWriter2(
             BlockMatcher matcher,
@@ -33,7 +34,7 @@ namespace Rsync.Delta.Delta
             try
             {
                 _writer.Write(new DeltaHeader());
-                await WriteCommands(ct).ConfigureAwait(false);
+                await WriteCommandsAsync(ct).ConfigureAwait(false);
                 await _writer.FlushAsync(ct).ConfigureAwait(false);
                 _reader.Complete();
                 _writer.Complete();
@@ -46,7 +47,7 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        private async ValueTask WriteCommands(CancellationToken ct)
+        private async ValueTask WriteCommandsAsync(CancellationToken ct)
         {
             long pendingLiteral = 0;
             LongRange pendingCopy = default;
@@ -56,38 +57,16 @@ namespace Rsync.Delta.Delta
             {
                 var readResult = await _reader.ReadAsync(ct).ConfigureAwait(false);
                 if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
-                {
-                    // write any pending stuff? or is that already done?
-                    // write the final literal on !matched && isCompleted
+                {                    
                     _writer.Write(new EndCommand());
                     return;
                 }
-                while (true)
-                {
-                    if (_matcher.TryMatchBlock(
-                        readResult.Buffer.Slice(pendingLiteral),
-                        isFinalBlock: readResult.IsCompleted,
-                        out long matchStart,
-                        out LongRange match))
-                    {
-                        // flush literal: PLL + matchStart
-                        if (pendingCopy.TryAppend(match, out var appended))
-                        {
-                            pendingCopy = appended;
-                        }
-                        else
-                        {
-                            writtenAfterFlush += WriteCopy(pendingCopy);
-                            pendingCopy = match;
-                        }
-                        var consumed = pendingLiteral + matchStart + match.Length;
-                        _reader.AdvanceTo(readResult.Buffer.GetPosition(consumed));
-                        continue;
-                    }
-                    // else not matched
-                    // if eof - write the final literal
-                }
-                _reader.AdvanceTo(consumed, examined);
+
+                writtenAfterFlush += WriteCommands(
+                    readResult.Buffer,
+                    isFinalBlock: readResult.IsCompleted,
+                    ref pendingLiteral,
+                    ref pendingCopy);
 
                 if (writtenAfterFlush >= _flushThreshhold)
                 {
@@ -97,7 +76,61 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        private int WriteCopy(LongRange range)
+        private int WriteCommands(
+            in ReadOnlySequence<byte> sequence,
+            bool isFinalBlock,
+            ref long pendingLiteral,
+            ref LongRange pendingCopy)
+        {
+            long consumed = 0;
+            int written = 0;
+            while (_matcher.TryMatchBlock(
+                    sequence.Slice(pendingLiteral),
+                    isFinalBlock,
+                    out long matchStart,
+                    out LongRange match))
+            {
+                var literalLength = pendingLiteral + matchStart;
+                if (literalLength > 0)
+                {
+                    var literal = sequence.Slice(0, literalLength);
+                    written += WriteLiteral(literal);
+                    pendingLiteral = 0;
+                }
+
+                if (pendingCopy.TryAppend(match, out var appended))
+                {
+                    pendingCopy = appended;
+                }
+                else
+                {
+                    written += WriteCopyCommand(pendingCopy);
+                    pendingCopy = match;
+                }
+
+                consumed += literalLength + match.Length;
+            }
+
+            var remainder = sequence.Slice(consumed);
+            if (isFinalBlock)
+            {
+                written += WriteCopyCommand(pendingCopy);
+                written += WriteLiteral(remainder);
+                consumed += remainder.Length;
+            }
+            else if (remainder.Length > _maxLiteralLength)
+            {
+                throw new NotImplementedException();
+            }
+
+            pendingLiteral = sequence.Length - consumed;
+            _reader.AdvanceTo(
+                consumed: sequence.GetPosition(consumed),
+                examined: sequence.End);
+            return written;
+        }
+
+        private int WriteCopyCommand(LongRange range)
         {
             if (range.Length == 0)
             {
@@ -108,8 +141,40 @@ namespace Rsync.Delta.Delta
 
         private int WriteLiteral(in ReadOnlySequence<byte> sequence)
         {
-            // write in loop
-            throw new NotImplementedException();
+            if (sequence.IsEmpty)
+            {
+                return 0;
+            }
+            var toWrite = sequence;
+            int written = 0;
+            do
+            {
+                var len = Math.Min(toWrite.Length, _maxLiteralLength);
+                written += WriteLiteralCommand(toWrite.Slice(0, len));
+                toWrite = toWrite.Slice(len);
+            } while (!toWrite.IsEmpty);
+            return written;
+        }
+
+        private int WriteLiteralCommand(ReadOnlySequence<byte> literal)
+        {
+            Debug.Assert(!literal.IsEmpty);
+            Debug.Assert(literal.Length <= _maxLiteralLength);
+            int written = _writer.Write(new LiteralCommand((ulong)literal.Length));
+            foreach (var readMemory in literal)
+            {
+                var readSpan = readMemory.Span;
+                while (!readSpan.IsEmpty)
+                {
+                    var writeSpan = _writer.GetSpan();
+                    var len = Math.Min(readSpan.Length, writeSpan.Length);
+                    readSpan.Slice(0, len).CopyTo(writeSpan);
+                    _writer.Advance(len);
+                    written += len;
+                    readSpan = readSpan.Slice(len);
+                }
+            }
+            return written;
         }
     }
 }

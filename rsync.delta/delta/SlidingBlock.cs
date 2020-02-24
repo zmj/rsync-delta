@@ -17,7 +17,7 @@ namespace Rsync.Delta.Delta
         {
             _isFinalBlock = isFinalBlock;
             _start = new Position(sequence, sequencePosition: 0);
-            long endStart = sequence.Length < blockLength ? sequence.Length : blockLength;
+            var endStart = Math.Min(sequence.Length, blockLength);
             _end = new Position(sequence.Slice(endStart), endStart);
         }
 
