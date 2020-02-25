@@ -237,7 +237,7 @@ namespace Rsync.Delta
             await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
             var (options, signatures) = await readTask.ConfigureAwait(false);
             using var matcher = new Delta.BlockMatcher(options, signatures, _memoryPool);
-            var writer = new Delta.DeltaWriter2(matcher, newFile.reader, delta.writer);
+            var writer = new Delta.DeltaWriter(matcher, newFile.reader, delta.writer);
             await Task.WhenAll(
                 newFile.task,
                 delta.task,

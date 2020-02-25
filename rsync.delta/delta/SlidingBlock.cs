@@ -21,6 +21,7 @@ namespace Rsync.Delta.Delta
             bool isFinalBlock,
             IRollingHashAlgorithm rollingHash)
         {
+            Debug.Assert(blockLength > 0);
             _rollingHash = rollingHash;
             _blockLength = blockLength;
             _isFinalBlock = isFinalBlock;
@@ -66,18 +67,75 @@ namespace Rsync.Delta.Delta
         {
             Debug.Assert(_state == State.Uninitialized);
             _rollingHash.Reset();
-            length = _blockLength; // need to handle final block
-            for (int i=0; i < length; i++)
+            if (_isFinalBlock)
             {
-                if (_end.TryAdvance(out length, out _, out byte added))
+                return TryInitializeFinalBlock(out start, out length, out rollingHash);
+            }
+
+            rollingHash = default;
+            for (int i = 0; i < _blockLength; i++)
+            {
+                if (_end.TryAdvance(out _, out _, out byte added))
                 {
                     rollingHash = _rollingHash.RotateIn(added);
                 }
                 else
                 {
-
+                    _state = State.Done;
+                    start = default;
+                    length = default;
+                    rollingHash = default;
+                    return false;
                 }
             }
+            bool ok = _start.TryAdvance(out _, out _, out _);
+            Debug.Assert(ok);
+
+            _state = State.AdvancingStartAndEnd;
+            start = 0;
+            length = _blockLength;
+            return true;
+        }
+
+        private bool TryInitializeFinalBlock(
+            out long start,
+            out long length,
+            out int rollingHash)
+        {
+            Debug.Assert(_state == State.Uninitialized);
+            Debug.Assert(_isFinalBlock);
+            if (_end.TryAdvance(out _, out _, out byte added))
+            {
+                rollingHash = _rollingHash.RotateIn(added);
+            }
+            else
+            {
+                _state = State.Done;
+                start = default;
+                length = default;
+                rollingHash = default;
+                return false;
+            }
+            bool ok = _start.TryAdvance(out _, out _, out _);
+            Debug.Assert(ok);
+
+            start = 0;
+            for (int i = 1; i < _blockLength; i++)
+            {
+                if (_end.TryAdvance(out _, out _, out added))
+                {
+                    rollingHash = _rollingHash.RotateIn(added);
+                }
+                else
+                {
+                    _state = State.AdvancingStart;
+                    length = i;
+                    return true;
+                }
+            }
+            _state = State.AdvancingStartAndEnd;
+            length = _blockLength;
+            return true;
         }
 
         private bool TryAdvanceStartAndEnd(
@@ -114,7 +172,8 @@ namespace Rsync.Delta.Delta
             Debug.Assert(_isFinalBlock);
             if (_start.TryAdvance(out start, out byte removed, out _))
             {
-                _end.TryAdvance(out var end, out _, out _);
+                bool ok = _end.TryAdvance(out var end, out _, out _);
+                Debug.Assert(!ok);
                 length = end - start;
                 rollingHash = _rollingHash.RotateOut(removed);
                 return true;

@@ -85,7 +85,7 @@ namespace Rsync.Delta.Delta
             long consumed = 0;
             int written = 0;
             while (_matcher.TryMatchBlock(
-                    sequence.Slice(pendingLiteral),
+                    sequence.Slice(pendingLiteral + consumed),
                     isFinalBlock,
                     out long matchStart,
                     out LongRange match))
@@ -93,7 +93,9 @@ namespace Rsync.Delta.Delta
                 var literalLength = pendingLiteral + matchStart;
                 if (literalLength > 0)
                 {
-                    var literal = sequence.Slice(0, literalLength);
+                    written += WriteCopyCommand(pendingCopy);
+                    pendingCopy = default;
+                    var literal = sequence.Slice(consumed, literalLength);
                     written += WriteLiteral(literal);
                     pendingLiteral = 0;
                 }
