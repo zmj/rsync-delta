@@ -57,7 +57,9 @@ namespace Rsync.Delta.Delta
             {
                 var readResult = await _reader.ReadAsync(ct).ConfigureAwait(false);
                 if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
-                {                    
+                {
+                    Debug.Assert(pendingLiteral == 0);
+                    Debug.Assert(pendingCopy.Length == 0);
                     _writer.Write(new EndCommand());
                     return;
                 }
@@ -117,6 +119,7 @@ namespace Rsync.Delta.Delta
             if (isFinalBlock)
             {
                 written += WriteCopyCommand(pendingCopy);
+                pendingCopy = default;
                 written += WriteLiteral(remainder);
                 consumed += remainder.Length;
             }
