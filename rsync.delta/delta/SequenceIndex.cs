@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Diagnostics;
 
 namespace Rsync.Delta.Delta
 {
@@ -21,29 +22,42 @@ namespace Rsync.Delta.Delta
         }
 
         public bool TryAdvance(
-            out long sequencePosition,
+            out long position,
             out byte previous,
             out byte current)
         {
-            // put fast path first
-            while (_spanPos == _span.Length)
+            if (_spanPos < _span.Length)
             {
-                _seqPos += _spanPos;
+                position = _seqPos + _spanPos;
+                previous = _current;
+                current = _current = _span[_spanPos];
+                _spanPos++;
+                return true;
+            }
+            return TryAdvanceSpan(out position, out previous, out current);
+        }
+
+        private bool TryAdvanceSpan(
+            out long position,
+            out byte previous,
+            out byte current)
+        {
+            Debug.Assert(_spanPos == _span.Length);
+            do
+            {
+                _seqPos += _span.Length;
+                _span = ReadOnlySpan<byte>.Empty;
+                _spanPos = 0;
                 if (!_enumerator.MoveNext())
                 {
-                    sequencePosition = _seqPos;
+                    position = _seqPos;
                     previous = default;
                     current = default;
                     return false;
                 }
                 _span = _enumerator.Current.Span;
-                _spanPos = 0;
-            }
-            sequencePosition = _seqPos + _spanPos;
-            previous = _current;
-            current = _current = _span[_spanPos];
-            _spanPos++;
-            return true;
+            } while (_span.IsEmpty);
+            return TryAdvance(out position, out previous, out current);
         }
     }
 }
