@@ -79,27 +79,31 @@ namespace Rsync.Delta.Delta
         }
 
         private int WriteCommands(
-            in ReadOnlySequence<byte> sequence,
+            in ReadOnlySequence<byte> buffered,
             bool isFinalBlock,
             ref long pendingLiteral,
             ref LongRange pendingCopy)
         {
-            long consumed = 0;
+            var bufferedLiteral = buffered.Slice(0, pendingLiteral);
+            var toMatch = buffered.Slice(pendingLiteral);
             int written = 0;
             while (_matcher.TryMatchBlock(
-                    sequence.Slice(pendingLiteral + consumed),
-                    isFinalBlock,
-                    out long matchStart,
-                    out LongRange match))
+                    toMatch, isFinalBlock,
+                    out var matchStart, out var match))
             {
-                var literalLength = pendingLiteral + matchStart;
-                if (literalLength > 0)
+                var literal = toMatch.Slice(0, matchStart);
+                if (!bufferedLiteral.IsEmpty)
+                {
+                    var len = bufferedLiteral.Length + matchStart;
+                    literal = buffered.Slice(0, len);
+                    bufferedLiteral = ReadOnlySequence<byte>.Empty;
+                }
+
+                if (!literal.IsEmpty)
                 {
                     written += WriteCopyCommand(pendingCopy);
                     pendingCopy = default;
-                    var literal = sequence.Slice(consumed, literalLength);
                     written += WriteLiteral(literal);
-                    pendingLiteral = 0;
                 }
 
                 if (pendingCopy.TryAppend(match, out var appended))
@@ -112,26 +116,33 @@ namespace Rsync.Delta.Delta
                     pendingCopy = match;
                 }
 
-                consumed += literalLength + match.Length;
+                toMatch = toMatch.Slice(matchStart + match.Length);
             }
 
-            var remainder = sequence.Slice(consumed);
+            var remainder = toMatch;
+            if (!bufferedLiteral.IsEmpty)
+            {
+                var len = bufferedLiteral.Length + remainder.Length;
+                remainder = buffered.Slice(0, len);
+                bufferedLiteral = ReadOnlySequence<byte>.Empty;
+            }
+
             if (isFinalBlock)
             {
                 written += WriteCopyCommand(pendingCopy);
                 pendingCopy = default;
                 written += WriteLiteral(remainder);
-                consumed += remainder.Length;
+                remainder = buffered.Slice(remainder.End);
             }
             else if (remainder.Length > _maxLiteralLength)
             {
                 throw new NotImplementedException();
             }
 
-            pendingLiteral = sequence.Length - consumed;
+            pendingLiteral = remainder.Length;
             _reader.AdvanceTo(
-                consumed: sequence.GetPosition(consumed),
-                examined: sequence.End);
+                consumed: remainder.Start,
+                examined: buffered.End);
             return written;
         }
 
