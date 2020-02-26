@@ -144,9 +144,10 @@ namespace Rsync.Delta.Delta
             out int rollingHash)
         {
             Debug.Assert(_state == State.AdvancingStartAndEnd);
-            if (_end.TryAdvance(out _, out _, out byte added) &&
+            if (_end.TryAdvance(out var end, out _, out byte added) &&
                 _start.TryAdvance(out start, out byte removed, out _))
             {
+                Debug.Assert(end - start + 1 == _blockLength);
                 length = _blockLength;
                 rollingHash = _rollingHash.Rotate(removed, added);
                 return true;

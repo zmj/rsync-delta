@@ -16,14 +16,18 @@ namespace Rsync.Delta.Delta
         private readonly BlockMatcher _matcher;
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
+        private readonly int _blockLength;
+
         private const int _flushThreshhold = 1 << 12;
         private const int _maxLiteralLength = 1 << 15;
 
         public DeltaWriter(
+            SignatureOptions options,
             BlockMatcher matcher,
             PipeReader reader,
             PipeWriter writer)
         {
+            _blockLength = options.BlockLength;
             _matcher = matcher;
             _reader = reader;
             _writer = writer;
@@ -139,7 +143,7 @@ namespace Rsync.Delta.Delta
                 throw new NotImplementedException();
             }
 
-            pendingLiteral = remainder.Length;
+            pendingLiteral = Math.Max(remainder.Length - _blockLength + 1, 0);
             _reader.AdvanceTo(
                 consumed: remainder.Start,
                 examined: buffered.End);
