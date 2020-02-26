@@ -59,7 +59,7 @@ namespace Rsync.Delta.Delta
                 if (readResult.IsCompleted && readResult.Buffer.IsEmpty)
                 {
                     Debug.Assert(pendingLiteral == 0);
-                    Debug.Assert(pendingCopy.Length == 0);
+                    WriteCopyCommand(pendingCopy);
                     _writer.Write(new EndCommand());
                     return;
                 }

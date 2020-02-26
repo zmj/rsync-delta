@@ -12,7 +12,8 @@ namespace Rsync.Delta.Delta
         private readonly int _blockLength;
         private readonly IRollingHashAlgorithm _rollingHash;
         private readonly IStrongHashAlgorithm _strongHash;
-        private readonly IMemoryOwner<byte> _strongHashBuffer;
+        private readonly IMemoryOwner<byte> _strongHashOwner;
+        private readonly Memory<byte> _strongHashMemory;
 
         private ReadOnlySequence<byte> _sequence;
         private bool _recalculateStrongHash;
@@ -22,11 +23,12 @@ namespace Rsync.Delta.Delta
             Dictionary<BlockSignature, ulong> signatures,
             MemoryPool<byte> memoryPool)
         {
+            _blocks = signatures;
             _blockLength = options.BlockLength;
             _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
             _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
-            _strongHashBuffer = memoryPool.Rent(options.StrongHashLength);
-            _blocks = signatures;
+            _strongHashOwner = memoryPool.Rent(options.StrongHashLength);
+            _strongHashMemory = _strongHashOwner.Memory.Slice(0, options.StrongHashLength);            
         }
 
         public bool TryMatchBlock(
@@ -55,75 +57,19 @@ namespace Rsync.Delta.Delta
 
         public ReadOnlyMemory<byte> GetStrongHash(long start, long length)
         {
-            var strongHash = _strongHashBuffer.Memory;
             if (_recalculateStrongHash)
             {
                 _strongHash.Hash(
                     _sequence.Slice(start, length),
-                    strongHash.Span);
+                    _strongHashMemory.Span);
                 _recalculateStrongHash = false;
             }
-            return strongHash;
+            return _strongHashMemory;
         }
-
-        /*public LongRange? MatchBlock(in BufferedBlock block)
-        {
-            BufferedBlock = block;
-            var sig = new BlockSignature(this);
-            return _blocks.TryGetValue(sig, out ulong start) ?
-                new LongRange(start, (ulong)block.CurrentBlock.Length) :
-                (LongRange?)null;
-        }
-
-        public int RollingHash => _rollingHash.Value;
-
-        public ReadOnlyMemory<byte> StrongHash
-        {
-            get
-            {
-                if (_recalculateStrongHash)
-                {
-                    _strongHash.Hash(
-                        _block.CurrentBlock,
-                        _strongHashBuffer.Memory.Span);
-                    _recalculateStrongHash = false;
-                }
-                return _strongHashBuffer.Memory;
-            }
-        }
-
-        private BufferedBlock BufferedBlock
-        {
-            get => _block;
-            set
-            {
-                _block = value;
-                UpdateRollingHash();
-                _recalculateStrongHash = true;
-            }
-        }
-
-        private void UpdateRollingHash()
-        {
-            if (_block.PendingLiteral.IsEmpty)
-            {
-                _rollingHash.Initialize(_block.CurrentBlock);
-            }
-            else if (_block.CurrentBlock.Length == Options.BlockLength)
-            {
-                _rollingHash.Rotate(
-                    remove: _block.PendingLiteral.LastByte(),
-                    add: _block.CurrentBlock.LastByte());
-            }
-            else
-            {
-                _rollingHash.RotateOut(_block.PendingLiteral.LastByte());
-            }
-        }*/
 
         public void Dispose()
         {
-            _strongHashBuffer.Dispose();
+            _strongHashOwner.Dispose();
             _strongHash.Dispose();
         }
     }
