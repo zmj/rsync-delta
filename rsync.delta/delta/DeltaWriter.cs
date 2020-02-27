@@ -136,14 +136,21 @@ namespace Rsync.Delta.Delta
                 written += WriteCopyCommand(pendingCopy);
                 pendingCopy = default;
                 written += WriteLiteral(remainder);
-                remainder = buffered.Slice(remainder.End);
+                remainder = remainder.Slice(remainder.End);
             }
-            else if (remainder.Length > _maxLiteralLength)
+            
+            var incompleteBlock = Math.Min(_blockLength - 1, remainder.Length);
+            pendingLiteral = remainder.Length - incompleteBlock;
+            if (pendingLiteral >= _maxLiteralLength)
             {
-                throw new NotImplementedException();
+                written += WriteCopyCommand(pendingCopy);
+                pendingCopy = default;
+                var len = pendingLiteral;
+                len -= pendingLiteral = pendingLiteral % _maxLiteralLength;
+                written += WriteLiteral(remainder.Slice(0, len));
+                remainder = remainder.Slice(len);
             }
 
-            pendingLiteral = Math.Max(remainder.Length - _blockLength + 1, 0);
             _reader.AdvanceTo(
                 consumed: remainder.Start,
                 examined: buffered.End);
@@ -176,7 +183,7 @@ namespace Rsync.Delta.Delta
             return written;
         }
 
-        private int WriteLiteralCommand(ReadOnlySequence<byte> literal)
+        private int WriteLiteralCommand(in ReadOnlySequence<byte> literal)
         {
             Debug.Assert(!literal.IsEmpty);
             Debug.Assert(literal.Length <= _maxLiteralLength);
