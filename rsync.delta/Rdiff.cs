@@ -234,21 +234,10 @@ namespace Rsync.Delta
         {
             var reader = new Delta.SignatureReader(signature.reader, _memoryPool);
             var readTask = reader.Read(ct).AsTask();
-            try
-            {
-                await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
-            }
-            catch
-            {
-                if (readTask.IsCompleted &&
-                    !(readTask.IsFaulted || readTask.IsCanceled))
-                {
-                    readTask.Result.Dispose();
-                }
-                throw;
-            }
-            using var matcher = await readTask.ConfigureAwait(false);
-            var writer = new Delta.DeltaWriter(matcher, newFile.reader, delta.writer);
+            await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
+            var (options, signatures) = await readTask.ConfigureAwait(false);
+            using var matcher = new Delta.BlockMatcher(options, signatures, _memoryPool);
+            var writer = new Delta.DeltaWriter(options, matcher, newFile.reader, delta.writer);
             await Task.WhenAll(
                 newFile.task,
                 delta.task,

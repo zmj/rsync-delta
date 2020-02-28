@@ -4,16 +4,45 @@ namespace Rsync.Delta.Models
 {
     internal readonly struct LongRange : IEquatable<LongRange>
     {
-        public readonly ulong Start;
-        public readonly ulong Length;
+        public readonly long Start;
+        public readonly long Length;
 
-        public LongRange(ulong start, ulong length)
+        public LongRange(long start, long length)
         {
+            if (start < 0) 
+            {
+                throw new ArgumentOutOfRangeException(nameof(start));
+            }
+            if (length < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
             Start = start;
             Length = length;
         }
 
-        public override string ToString() => $"[{Start},{checked(Start + Length)})";
+        public bool TryAppend(LongRange other, out LongRange appended)
+        {
+            if (Length == 0)
+            {
+                appended = other;
+                return true;
+            }
+            checked
+            {
+                if (Start + Length == other.Start)
+                {
+                    appended = new LongRange(
+                        start: Start,
+                        length: Length + other.Length);
+                    return true;
+                }
+            }
+            appended = default;
+            return false;
+        }
+
+        public override string ToString() => $"[{Start},{Start + Length})";
 
         public bool Equals(LongRange other) =>
             Start == other.Start &&

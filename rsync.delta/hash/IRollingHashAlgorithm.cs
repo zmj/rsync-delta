@@ -6,7 +6,9 @@ namespace Rsync.Delta.Hash
     {
         int Value { get; }
         void Initialize(in ReadOnlySequence<byte> sequence);
-        void Rotate(byte remove, byte add);
-        void RotateOut(byte remove);
+        void Reset();
+        int RotateIn(byte add);
+        int Rotate(byte remove, byte add);
+        int RotateOut(byte remove);
     }
 }

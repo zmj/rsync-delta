@@ -28,18 +28,16 @@ namespace Rsync.Delta.Patch
         public async ValueTask<FlushResult> WriteCopy(LongRange range, CancellationToken ct)
         {
             SeekTo(range.Start);
-            long count = checked((long)range.Length);
-            return await _writer.CopyFrom(_stream, count, ct).ConfigureAwait(false);
+            return await _writer.CopyFrom(_stream, range.Length, ct).ConfigureAwait(false);
         }
 
-        private void SeekTo(ulong position)
+        private void SeekTo(long position)
         {
-            ulong currentPosition = checked((ulong)_stream.Position);
-            if (currentPosition == position)
+            if (_stream.Position == position)
             {
                 return;
             }
-            long offset = (long)(position - currentPosition);
+            var offset = position - _stream.Position;
             _stream.Seek(offset, SeekOrigin.Current);
         }
     }

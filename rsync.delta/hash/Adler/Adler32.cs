@@ -14,33 +14,34 @@ namespace Rsync.Delta.Hash.Adler
         private ushort _b;
         private uint _count;
 
-        public Adler32() => Init();
-
-        private void Init()
+        public void Reset()
         {
             _a = 0;
             _b = 0;
             _count = 0;
         }
 
-        public void Rotate(byte remove, byte add)
+        public int Rotate(byte remove, byte add)
         {
             _a += (ushort)(add - remove);
             _b += (ushort)(_a - _count * (remove + _magic));
+            return Value;
         }
 
-        private void RotateIn(byte add)
+        public int RotateIn(byte add)
         {
             _a += (ushort)(add + _magic);
             _b += _a;
             _count++;
+            return Value;
         }
 
-        public void RotateOut(byte remove)
+        public int RotateOut(byte remove)
         {
             _a -= (ushort)(remove + _magic);
             _b -= (ushort)(_count * (remove + _magic));
             _count--;
+            return Value;
         }
 
         private void RotateIn(ReadOnlySpan<byte> buffer)
@@ -53,7 +54,7 @@ namespace Rsync.Delta.Hash.Adler
 
         public void Initialize(in ReadOnlySequence<byte> sequence)
         {
-            Init();
+            Reset();
             if (sequence.IsSingleSegment)
             {
                 RotateIn(sequence.FirstSpan());

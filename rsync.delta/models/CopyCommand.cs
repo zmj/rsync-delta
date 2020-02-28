@@ -11,12 +11,14 @@ namespace Rsync.Delta.Models
         private readonly CommandArg _start;
         private readonly CommandArg _length;
 
-        public LongRange Range => new LongRange(_start.Value, _length.Value);
+        public LongRange Range => new LongRange(
+            (long)_start.Value, 
+            (long)_length.Value);
 
         public CopyCommand(LongRange range)
         {
-            _start = new CommandArg(range.Start);
-            _length = new CommandArg(range.Length);
+            _start = new CommandArg((ulong)range.Start);
+            _length = new CommandArg((ulong)range.Length);
         }
 
         private CopyCommand(CommandArg startArg, CommandArg lengthArg)
