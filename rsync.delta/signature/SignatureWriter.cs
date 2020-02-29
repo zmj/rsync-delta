@@ -84,16 +84,14 @@ namespace Rsync.Delta.Signature
         private BlockSignature ComputeSignature(in ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
-            _rollingHash.Initialize(block);
+            var rollingHash = _rollingHash.RotateIn(block);
 
             var strongHash = _strongHashBuffer.Memory
                 .Slice(0, _options.StrongHashLength)
                 .Span;
             _strongHash.Hash(block, strongHash);
 
-            return new BlockSignature(
-                _rollingHash.Value,
-                strongHash);
+            return new BlockSignature(rollingHash, strongHash);
         }
     }
 }
