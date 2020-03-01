@@ -258,16 +258,37 @@ namespace Rsync.Delta
             CancellationToken ct)
         {
             var reader = new Delta.SignatureReader(signature.reader, _memoryPool);
-            var readTask = reader.Read(ct).AsTask();
-            await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
-            var (options, signatures) = await readTask.ConfigureAwait(false);
-            using var matcher = new Delta.BlockMatcher(options, signatures, _memoryPool);
-            var writer = new Delta.DeltaWriter(options, matcher, newFile.reader, delta.writer);
-            await Task.WhenAll(
-                newFile.task,
-                delta.task,
-                writer.Write(ct).AsTask())
-                .ConfigureAwait(false);
+            var options = await reader.ReadHeader(ct).ConfigureAwait(false);
+            await ((options.RollingHash, options.StrongHash) switch
+            {
+                (RollingHashAlgorithm.RabinKarp, StrongHashAlgorithm.Blake2b) =>
+                    DeltaAsync(new RabinKarp(), new Blake2b(_memoryPool)),
+                (RollingHashAlgorithm.Adler, StrongHashAlgorithm.Blake2b) =>
+                    DeltaAsync(new Adler32(), new Blake2b(_memoryPool)),
+                (_, StrongHashAlgorithm.Md4) => throw new NotImplementedException(),
+                _ => throw new ArgumentException($"unknown hash algorithm: {options.RollingHash} {options.StrongHash}")
+            }).ConfigureAwait(false);
+
+            async Task DeltaAsync
+                <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                    (TRollingHashAlgorithm rollingHashAlgorithm,
+                    TStrongHashAlgorithm strongHashAlgorithm)
+                where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+                where TStrongHashAlgorithm : IStrongHashAlgorithm
+            {
+                var readTask = reader.ReadSignatures
+                    <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                    (options, ct).AsTask();
+                await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
+                var signatures = await readTask.ConfigureAwait(false);
+                using var matcher = new Delta.BlockMatcher(options, signatures, _memoryPool);
+                var writer = new Delta.DeltaWriter(options, matcher, newFile.reader, delta.writer);
+                await Task.WhenAll(
+                    newFile.task,
+                    delta.task,
+                    writer.Write(ct).AsTask())
+                    .ConfigureAwait(false);
+            }
         }
 
         public Task Patch(
