@@ -7,66 +7,66 @@ namespace Rsync.Delta.UnitTests
     public class DeltaTests
     {
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Hellooo_Default(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Hellooo_Default, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Hellooo_BlockLength_1(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Hellooo_BlockLength_1, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Hellooo_BlockLength_2(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Hellooo_BlockLength_2, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Hellooo_StrongHashLength_16(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Hellooo_StrongHashLength_16, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Hello_BlockLength_2(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Hello_BlockLength_2, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Ohello_BlockLength_2(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Ohello_BlockLength_2, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Ohhello_BlockLength_2(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Ohhello_BlockLength_2, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_Hello_Heollo_BlockLength_2(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Delta(TestCase.Hello_Heollo_BlockLength_2, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Delta_LoremIpsum(
             RollingHashAlgorithm rollingHash,
-            StrongHashAlgorithm strongHash) => 
+            StrongHashAlgorithm strongHash) =>
             Delta(TestCase.LoremIpsum, rollingHash, strongHash);
 
         private async Task Delta(

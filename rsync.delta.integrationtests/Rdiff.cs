@@ -18,9 +18,9 @@ namespace Rsync.Delta.IntegrationTests
             cmd.ArgumentList.Add("--force");
             cmd.ArgumentList.Add("signature");
 
-            cmd.ArgumentList.Add("-R"); 
+            cmd.ArgumentList.Add("-R");
             cmd.ArgumentList.Add(options.RollingHash switch
-            { 
+            {
                 RollingHashAlgorithm.RabinKarp => "rabinkarp",
                 RollingHashAlgorithm.Adler => "rollsum",
                 _ => throw new NotImplementedException(options.RollingHash.ToString())

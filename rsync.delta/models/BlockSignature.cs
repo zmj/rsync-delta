@@ -2,13 +2,17 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
+using Rsync.Delta.Hash;
 
 namespace Rsync.Delta.Models
 {
-    internal readonly struct BlockSignature :
-        IEquatable<BlockSignature>,
-        IWritable<SignatureOptions>,
-        IReadable<BlockSignature, SignatureOptions>
+    internal readonly struct BlockSignature
+        <TRollingHashAlgorithm, TStrongHashAlgorithm> :
+            IEquatable<BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>>,
+            IWritable<SignatureOptions>,
+            IReadable<BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>, SignatureOptions>
+        where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+        where TStrongHashAlgorithm : IStrongHashAlgorithm
     {
         private readonly int _rollingHash;
 
@@ -17,7 +21,7 @@ namespace Rsync.Delta.Models
         private readonly long _eagerStrongHash2;
         private readonly long _eagerStrongHash3;
 
-        private readonly Delta.BlockMatcher? _blockMatcher;
+        private readonly Delta.BlockMatcher<TRollingHashAlgorithm, TStrongHashAlgorithm>? _blockMatcher;
         private readonly long _blockStart;
         private readonly long _blockLength;
 
@@ -38,7 +42,7 @@ namespace Rsync.Delta.Models
 
         public BlockSignature(
             int rollingHash,
-            Delta.BlockMatcher blockMatcher,
+            Delta.BlockMatcher<TRollingHashAlgorithm, TStrongHashAlgorithm> blockMatcher,
             long blockStart,
             long blockLength)
         {
@@ -113,7 +117,7 @@ namespace Rsync.Delta.Models
         public OperationStatus ReadFrom(
             ReadOnlySpan<byte> span,
             SignatureOptions options,
-            out BlockSignature sig)
+            out BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> sig)
         {
             if (span.Length < Size(options))
             {
@@ -122,11 +126,12 @@ namespace Rsync.Delta.Models
             }
             var rollingHash = BinaryPrimitives.ReadInt32BigEndian(span);
             var strongHash = span.Slice(4, options.StrongHashLength);
-            sig = new BlockSignature(rollingHash, strongHash);
+            sig = new BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>
+                (rollingHash, strongHash);
             return OperationStatus.Done;
         }
 
-        public bool Equals(BlockSignature other)
+        public bool Equals(BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> other)
         {
             Debug.Assert(_blockMatcher == null || other._blockMatcher == null);
             if (_rollingHash != other._rollingHash)
@@ -149,8 +154,8 @@ namespace Rsync.Delta.Models
         }
 
         private static bool StrongHashEquals(
-            in BlockSignature eager,
-            in BlockSignature lazy)
+            in BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> eager,
+            in BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> lazy)
         {
             var lazyStrongHash = lazy._blockMatcher!
                 .GetStrongHash(lazy._blockStart, lazy._blockLength)
@@ -166,7 +171,8 @@ namespace Rsync.Delta.Models
         }
 
         public override bool Equals(object? other) =>
-            other is BlockSignature sig ? Equals(sig) : false;
+            other is BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> sig
+                ? Equals(sig) : false;
 
         public override int GetHashCode() => _rollingHash;
     }

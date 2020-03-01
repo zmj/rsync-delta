@@ -10,13 +10,16 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Signature
 {
-    internal readonly struct SignatureWriter : IDisposable
+    internal readonly struct SignatureWriter
+        <TRollingHashAlgorithm, TStrongHashAlgorithm> : IDisposable
+        where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+        where TStrongHashAlgorithm : IStrongHashAlgorithm
     {
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly SignatureOptions _options;
-        private readonly IRollingHashAlgorithm _rollingHash;
-        private readonly IStrongHashAlgorithm _strongHash;
+        private readonly TRollingHashAlgorithm _rollingHashAlgorithm;
+        private readonly TStrongHashAlgorithm _strongHashAlgorithm;
         private readonly IMemoryOwner<byte> _strongHashBuffer;
         private const uint _flushThreshhold = 1 << 12;
 
@@ -24,21 +27,22 @@ namespace Rsync.Delta.Signature
             PipeReader reader,
             PipeWriter writer,
             SignatureOptions options,
+            TRollingHashAlgorithm rollingHashAlgorithm,
+            TStrongHashAlgorithm strongHashAlgorithm,
             MemoryPool<byte> memoryPool)
         {
             _reader = reader;
             _writer = writer;
             _options = options;
-
-            _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
-            _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
+            _rollingHashAlgorithm = rollingHashAlgorithm;
+            _strongHashAlgorithm = strongHashAlgorithm;
             _strongHashBuffer = memoryPool.Rent(_options.StrongHashLength);
         }
 
         public void Dispose()
         {
             _strongHashBuffer.Dispose();
-            _strongHash.Dispose();
+            _strongHashAlgorithm.Dispose();
         }
 
         public async ValueTask Write(CancellationToken ct)
@@ -81,19 +85,21 @@ namespace Rsync.Delta.Signature
             }
         }
 
-        private BlockSignature ComputeSignature(in ReadOnlySequence<byte> block)
+        private BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> ComputeSignature
+            (in ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
-            _rollingHash.Initialize(block);
+
+            var rollingHashAlgorithm = _rollingHashAlgorithm;
+            var rollingHash = rollingHashAlgorithm.RotateIn(block);
 
             var strongHash = _strongHashBuffer.Memory
                 .Slice(0, _options.StrongHashLength)
                 .Span;
-            _strongHash.Hash(block, strongHash);
+            _strongHashAlgorithm.Hash(block, strongHash);
 
-            return new BlockSignature(
-                _rollingHash.Value,
-                strongHash);
+            return new BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>
+                (rollingHash, strongHash);
         }
     }
 }

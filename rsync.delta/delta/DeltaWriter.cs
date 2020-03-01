@@ -1,19 +1,21 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Delta
 {
     internal readonly struct DeltaWriter
+        <TRollingHashAlgorithm, TStrongHashAlgorithm>
+        where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+        where TStrongHashAlgorithm : IStrongHashAlgorithm
     {
-        private readonly BlockMatcher _matcher;
+        private readonly BlockMatcher<TRollingHashAlgorithm, TStrongHashAlgorithm> _matcher;
         private readonly PipeReader _reader;
         private readonly PipeWriter _writer;
         private readonly int _blockLength;
@@ -23,7 +25,7 @@ namespace Rsync.Delta.Delta
 
         public DeltaWriter(
             SignatureOptions options,
-            BlockMatcher matcher,
+            BlockMatcher<TRollingHashAlgorithm, TStrongHashAlgorithm> matcher,
             PipeReader reader,
             PipeWriter writer)
         {
@@ -138,7 +140,7 @@ namespace Rsync.Delta.Delta
                 written += WriteLiteral(remainder);
                 remainder = remainder.Slice(remainder.End);
             }
-            
+
             var incompleteBlock = Math.Min(_blockLength - 1, remainder.Length);
             pendingLiteral = remainder.Length - incompleteBlock;
             if (pendingLiteral >= _maxLiteralLength)

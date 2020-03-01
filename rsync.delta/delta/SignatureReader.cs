@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 using Rsync.Delta.Pipes;
 
@@ -20,14 +20,13 @@ namespace Rsync.Delta.Delta
             _memoryPool = memoryPool;
         }
 
-        public async ValueTask<(SignatureOptions, Dictionary<BlockSignature, ulong>)> Read(CancellationToken ct)
+        public async ValueTask<SignatureOptions> ReadHeader(CancellationToken ct)
         {
             try
             {
-                var header = await ReadHeader(ct).ConfigureAwait(false);
-                var signatures = await ReadSignatures(header.Options, ct).ConfigureAwait(false);
-                _reader.Complete();
-                return (header.Options, signatures);
+                var header = await _reader.Read<SignatureHeader>(ct).ConfigureAwait(false) ??
+                    throw new FormatException($"expected {nameof(SignatureHeader)}; got EOF");
+                return header.Options;
             }
             catch (Exception ex)
             {
@@ -36,23 +35,44 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        private async ValueTask<SignatureHeader> ReadHeader(CancellationToken ct) =>
-            await _reader.Read<SignatureHeader>(ct).ConfigureAwait(false) ??
-            throw new FormatException($"expected {nameof(SignatureHeader)}; got EOF");
-
-        private async ValueTask<Dictionary<BlockSignature, ulong>> ReadSignatures(
-            SignatureOptions options,
-            CancellationToken ct)
+        public async ValueTask<SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>> ReadSignatures
+            <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                (SignatureOptions options,
+                CancellationToken ct)
+            where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+            where TStrongHashAlgorithm : IStrongHashAlgorithm
         {
-            var signatures = new Dictionary<BlockSignature, ulong>();
+            try
+            {
+                var signatures = new SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>();
+                await ReadSignatures(signatures, options, ct).ConfigureAwait(false);
+                _reader.Complete();
+                return signatures;
+            }
+            catch (Exception ex)
+            {
+                _reader.Complete(ex);
+                throw;
+            }
+        }
+
+        private async ValueTask ReadSignatures
+            <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                (SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm> signatures,
+                SignatureOptions options,
+                CancellationToken ct)
+            where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+            where TStrongHashAlgorithm : IStrongHashAlgorithm
+        {
             const int maxSignatures = 1 << 22;
             for (int i = 0; i < maxSignatures; i++)
             {
-                var sig = await _reader.Read<BlockSignature, SignatureOptions>(
-                    options, ct).ConfigureAwait(false);
+                var sig = await _reader.Read
+                    <BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>, SignatureOptions>
+                    (options, ct).ConfigureAwait(false);
                 if (!sig.HasValue)
                 {
-                    return signatures;
+                    return;
                 }
                 long start = options.BlockLength * i;
 #if !NETSTANDARD2_0
