@@ -4,6 +4,10 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
+using Rsync.Delta.Hash;
+using Rsync.Delta.Hash.Adler;
+using Rsync.Delta.Hash.Blake2b;
+using Rsync.Delta.Hash.RabinKarp;
 using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta
@@ -85,7 +89,7 @@ namespace Rsync.Delta
             SignatureOptions? options,
             CancellationToken ct)
         {
-            using var writer = new Signature.SignatureWriter(
+            using var writer = NewSignatureWriter(
                 oldFile.reader,
                 signature.writer,
                 options ?? SignatureOptions.Default,
@@ -95,6 +99,37 @@ namespace Rsync.Delta
                 signature.task,
                 writer.Write(ct).AsTask())
                 .ConfigureAwait(false);
+        }
+
+        private static Signature.ISignatureWriter NewSignatureWriter(
+            PipeReader reader,
+            PipeWriter writer,
+            SignatureOptions options,
+            MemoryPool<byte> memoryPool)
+        {
+            return (options.RollingHash, options.StrongHash) switch
+            {
+                (RollingHashAlgorithm.RabinKarp, StrongHashAlgorithm.Blake2b) =>
+                    New(new RabinKarp(), new Blake2b(memoryPool)),
+                (RollingHashAlgorithm.Adler, StrongHashAlgorithm.Blake2b) =>
+                    New(new Adler32(), new Blake2b(memoryPool)),
+                (_, StrongHashAlgorithm.Md4) => throw new NotImplementedException(),
+                _ => throw new ArgumentException($"unknown hash algorithm: {options.RollingHash} {options.StrongHash}")
+            };
+
+            Signature.ISignatureWriter New
+                <TRollingHashAlgorithm, TStrongHashAlgorithm>(
+                    TRollingHashAlgorithm rollingHashAlgorithm,
+                    TStrongHashAlgorithm strongHashAlgorithm)
+                where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+                where TStrongHashAlgorithm : IStrongHashAlgorithm =>
+                new Signature.SignatureWriter<TRollingHashAlgorithm, TStrongHashAlgorithm>(
+                    reader,
+                    writer,
+                    options,
+                    rollingHashAlgorithm,
+                    strongHashAlgorithm,
+                    memoryPool);
         }
 
         public Task Delta(
