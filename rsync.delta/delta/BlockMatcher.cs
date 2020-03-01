@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
 using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 
@@ -33,7 +32,7 @@ namespace Rsync.Delta.Delta
             _rollingHashAlgorithm = rollingHashAlgorithm;
             _strongHashAlgorithm = strongHashAlgorithm;
             _strongHashOwner = memoryPool.Rent(options.StrongHashLength);
-            _strongHashMemory = _strongHashOwner.Memory.Slice(0, options.StrongHashLength);            
+            _strongHashMemory = _strongHashOwner.Memory.Slice(0, options.StrongHashLength);
         }
 
         public bool TryMatchBlock(

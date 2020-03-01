@@ -1,7 +1,4 @@
-﻿using System;
-using System.Buffers;
-
-namespace Rsync.Delta.Hash
+﻿namespace Rsync.Delta.Hash
 {
     internal interface IRollingHashAlgorithm
     {

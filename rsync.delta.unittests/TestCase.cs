@@ -57,14 +57,14 @@ namespace Rsync.Delta.UnitTests
 
         public static IEnumerable<object[]> HashAlgorithms()
         {
-            yield return new object[] 
-            { 
-                RollingHashAlgorithm.Adler, 
+            yield return new object[]
+            {
+                RollingHashAlgorithm.Adler,
                 StrongHashAlgorithm.Blake2b,
             };
-            yield return new object[] 
+            yield return new object[]
             {
-                RollingHashAlgorithm.RabinKarp, 
+                RollingHashAlgorithm.RabinKarp,
                 StrongHashAlgorithm.Blake2b,
             };
             /*yield return new object[]

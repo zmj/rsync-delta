@@ -7,56 +7,56 @@ namespace Rsync.Delta.UnitTests
     public class SignatureTests
     {
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_Hello_Default(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Sig(TestCase.Hello_Hellooo_Default, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_Hello_BlockLength_1(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Sig(TestCase.Hello_Hellooo_BlockLength_1, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_Hello_BlockLength_2(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Sig(TestCase.Hello_Hellooo_BlockLength_2, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_Hello_StrongHashLength_15(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Sig(TestCase.Hello_Hellooo_StrongHashLength_15, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_Hello_StrongHashLength_16(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Sig(TestCase.Hello_Hellooo_StrongHashLength_16, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_Hello_StrongHashLength_17(
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash) =>
             Sig(TestCase.Hello_Hellooo_StrongHashLength_17, rollingHash, strongHash);
 
         [Theory]
-        [MemberData(nameof(TestCase.HashAlgorithms), MemberType=typeof(TestCase))]
+        [MemberData(nameof(TestCase.HashAlgorithms), MemberType = typeof(TestCase))]
         public Task Sig_LoremIpsum(
-            RollingHashAlgorithm rollingHash, 
-            StrongHashAlgorithm strongHash) => 
+            RollingHashAlgorithm rollingHash,
+            StrongHashAlgorithm strongHash) =>
             Sig(TestCase.LoremIpsum, rollingHash, strongHash);
 
         private async Task Sig(
-            TestCase tc, 
+            TestCase tc,
             RollingHashAlgorithm rollingHash,
             StrongHashAlgorithm strongHash)
         {

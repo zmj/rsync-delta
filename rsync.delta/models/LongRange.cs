@@ -9,7 +9,7 @@ namespace Rsync.Delta.Models
 
         public LongRange(long start, long length)
         {
-            if (start < 0) 
+            if (start < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(start));
             }

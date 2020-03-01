@@ -171,7 +171,7 @@ namespace Rsync.Delta.Models
         }
 
         public override bool Equals(object? other) =>
-            other is BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> sig 
+            other is BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> sig
                 ? Equals(sig) : false;
 
         public override int GetHashCode() => _rollingHash;

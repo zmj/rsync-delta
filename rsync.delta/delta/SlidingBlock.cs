@@ -1,5 +1,4 @@
-﻿using System;
-using System.Buffers;
+﻿using System.Buffers;
 using System.Diagnostics;
 using Rsync.Delta.Hash;
 
@@ -40,8 +39,8 @@ namespace Rsync.Delta.Delta
         }
 
         public bool TryAdvance(
-            out long start, 
-            out long length, 
+            out long start,
+            out long length,
             out int rollingHash)
         {
             switch (_state)
@@ -62,8 +61,8 @@ namespace Rsync.Delta.Delta
         }
 
         private bool TryInitialize(
-            out long start, 
-            out long length, 
+            out long start,
+            out long length,
             out int rollingHash)
         {
             Debug.Assert(_state == State.Uninitialized);
@@ -140,8 +139,8 @@ namespace Rsync.Delta.Delta
         }
 
         private bool TryAdvanceStartAndEnd(
-            out long start, 
-            out long length, 
+            out long start,
+            out long length,
             out int rollingHash)
         {
             Debug.Assert(_state == State.AdvancingStartAndEnd);
@@ -166,8 +165,8 @@ namespace Rsync.Delta.Delta
         }
 
         private bool TryAdvanceStart(
-            out long start, 
-            out long length, 
+            out long start,
+            out long length,
             out int rollingHash)
         {
             Debug.Assert(_state == State.AdvancingStart);

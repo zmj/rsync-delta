@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using Rsync.Delta.Hash;
 using Rsync.Delta.Models;
 
 namespace Rsync.Delta.Delta
 {
     internal sealed class SignatureCollection
-        <TRollingHashAlgorithm, TStrongHashAlgoritm> 
+        <TRollingHashAlgorithm, TStrongHashAlgoritm>
         : Dictionary<BlockSignature<TRollingHashAlgorithm, TStrongHashAlgoritm>, ulong>
         where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
         where TStrongHashAlgoritm : IStrongHashAlgorithm

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Buffers;
-using Rsync.Delta.Pipes;
-
-namespace Rsync.Delta.Hash.Adler
+﻿namespace Rsync.Delta.Hash.Adler
 {
     internal struct Adler32 : IRollingHashAlgorithm
     {

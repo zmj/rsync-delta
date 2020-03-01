@@ -1,10 +1,4 @@
-﻿using System;
-using System.Buffers;
-using System.Collections.Generic;
-using System.Text;
-using Rsync.Delta.Pipes;
-
-namespace Rsync.Delta.Hash.RabinKarp
+﻿namespace Rsync.Delta.Hash.RabinKarp
 {
     internal struct RabinKarp : IRollingHashAlgorithm
     {
@@ -23,7 +17,7 @@ namespace Rsync.Delta.Hash.RabinKarp
 
         public int Rotate(byte remove, byte add)
         {
-            return _value = 
+            return _value =
                 _value * _magic +
                 add -
                 _multiplier * (remove + _adjustment);

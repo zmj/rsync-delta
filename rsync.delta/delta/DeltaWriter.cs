@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Rsync.Delta.Hash;
@@ -142,7 +140,7 @@ namespace Rsync.Delta.Delta
                 written += WriteLiteral(remainder);
                 remainder = remainder.Slice(remainder.End);
             }
-            
+
             var incompleteBlock = Math.Min(_blockLength - 1, remainder.Length);
             pendingLiteral = remainder.Length - incompleteBlock;
             if (pendingLiteral >= _maxLiteralLength)

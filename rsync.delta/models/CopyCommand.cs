@@ -12,7 +12,7 @@ namespace Rsync.Delta.Models
         private readonly CommandArg _length;
 
         public LongRange Range => new LongRange(
-            (long)_start.Value, 
+            (long)_start.Value,
             (long)_length.Value);
 
         public CopyCommand(LongRange range)
