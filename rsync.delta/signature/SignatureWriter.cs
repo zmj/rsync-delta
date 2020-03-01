@@ -47,20 +47,11 @@ namespace Rsync.Delta.Signature
 
         public async ValueTask Write(CancellationToken ct)
         {
-            try
-            {
-                _writer.Write(new SignatureHeader(_options));
-                await WriteBlockSignatures(ct).ConfigureAwait(false);
-                await _writer.FlushAsync(ct).ConfigureAwait(false);
-                _reader.Complete();
-                _writer.Complete();
-            }
-            catch (Exception ex)
-            {
-                _reader.Complete(ex);
-                _writer.Complete(ex);
-                throw;
-            }
+            _writer.Write(new SignatureHeader(_options));
+            await WriteBlockSignatures(ct).ConfigureAwait(false);
+            await _writer.FlushAsync(ct).ConfigureAwait(false);
+            _reader.Complete();
+            _writer.Complete();
         }
 
         private async ValueTask WriteBlockSignatures(CancellationToken ct)

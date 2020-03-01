@@ -29,7 +29,7 @@ namespace Rsync.Delta.Benchmarks
             for (int i = 0; i < Length; i++) { _v2[i] = (byte)(_v1[i] + 1); }
 
             var sig = new MemoryStream();
-            await _rdiff.Signature(new MemoryStream(_v1), sig);
+            await _rdiff.SignatureAsync(new MemoryStream(_v1), sig);
             _signature = sig.ToArray();
         }
 
@@ -41,7 +41,7 @@ namespace Rsync.Delta.Benchmarks
 
         private async Task NoChange()
         {
-            await _rdiff.Delta(
+            await _rdiff.DeltaAsync(
                 new MemoryStream(_signature),
                 new MemoryStream(_v1),
                 new NullStream());
@@ -49,7 +49,7 @@ namespace Rsync.Delta.Benchmarks
 
         private async Task AllChange()
         {
-            await _rdiff.Delta(
+            await _rdiff.DeltaAsync(
                 new MemoryStream(_signature),
                 new MemoryStream(_v2),
                 new NullStream());

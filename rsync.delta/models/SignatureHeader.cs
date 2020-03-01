@@ -21,7 +21,7 @@ namespace Rsync.Delta.Models
         public void WriteTo(Span<byte> buffer)
         {
             Debug.Assert(buffer.Length >= _size);
-            int magic = _magicBase | (int)Options.RollingHash | (int)Options.StrongHash;
+            int magic = _magicBase | (int)Options.RollingHashAlgorithm | (int)Options.StrongHash;
             BinaryPrimitives.WriteInt32BigEndian(buffer, magic);
             BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(4), Options.BlockLength);
             BinaryPrimitives.WriteInt32BigEndian(buffer.Slice(8), Options.StrongHashLength);
@@ -45,8 +45,8 @@ namespace Rsync.Delta.Models
             header = new SignatureHeader(new SignatureOptions(
                 blockLength: BinaryPrimitives.ReadInt32BigEndian(span.Slice(4)),
                 strongHashLength: BinaryPrimitives.ReadInt32BigEndian(span.Slice(8)),
-                rollingHash: (RollingHashAlgorithm)(magic & 0xF0),
-                strongHash: (StrongHashAlgorithm)(magic & 0xF)));
+                rollingHashAlgorithm: (RollingHashAlgorithm)(magic & 0xF0),
+                strongHashAlgorithm: (StrongHashAlgorithm)(magic & 0xF)));
             return OperationStatus.Done;
         }
     }

@@ -43,21 +43,21 @@ namespace Rsync.Delta.UnitTests
             IRdiff rdiff = new Rdiff();
 
             var sig = new MemoryStream();
-            await rdiff.Signature(
+            await rdiff.SignatureAsync(
                 oldFile: new MemoryStream(version1),
                 signature: sig,
                 options);
             sig.Seek(offset: 0, SeekOrigin.Begin);
 
             var delta = new MemoryStream();
-            await rdiff.Delta(
+            await rdiff.DeltaAsync(
                 signature: sig,
                 newFile: new MemoryStream(version2),
                 delta: delta);
             delta.Seek(offset: 0, SeekOrigin.Begin);
 
             var v2 = new MemoryStream();
-            await rdiff.Patch(
+            await rdiff.PatchAsync(
                 oldFile: new MemoryStream(version1),
                 delta: delta,
                 newFile: v2);

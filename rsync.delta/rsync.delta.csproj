@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;netcoreapp3.0;netcoreapp3.1</TargetFrameworks>
     <PackageId>Rsync.Delta</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>zmj</Authors>
     <Description>A managed implementation of librsync's signature, delta, and patch operations. Details and examples: https://github.com/zmj/rsync-delta</Description>
     <PackageProjectUrl>https://github.com/zmj/rsync-delta</PackageProjectUrl>

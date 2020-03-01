@@ -7,4 +7,10 @@ namespace Rsync.Delta.Hash
     {
         void Hash(in ReadOnlySequence<byte> data, Span<byte> hash);
     }
+
+    internal interface IStrongHashAlgorithm<T> : IStrongHashAlgorithm
+        where T : struct, IStrongHashAlgorithm
+    {
+        T New(MemoryPool<byte> memoryPool);
+    }
 }

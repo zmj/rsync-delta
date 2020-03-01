@@ -31,7 +31,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v1 = files.Read(TestFile.v1))
             using (var sig = files.Write(TestFile.sig))
             {
-                await _rdiff.Signature(v1, sig, options);
+                await _rdiff.SignatureAsync(v1, sig, options);
             }
 
             timings.Add((TestFile.sig, timer.Elapsed));
@@ -59,7 +59,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v2 = files.Read(TestFile.v2))
             using (var delta = files.Write(TestFile.delta))
             {
-                await _rdiff.Delta(sig, v2, delta);
+                await _rdiff.DeltaAsync(sig, v2, delta);
             }
 
             timings.Add((TestFile.delta, timer.Elapsed));
@@ -75,7 +75,7 @@ namespace Rsync.Delta.IntegrationTests
             using (var v1 = files.Read(TestFile.v1))
             using (var patched = files.Write(TestFile.patched))
             {
-                await _rdiff.Patch(v1, delta, patched);
+                await _rdiff.PatchAsync(v1, delta, patched);
             }
 
             timings.Add((TestFile.patched, timer.Elapsed));
@@ -144,8 +144,8 @@ namespace Rsync.Delta.IntegrationTests
 
         private static IEnumerable<SignatureOptions> SignatureOptions()
         {
-            yield return new SignatureOptions(rollingHash: RollingHashAlgorithm.RabinKarp);
-            yield return new SignatureOptions(rollingHash: RollingHashAlgorithm.Adler);
+            yield return new SignatureOptions(rollingHashAlgorithm: RollingHashAlgorithm.RabinKarp);
+            yield return new SignatureOptions(rollingHashAlgorithm: RollingHashAlgorithm.Adler);
         }
     }
 }

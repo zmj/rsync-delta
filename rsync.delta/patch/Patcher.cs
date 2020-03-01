@@ -24,20 +24,11 @@ namespace Rsync.Delta.Patch
 
         public async ValueTask Patch(CancellationToken ct)
         {
-            try
-            {
-                await ReadHeader(ct).ConfigureAwait(false);
-                await ExecuteCommands(ct).ConfigureAwait(false);
-                await _writer.FlushAsync(ct).ConfigureAwait(false);
-                _reader.Complete();
-                _writer.Complete();
-            }
-            catch (Exception ex)
-            {
-                _reader.Complete(ex);
-                _writer.Complete(ex);
-                throw;
-            }
+            await ReadHeader(ct).ConfigureAwait(false);
+            await ExecuteCommands(ct).ConfigureAwait(false);
+            await _writer.FlushAsync(ct).ConfigureAwait(false);
+            _reader.Complete();
+            _writer.Complete();
         }
 
         private async ValueTask ReadHeader(CancellationToken ct)

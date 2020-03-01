@@ -61,7 +61,7 @@ namespace Rsync.Delta.UnitTests
             StrongHashAlgorithm strongHash)
         {
             var output = new MemoryStream();
-            await new Rdiff().Signature(
+            await new Rdiff().SignatureAsync(
                 oldFile: new MemoryStream(tc.Version1),
                 signature: output,
                 new SignatureOptions(

@@ -12,19 +12,19 @@ namespace Rsync.Delta
         private const int _defaultStrongHashLength = 32;
         public int StrongHashLength => _strongHashLength ?? _defaultStrongHashLength;
 
-        private readonly RollingHashAlgorithm? _rollingHash;
-        private const RollingHashAlgorithm _defaultRollingHash = RollingHashAlgorithm.Adler;
-        public RollingHashAlgorithm RollingHash => _rollingHash ?? _defaultRollingHash;
+        private readonly RollingHashAlgorithm? _rollingHashAlgorithm;
+        private const RollingHashAlgorithm _defaultRollingHashAlgorithm = RollingHashAlgorithm.RabinKarp;
+        public RollingHashAlgorithm RollingHashAlgorithm => _rollingHashAlgorithm ?? _defaultRollingHashAlgorithm;
 
-        private readonly StrongHashAlgorithm? _strongHash;
-        private const StrongHashAlgorithm _defaultStrongHash = StrongHashAlgorithm.Blake2b;
-        public StrongHashAlgorithm StrongHash => _strongHash ?? _defaultStrongHash;
+        private readonly StrongHashAlgorithm? _strongHashAlgorithm;
+        private const StrongHashAlgorithm _defaultStrongHashAlgorithm = StrongHashAlgorithm.Blake2b;
+        public StrongHashAlgorithm StrongHash => _strongHashAlgorithm ?? _defaultStrongHashAlgorithm;
 
         public SignatureOptions(
             int blockLength = _defaultBlockLength,
             int strongHashLength = _defaultStrongHashLength,
-            RollingHashAlgorithm rollingHash = _defaultRollingHash,
-            StrongHashAlgorithm strongHash = _defaultStrongHash)
+            RollingHashAlgorithm rollingHashAlgorithm = _defaultRollingHashAlgorithm,
+            StrongHashAlgorithm strongHashAlgorithm = _defaultStrongHashAlgorithm)
         {
             if (blockLength <= 0)
             {
@@ -38,38 +38,31 @@ namespace Rsync.Delta
             }
             _strongHashLength = strongHashLength;
 
-            switch (rollingHash)
+            switch (rollingHashAlgorithm)
             {
                 case RollingHashAlgorithm.Adler:
                 case RollingHashAlgorithm.RabinKarp:
-                    _rollingHash = rollingHash;
+                    _rollingHashAlgorithm = rollingHashAlgorithm;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(rollingHash));
+                    throw new ArgumentOutOfRangeException(nameof(rollingHashAlgorithm));
             }
 
-            switch (strongHash)
+            switch (strongHashAlgorithm)
             {
                 case StrongHashAlgorithm.Md4:
                 case StrongHashAlgorithm.Blake2b:
-                    _strongHash = strongHash;
+                    _strongHashAlgorithm = strongHashAlgorithm;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(strongHash));
+                    throw new ArgumentOutOfRangeException(nameof(strongHashAlgorithm));
             }
         }
-
-        public static SignatureOptions Default =>
-            new SignatureOptions(
-                _defaultBlockLength,
-                _defaultStrongHashLength,
-                _defaultRollingHash,
-                _defaultStrongHash);
 
         public bool Equals(SignatureOptions other) =>
             BlockLength == other.BlockLength &&
             StrongHashLength == other.StrongHashLength &&
-            RollingHash == other.RollingHash &&
+            RollingHashAlgorithm == other.RollingHashAlgorithm &&
             StrongHash == other.StrongHash;
 
         public override bool Equals(object? obj) =>
@@ -79,7 +72,7 @@ namespace Rsync.Delta
             HashCode.Combine(
                 StrongHashLength,
                 BlockLength,
-                RollingHash,
+                RollingHashAlgorithm,
                 StrongHash);
 
         public static bool operator ==(

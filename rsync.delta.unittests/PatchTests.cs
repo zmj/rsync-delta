@@ -40,7 +40,7 @@ namespace Rsync.Delta.UnitTests
         private async Task Patch(TestCase tc)
         {
             var output = new MemoryStream();
-            await new Rdiff().Patch(
+            await new Rdiff().PatchAsync(
                 oldFile: new MemoryStream(tc.Version1),
                 delta: new MemoryStream(tc.Delta),
                 newFile: output,

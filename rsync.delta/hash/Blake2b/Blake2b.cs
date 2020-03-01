@@ -5,7 +5,7 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Hash.Blake2b
 {
-    internal readonly struct Blake2b : IStrongHashAlgorithm
+    internal readonly struct Blake2b : IStrongHashAlgorithm<Blake2b>
     {
         private readonly IMemoryOwner<byte> _scratch;
 
@@ -13,6 +13,8 @@ namespace Rsync.Delta.Hash.Blake2b
         {
             _scratch = memoryPool.Rent(Constants.ScratchLength);
         }
+
+        public Blake2b New(MemoryPool<byte> memoryPool) => new Blake2b(memoryPool);
 
         public void Hash(
             in ReadOnlySequence<byte> data,

@@ -76,7 +76,7 @@ namespace Rsync.Delta.UnitTests
         {
             var output = new MemoryStream();
             var signature = tc.Sig(rollingHash, strongHash);
-            await new Rdiff().Delta(
+            await new Rdiff().DeltaAsync(
                 signature: new MemoryStream(signature),
                 newFile: new MemoryStream(tc.Version2),
                 delta: output,

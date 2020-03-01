@@ -22,17 +22,9 @@ namespace Rsync.Delta.Delta
 
         public async ValueTask<SignatureOptions> ReadHeader(CancellationToken ct)
         {
-            try
-            {
-                var header = await _reader.Read<SignatureHeader>(ct).ConfigureAwait(false) ??
-                    throw new FormatException($"expected {nameof(SignatureHeader)}; got EOF");
-                return header.Options;
-            }
-            catch (Exception ex)
-            {
-                _reader.Complete(ex);
-                throw;
-            }
+            var header = await _reader.Read<SignatureHeader>(ct).ConfigureAwait(false) ??
+                throw new FormatException($"expected {nameof(SignatureHeader)}; got EOF");
+            return header.Options;
         }
 
         public async ValueTask<SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>> ReadSignatures
@@ -42,28 +34,7 @@ namespace Rsync.Delta.Delta
             where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
             where TStrongHashAlgorithm : IStrongHashAlgorithm
         {
-            try
-            {
-                var signatures = new SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>();
-                await ReadSignatures(signatures, options, ct).ConfigureAwait(false);
-                _reader.Complete();
-                return signatures;
-            }
-            catch (Exception ex)
-            {
-                _reader.Complete(ex);
-                throw;
-            }
-        }
-
-        private async ValueTask ReadSignatures
-            <TRollingHashAlgorithm, TStrongHashAlgorithm>
-                (SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm> signatures,
-                SignatureOptions options,
-                CancellationToken ct)
-            where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
-            where TStrongHashAlgorithm : IStrongHashAlgorithm
-        {
+            var signatures = new SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>();
             const int maxSignatures = 1 << 22;
             for (int i = 0; i < maxSignatures; i++)
             {
@@ -72,7 +43,8 @@ namespace Rsync.Delta.Delta
                     (options, ct).ConfigureAwait(false);
                 if (!sig.HasValue)
                 {
-                    return;
+                    _reader.Complete();
+                    return signatures;
                 }
                 long start = options.BlockLength * i;
 #if !NETSTANDARD2_0

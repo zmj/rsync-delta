@@ -25,7 +25,7 @@ namespace Rsync.Delta.Benchmarks
         [Benchmark]
         public async Task Signature()
         {
-            await _rdiff.Signature(
+            await _rdiff.SignatureAsync(
                 new MemoryStream(_content),
                 new NullStream());
         }
