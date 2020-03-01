@@ -10,14 +10,8 @@ using Rsync.Delta.Pipes;
 
 namespace Rsync.Delta.Signature
 {
-    internal interface ISignatureWriter : IDisposable
-    {
-        ValueTask Write(CancellationToken ct);
-    }
-
     internal readonly struct SignatureWriter
-        <TRollingHashAlgorithm, TStrongHashAlgorithm>
-        : ISignatureWriter
+        <TRollingHashAlgorithm, TStrongHashAlgorithm> : IDisposable
         where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
         where TStrongHashAlgorithm : IStrongHashAlgorithm
     {

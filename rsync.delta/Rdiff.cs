@@ -34,7 +34,7 @@ namespace Rsync.Delta
             return SignatureAsync(
                 (oldFile, Task.CompletedTask),
                 (signature, Task.CompletedTask),
-                options,
+                options ?? SignatureOptions.Default,
                 ct);
         }
 
@@ -49,7 +49,7 @@ namespace Rsync.Delta
             return SignatureAsync(
                 oldFile.ToPipeReader(_pipeOptions, ct),
                 (signature, Task.CompletedTask),
-                options,
+                options ?? SignatureOptions.Default,
                 ct);
         }
 
@@ -64,7 +64,7 @@ namespace Rsync.Delta
             return SignatureAsync(
                 (oldFile, Task.CompletedTask),
                 signature.ToPipeWriter(_pipeOptions, ct),
-                options,
+                options ?? SignatureOptions.Default,
                 ct);
         }
 
@@ -79,57 +79,47 @@ namespace Rsync.Delta
             return SignatureAsync(
                 oldFile.ToPipeReader(_pipeOptions, ct),
                 signature.ToPipeWriter(_pipeOptions, ct),
-                options,
+                options ?? SignatureOptions.Default,
                 ct);
         }
 
-        private async Task SignatureAsync(
+        private Task SignatureAsync(
             (PipeReader reader, Task task) oldFile,
             (PipeWriter writer, Task task) signature,
-            SignatureOptions? options,
-            CancellationToken ct)
-        {
-            using var writer = NewSignatureWriter(
-                oldFile.reader,
-                signature.writer,
-                options ?? SignatureOptions.Default,
-                _memoryPool);
-            await Task.WhenAll(
-                oldFile.task,
-                signature.task,
-                writer.Write(ct).AsTask())
-                .ConfigureAwait(false);
-        }
-
-        private static Signature.ISignatureWriter NewSignatureWriter(
-            PipeReader reader,
-            PipeWriter writer,
             SignatureOptions options,
-            MemoryPool<byte> memoryPool)
+            CancellationToken ct)
         {
             return (options.RollingHash, options.StrongHash) switch
             {
                 (RollingHashAlgorithm.RabinKarp, StrongHashAlgorithm.Blake2b) =>
-                    New(new RabinKarp(), new Blake2b(memoryPool)),
+                    SignatureAsync(new RabinKarp(), new Blake2b(_memoryPool)),
                 (RollingHashAlgorithm.Adler, StrongHashAlgorithm.Blake2b) =>
-                    New(new Adler32(), new Blake2b(memoryPool)),
+                    SignatureAsync(new Adler32(), new Blake2b(_memoryPool)),
                 (_, StrongHashAlgorithm.Md4) => throw new NotImplementedException(),
                 _ => throw new ArgumentException($"unknown hash algorithm: {options.RollingHash} {options.StrongHash}")
             };
 
-            Signature.ISignatureWriter New
-                <TRollingHashAlgorithm, TStrongHashAlgorithm>(
-                    TRollingHashAlgorithm rollingHashAlgorithm,
+            async Task SignatureAsync
+                <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                    (TRollingHashAlgorithm rollingHashAlgorithm,
                     TStrongHashAlgorithm strongHashAlgorithm)
                 where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
-                where TStrongHashAlgorithm : IStrongHashAlgorithm =>
-                new Signature.SignatureWriter<TRollingHashAlgorithm, TStrongHashAlgorithm>(
-                    reader,
-                    writer,
+                where TStrongHashAlgorithm : IStrongHashAlgorithm
+            {
+                using var writer = new Signature.SignatureWriter
+                    <TRollingHashAlgorithm, TStrongHashAlgorithm>(
+                    oldFile.reader,
+                    signature.writer,
                     options,
                     rollingHashAlgorithm,
                     strongHashAlgorithm,
-                    memoryPool);
+                    _memoryPool);
+                await Task.WhenAll(
+                    oldFile.task,
+                    signature.task,
+                    writer.Write(ct).AsTask())
+                    .ConfigureAwait(false);
+            }
         }
 
         public Task Delta(
