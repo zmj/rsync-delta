@@ -281,8 +281,12 @@ namespace Rsync.Delta
                     (options, ct).AsTask();
                 await Task.WhenAll(readTask, signature.task).ConfigureAwait(false);
                 var signatures = await readTask.ConfigureAwait(false);
-                using var matcher = new Delta.BlockMatcher(options, signatures, _memoryPool);
-                var writer = new Delta.DeltaWriter(options, matcher, newFile.reader, delta.writer);
+                using var matcher = new Delta.BlockMatcher
+                    <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                    (signatures, options, rollingHashAlgorithm, strongHashAlgorithm, _memoryPool);
+                var writer = new Delta.DeltaWriter
+                    <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                    (options, matcher, newFile.reader, delta.writer);
                 await Task.WhenAll(
                     newFile.task,
                     delta.task,

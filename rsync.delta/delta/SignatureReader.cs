@@ -36,7 +36,7 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        public async ValueTask<SignatureCollection> ReadSignatures
+        public async ValueTask<SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>> ReadSignatures
             <TRollingHashAlgorithm, TStrongHashAlgorithm>
                 (SignatureOptions options,
                 CancellationToken ct)
@@ -45,7 +45,7 @@ namespace Rsync.Delta.Delta
         {
             try
             {
-                var signatures = new SignatureCollection();
+                var signatures = new SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm>();
                 await ReadSignatures(signatures, options, ct).ConfigureAwait(false);
                 _reader.Complete();
                 return signatures;
@@ -57,16 +57,20 @@ namespace Rsync.Delta.Delta
             }
         }
 
-        private async ValueTask ReadSignatures(
-            SignatureCollection signatures,
-            SignatureOptions options,
-            CancellationToken ct)
+        private async ValueTask ReadSignatures
+            <TRollingHashAlgorithm, TStrongHashAlgorithm>
+                (SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm> signatures,
+                SignatureOptions options,
+                CancellationToken ct)
+            where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+            where TStrongHashAlgorithm : IStrongHashAlgorithm
         {
             const int maxSignatures = 1 << 22;
             for (int i = 0; i < maxSignatures; i++)
             {
-                var sig = await _reader.Read<BlockSignature, SignatureOptions>(
-                    options, ct).ConfigureAwait(false);
+                var sig = await _reader.Read
+                    <BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>, SignatureOptions>
+                    (options, ct).ConfigureAwait(false);
                 if (!sig.HasValue)
                 {
                     return;

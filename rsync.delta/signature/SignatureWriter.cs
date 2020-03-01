@@ -85,7 +85,8 @@ namespace Rsync.Delta.Signature
             }
         }
 
-        private BlockSignature ComputeSignature(in ReadOnlySequence<byte> block)
+        private BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm> ComputeSignature
+            (in ReadOnlySequence<byte> block)
         {
             Debug.Assert(block.Length <= _options.BlockLength);
 
@@ -97,7 +98,8 @@ namespace Rsync.Delta.Signature
                 .Span;
             _strongHashAlgorithm.Hash(block, strongHash);
 
-            return new BlockSignature(rollingHash, strongHash);
+            return new BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>
+                (rollingHash, strongHash);
         }
     }
 }

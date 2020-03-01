@@ -6,12 +6,15 @@ using Rsync.Delta.Models;
 
 namespace Rsync.Delta.Delta
 {
-    internal sealed class BlockMatcher : IDisposable
+    internal sealed class BlockMatcher
+        <TRollingHashAlgorithm, TStrongHashAlgorithm> : IDisposable
+        where TRollingHashAlgorithm : struct, IRollingHashAlgorithm
+        where TStrongHashAlgorithm : IStrongHashAlgorithm
     {
-        private readonly Dictionary<BlockSignature, ulong> _blocks;
+        private readonly SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm> _signatures;
         private readonly int _blockLength;
-        private readonly IRollingHashAlgorithm _rollingHash;
-        private readonly IStrongHashAlgorithm _strongHash;
+        private readonly TRollingHashAlgorithm _rollingHashAlgorithm;
+        private readonly TStrongHashAlgorithm _strongHashAlgorithm;
         private readonly IMemoryOwner<byte> _strongHashOwner;
         private readonly Memory<byte> _strongHashMemory;
 
@@ -19,14 +22,16 @@ namespace Rsync.Delta.Delta
         private bool _recalculateStrongHash;
 
         public BlockMatcher(
+            SignatureCollection<TRollingHashAlgorithm, TStrongHashAlgorithm> signatures,
             SignatureOptions options,
-            Dictionary<BlockSignature, ulong> signatures,
+            TRollingHashAlgorithm rollingHashAlgorithm,
+            TStrongHashAlgorithm strongHashAlgorithm,
             MemoryPool<byte> memoryPool)
         {
-            _blocks = signatures;
+            _signatures = signatures;
             _blockLength = options.BlockLength;
-            _rollingHash = HashAlgorithmFactory.Create(options.RollingHash);
-            _strongHash = HashAlgorithmFactory.Create(options.StrongHash, memoryPool);
+            _rollingHashAlgorithm = rollingHashAlgorithm;
+            _strongHashAlgorithm = strongHashAlgorithm;
             _strongHashOwner = memoryPool.Rent(options.StrongHashLength);
             _strongHashMemory = _strongHashOwner.Memory.Slice(0, options.StrongHashLength);            
         }
@@ -38,12 +43,14 @@ namespace Rsync.Delta.Delta
             out LongRange match)
         {
             _sequence = sequence;
-            var block = new SlidingBlock(sequence, _blockLength, isFinalBlock, _rollingHash);
+            var block = new SlidingBlock<TRollingHashAlgorithm>
+                (sequence, _blockLength, isFinalBlock, _rollingHashAlgorithm);
             while (block.TryAdvance(out var start, out var length, out var rollingHash))
             {
                 _recalculateStrongHash = true;
-                var sig = new BlockSignature(rollingHash, this, start, length);
-                if (_blocks.TryGetValue(sig, out ulong matched))
+                var sig = new BlockSignature<TRollingHashAlgorithm, TStrongHashAlgorithm>
+                    (rollingHash, this, start, length);
+                if (_signatures.TryGetValue(sig, out ulong matched))
                 {
                     matchStart = start;
                     match = new LongRange((long)matched, length);
@@ -59,7 +66,7 @@ namespace Rsync.Delta.Delta
         {
             if (_recalculateStrongHash)
             {
-                _strongHash.Hash(
+                _strongHashAlgorithm.Hash(
                     _sequence.Slice(start, length),
                     _strongHashMemory.Span);
                 _recalculateStrongHash = false;
@@ -70,7 +77,7 @@ namespace Rsync.Delta.Delta
         public void Dispose()
         {
             _strongHashOwner.Dispose();
-            _strongHash.Dispose();
+            _strongHashAlgorithm.Dispose();
         }
     }
 }
